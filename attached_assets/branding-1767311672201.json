@@ -1,0 +1,161 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "ui-sans-serif",
+      "count": 56
+    },
+    {
+      "family": "system-ui",
+      "count": 56
+    },
+    {
+      "family": "-apple-system",
+      "count": 56
+    },
+    {
+      "family": "BlinkMacSystemFont",
+      "count": 56
+    },
+    {
+      "family": "Segoe UI",
+      "count": 56
+    },
+    {
+      "family": "Roboto",
+      "count": 56
+    },
+    {
+      "family": "Helvetica Neue",
+      "count": 56
+    },
+    {
+      "family": "Arial",
+      "count": 56
+    },
+    {
+      "family": "Noto Sans",
+      "count": 56
+    },
+    {
+      "family": "sans-serif",
+      "count": 56
+    }
+  ],
+  "colors": {
+    "primary": "#1F2937",
+    "accent": "#FBBF24",
+    "background": "#F1F5F9",
+    "textPrimary": "#525252",
+    "link": "#FBBF24"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "ui-sans-serif",
+      "heading": "ui-sans-serif"
+    },
+    "fontStacks": {
+      "body": [
+        "ui-sans-serif",
+        "system-ui",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "Noto Sans",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ],
+      "heading": [
+        "ui-sans-serif",
+        "system-ui",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "Noto Sans",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ],
+      "paragraph": [
+        "ui-sans-serif",
+        "system-ui",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "Noto Sans",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ]
+    },
+    "fontSizes": {
+      "h1": "36px",
+      "h2": "24px",
+      "body": "14px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "2px"
+  },
+  "components": {
+    "input": {
+      "background": "transparent",
+      "textColor": "#FBBF24",
+      "borderColor": null,
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "https://plane.watch/assets/pw-logo-only-icon-bc608d73490b71b5bf2c1fe82c7cf04ad9b60fba.svg",
+    "favicon": null,
+    "ogImage": null
+  },
+  "__framework_hints": [],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 5,
+    "reasoning": "Strong indicators: links to homepage, visible, top-left position, alt matches logo/brand, src contains logo, src contains brand name \"plane.watch\", reasonable size, body location without header (penalty). Score: 74 (clear winner by 26 points)",
+    "confidence": 0.9
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "confidence": 0
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  }
+}

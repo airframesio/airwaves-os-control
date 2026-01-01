@@ -1,0 +1,140 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Nunito Sans",
+      "count": 51
+    },
+    {
+      "family": "-apple-system",
+      "count": 51
+    },
+    {
+      "family": "BlinkMacSystemFont",
+      "count": 51
+    },
+    {
+      "family": "Segoe UI",
+      "count": 51
+    },
+    {
+      "family": "Roboto",
+      "count": 51
+    },
+    {
+      "family": "Helvetica Neue",
+      "count": 51
+    },
+    {
+      "family": "Arial",
+      "count": 51
+    },
+    {
+      "family": "sans-serif",
+      "count": 51
+    },
+    {
+      "family": "Apple Color Emoji",
+      "count": 51
+    },
+    {
+      "family": "Segoe UI Emoji",
+      "count": 51
+    }
+  ],
+  "colors": {
+    "primary": "#1F9BCF",
+    "accent": "#919AA1",
+    "background": "#FFFFFF",
+    "textPrimary": "#1A1A1A",
+    "link": "#919AA1"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Nunito Sans",
+      "heading": "Nunito Sans"
+    },
+    "fontStacks": {
+      "body": [
+        "Nunito Sans",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol"
+      ],
+      "heading": [
+        "Nunito Sans",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol"
+      ],
+      "paragraph": [
+        "Nunito Sans",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol"
+      ]
+    },
+    "fontSizes": {
+      "h1": "16px",
+      "h2": "16px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "0px"
+  },
+  "components": {},
+  "images": {
+    "logo": "https://www.airplanes.live/img/airplanes-live-logo.png",
+    "favicon": "https://airplanes.live/favicon.png",
+    "ogImage": "https://airplanes.live/img/airplanes-live-logo.png"
+  },
+  "__framework_hints": [
+    "bootstrap"
+  ],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Strong indicators: header logo linking to homepage, header location, visible, highest logo on page, alt matches logo/brand, src contains logo, alt contains brand name \"AIRPLANES.LIVE\", src contains brand name \"AIRPLANES.LIVE\", reasonable size. Score: 133 (clear winner by 133 points)",
+    "confidence": 0.9
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "confidence": 0
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  }
+}
