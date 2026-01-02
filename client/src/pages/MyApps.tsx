@@ -24,7 +24,9 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
-  Power
+  Power,
+  ArrowLeft,
+  Menu
 } from "lucide-react";
 import { 
   AlertDialog,
@@ -41,20 +43,46 @@ import { mockApps } from "@/lib/mockData";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function MyApps() {
   const [apps, setApps] = useState(mockApps.filter(app => app.installed));
   const [selectedAppId, setSelectedAppId] = useState<string>(apps[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const [showDetail, setShowDetail] = useState(false);
 
   const selectedApp = apps.find(app => app.id === selectedAppId);
+
+  // Reset showDetail when switching to desktop
+  useEffect(() => {
+    if (!isMobile) {
+      setShowDetail(true);
+    } else {
+      // On mobile, if we have a selected app initially, we might not want to show it immediately 
+      // unless user navigated there. But for simplicity, let's start with list view on mobile 
+      // unless specifically requested.
+      if (!showDetail) setShowDetail(false); 
+    }
+  }, [isMobile]);
 
   // Filter apps based on search
   const filteredApps = apps.filter(app => 
     app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     app.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleAppSelect = (appId: string) => {
+    setSelectedAppId(appId);
+    if (isMobile) {
+      setShowDetail(true);
+    }
+  };
+
+  const handleBackToList = () => {
+    setShowDetail(false);
+  };
 
   const handleUninstall = (appId: string) => {
     // In a real app, this would make an API call
@@ -64,10 +92,14 @@ export default function MyApps() {
     });
     const newApps = apps.filter(a => a.id !== appId);
     setApps(newApps);
-    if (selectedAppId === appId && newApps.length > 0) {
-      setSelectedAppId(newApps[0].id);
-    } else if (newApps.length === 0) {
+    
+    if (newApps.length === 0) {
       setSelectedAppId("");
+      setShowDetail(false);
+    } else if (selectedAppId === appId) {
+      // Select next available
+      setSelectedAppId(newApps[0].id);
+      if (isMobile) setShowDetail(false); // Go back to list on mobile after uninstall
     }
   };
 
@@ -103,9 +135,12 @@ export default function MyApps() {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-6">
+    <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-6 relative">
       {/* Sidebar - App List */}
-      <div className="w-full lg:w-80 flex flex-col gap-4">
+      <div className={cn(
+        "w-full lg:w-80 flex flex-col gap-4 transition-all duration-300 absolute lg:relative inset-0 z-10 bg-background lg:bg-transparent",
+        isMobile && showDetail ? "-translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
+      )}>
         <div className="flex items-center justify-between px-1">
           <h1 className="text-2xl font-bold tracking-tight">My Apps</h1>
           <Badge variant="outline" className="ml-auto">
@@ -128,10 +163,10 @@ export default function MyApps() {
             {filteredApps.map(app => (
               <div 
                 key={app.id} 
-                onClick={() => setSelectedAppId(app.id)}
+                onClick={() => handleAppSelect(app.id)}
                 className={cn(
                   "group relative p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left",
-                  selectedAppId === app.id 
+                  selectedAppId === app.id && !isMobile
                     ? "bg-card border-primary/50 shadow-md shadow-primary/5 ring-1 ring-primary/20" 
                     : "bg-card/40 border-border/50 hover:bg-card hover:border-border hover:shadow-sm"
                 )}
@@ -139,7 +174,7 @@ export default function MyApps() {
                 <div className="flex items-start gap-3">
                   <div className={cn(
                     "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                    selectedAppId === app.id ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground group-hover:bg-muted/80"
+                    selectedAppId === app.id && !isMobile ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground group-hover:bg-muted/80"
                   )}>
                     <app.icon className="w-5 h-5" />
                   </div>
@@ -187,18 +222,27 @@ export default function MyApps() {
       </div>
 
       {/* Main Content - Detail View */}
-      {selectedApp ? (
-        <div className="flex-1 flex flex-col bg-card/30 backdrop-blur-sm rounded-3xl border border-border/60 shadow-sm overflow-hidden">
+      <div className={cn(
+        "flex-1 flex flex-col bg-card/30 backdrop-blur-sm rounded-3xl border border-border/60 shadow-sm overflow-hidden transition-all duration-300 absolute lg:relative inset-0 z-20 bg-background lg:bg-card/30",
+        isMobile && !showDetail ? "translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
+      )}>
+        {selectedApp ? (
+          <>
           {/* Header */}
           <div className="p-6 md:p-8 border-b border-border/40 bg-card/40">
+            {isMobile && (
+              <Button variant="ghost" size="sm" className="mb-4 pl-0 hover:bg-transparent" onClick={handleBackToList}>
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Apps
+              </Button>
+            )}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
               <div className="flex items-start gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 shadow-inner">
-                  <selectedApp.icon className="w-10 h-10 text-primary" />
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/10 shadow-inner shrink-0">
+                  <selectedApp.icon className="w-8 h-8 md:w-10 md:h-10 text-primary" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-2xl font-bold tracking-tight">{selectedApp.name}</h2>
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <h2 className="text-xl md:text-2xl font-bold tracking-tight">{selectedApp.name}</h2>
                     <Badge variant={selectedApp.status === "running" ? "default" : "secondary"} className={cn(
                       "capitalize", 
                       selectedApp.status === "running" ? "bg-emerald-500 hover:bg-emerald-600 border-transparent" : ""
@@ -207,13 +251,13 @@ export default function MyApps() {
                       {selectedApp.status}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground max-w-lg mb-4 text-sm leading-relaxed">
+                  <p className="text-muted-foreground max-w-lg mb-4 text-sm leading-relaxed line-clamp-2 md:line-clamp-none">
                     {selectedApp.description}
                   </p>
-                  <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs font-medium text-muted-foreground">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/50">
                       <Clock className="w-3.5 h-3.5" />
-                      Uptime: {selectedApp.status === "running" ? "2d 4h 12m" : "-"}
+                      <span className="hidden sm:inline">Uptime:</span> {selectedApp.status === "running" ? "2d 4h" : "-"}
                     </div>
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/50">
                       <Radio className="w-3.5 h-3.5" />
@@ -226,19 +270,19 @@ export default function MyApps() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-2 md:mt-0">
                 <Button 
                   variant={selectedApp.status === "running" ? "destructive" : "default"} 
-                  className={cn("gap-2 shadow-sm", selectedApp.status === "running" ? "" : "bg-emerald-600 hover:bg-emerald-700")}
+                  className={cn("flex-1 md:flex-none gap-2 shadow-sm", selectedApp.status === "running" ? "" : "bg-emerald-600 hover:bg-emerald-700")}
                   onClick={() => toggleAppStatus(selectedApp.id)}
                 >
                   {selectedApp.status === "running" ? (
                     <>
-                      <Power className="w-4 h-4" /> Stop App
+                      <Power className="w-4 h-4" /> Stop <span className="hidden sm:inline">App</span>
                     </>
                   ) : (
                     <>
-                      <Play className="w-4 h-4 fill-current" /> Start App
+                      <Play className="w-4 h-4 fill-current" /> Start <span className="hidden sm:inline">App</span>
                     </>
                   )}
                 </Button>
@@ -270,8 +314,8 @@ export default function MyApps() {
 
           {/* Tabs Content */}
           <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 border-b border-border/40">
-              <TabsList className="bg-transparent h-12 p-0 space-x-6">
+            <div className="px-6 border-b border-border/40 overflow-x-auto no-scrollbar">
+              <TabsList className="bg-transparent h-12 p-0 space-x-6 w-auto justify-start inline-flex">
                 <TabsTrigger value="overview" className="h-full rounded-none border-b-2 border-transparent px-0 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none font-medium">
                   Overview
                 </TabsTrigger>
@@ -285,7 +329,7 @@ export default function MyApps() {
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="p-6 md:p-8">
+              <div className="p-4 md:p-8 pb-20 md:pb-8">
                 <TabsContent value="overview" className="mt-0 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   {/* Resource Usage */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -368,16 +412,16 @@ export default function MyApps() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="logs" className="mt-0 h-[500px] flex flex-col rounded-xl overflow-hidden border border-border/50 bg-black shadow-inner">
+                <TabsContent value="logs" className="mt-0 h-[400px] md:h-[500px] flex flex-col rounded-xl overflow-hidden border border-border/50 bg-black shadow-inner">
                    <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs font-mono">
                      <div className="flex items-center gap-2">
                        <Terminal className="w-3.5 h-3.5" />
-                       <span>/var/log/{selectedApp.id}.log</span>
+                       <span className="truncate max-w-[150px] md:max-w-none">/var/log/{selectedApp.id}.log</span>
                      </div>
                      <div className="flex items-center gap-3">
                        <div className="flex items-center gap-1.5">
                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                         Live
+                         <span className="hidden sm:inline">Live</span>
                        </div>
                        <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-500 hover:text-zinc-300">
                          <RefreshCw className="w-3.5 h-3.5" />
@@ -459,16 +503,17 @@ export default function MyApps() {
               </div>
             </ScrollArea>
           </Tabs>
-        </div>
-      ) : (
-         <div className="flex-1 flex flex-col items-center justify-center bg-card/30 backdrop-blur-sm rounded-3xl border border-border/60 text-muted-foreground p-8 text-center animate-in fade-in duration-500">
-            <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
-               <Settings className="w-10 h-10 text-muted-foreground/50" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Select an App</h3>
-            <p className="max-w-xs mx-auto">Choose an application from the list to manage its settings, view logs, and monitor performance.</p>
-         </div>
-      )}
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+             <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
+                <Settings className="w-10 h-10 text-muted-foreground/50" />
+             </div>
+             <h3 className="text-xl font-semibold mb-2">Select an App</h3>
+             <p className="max-w-xs mx-auto text-muted-foreground">Choose an application from the list to manage its settings, view logs, and monitor performance.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
