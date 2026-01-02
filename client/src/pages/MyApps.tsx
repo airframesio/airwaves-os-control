@@ -136,7 +136,7 @@ export default function MyApps() {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col lg:flex-row gap-6 relative">
+    <div className="h-[calc(100vh-80px)] lg:h-[calc(100vh-3rem)] flex flex-col lg:flex-row gap-6 relative">
       {/* Sidebar - App List */}
       <div className={cn(
         "w-full lg:w-80 flex flex-col gap-4 transition-all duration-300 absolute lg:relative inset-0 z-10 bg-background lg:bg-transparent",

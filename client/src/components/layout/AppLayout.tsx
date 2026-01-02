@@ -144,8 +144,14 @@ export default function AppLayout({ children }: SidebarProps) {
         </header>
 
         {/* Scrollable Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-8 relative">
-           <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden relative",
+          location === "/apps" ? "p-4 lg:p-6" : "p-4 lg:p-8"
+        )}>
+           <div className={cn(
+             "space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
+             location === "/apps" ? "h-full w-full max-w-none" : "max-w-7xl mx-auto"
+           )}>
              {children}
            </div>
         </div>
