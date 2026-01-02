@@ -12,6 +12,7 @@ export interface App {
   installed: boolean;
   cpuUsage: number;
   memoryUsage: number;
+  messageRate?: number;
   assignedDevice?: string;
 }
 
@@ -87,6 +88,7 @@ export const mockApps: App[] = [
     installed: true,
     cpuUsage: 12,
     memoryUsage: 45,
+    messageRate: 15,
     assignedDevice: "dev-1"
   },
   {
@@ -100,6 +102,7 @@ export const mockApps: App[] = [
     installed: true,
     cpuUsage: 5,
     memoryUsage: 120,
+    messageRate: 85,
   },
   {
     id: "readsb",
@@ -112,6 +115,7 @@ export const mockApps: App[] = [
     installed: true,
     cpuUsage: 25,
     memoryUsage: 80,
+    messageRate: 420,
     assignedDevice: "dev-2"
   },
   {
@@ -125,6 +129,7 @@ export const mockApps: App[] = [
     installed: true,
     cpuUsage: 0,
     memoryUsage: 0,
+    messageRate: 0,
   },
   {
     id: "satdump",
@@ -161,6 +166,7 @@ export const mockApps: App[] = [
     installed: true,
     cpuUsage: 15,
     memoryUsage: 60,
+    messageRate: 22,
     assignedDevice: "dev-3"
   },
   {

@@ -199,6 +199,11 @@ export default function MyApps() {
                           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
                             <Database className="w-3 h-3" /> {app.memoryUsage}MB
                           </div>
+                          {app.messageRate !== undefined && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-emerald-600/80 font-medium">
+                              <Activity className="w-3 h-3" /> {app.messageRate}/s
+                            </div>
+                          )}
                         </>
                       )}
                       {app.status !== "running" && (
