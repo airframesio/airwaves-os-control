@@ -29,6 +29,7 @@ function Router() {
 }
 
 function App() {
+  console.log("App mounting...");
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
