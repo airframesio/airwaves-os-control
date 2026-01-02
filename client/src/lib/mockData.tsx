@@ -122,6 +122,18 @@ export const mockApps: App[] = [
     cpuUsage: 15,
     memoryUsage: 60,
     assignedDevice: "dev-3"
+  },
+  {
+    id: "rtl_airband",
+    name: "rtl_airband",
+    description: "Multichannel AM/FM receiver for RTL-SDR, specialized for airband monitoring.",
+    version: "4.0.3",
+    status: "stopped",
+    icon: Radio,
+    category: "aviation",
+    installed: false,
+    cpuUsage: 0,
+    memoryUsage: 0,
   }
 ];
 
