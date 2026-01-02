@@ -44,6 +44,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import AppMetrics from "@/components/AppMetrics";
 
 export default function MyApps() {
   const [apps, setApps] = useState(mockApps.filter(app => app.installed));
@@ -324,6 +325,9 @@ export default function MyApps() {
                 <TabsTrigger value="overview" className="h-full rounded-none border-b-2 border-transparent px-0 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none font-medium">
                   Overview
                 </TabsTrigger>
+                <TabsTrigger value="metrics" className="h-full rounded-none border-b-2 border-transparent px-0 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none font-medium">
+                  Metrics
+                </TabsTrigger>
                 <TabsTrigger value="logs" className="h-full rounded-none border-b-2 border-transparent px-0 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none font-medium">
                   Live Logs
                 </TabsTrigger>
@@ -415,6 +419,10 @@ export default function MyApps() {
                        <div className="flex gap-2"><span className="text-muted-foreground/50">12:05:05</span> <span className="text-emerald-400">[DATA]</span> Packet received: ID #49281</div>
                      </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="metrics" className="mt-0 p-4 md:p-8 pb-20 md:pb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <AppMetrics />
                 </TabsContent>
 
                 <TabsContent value="logs" className="mt-0 h-[400px] md:h-[500px] flex flex-col rounded-xl overflow-hidden border border-border/50 bg-black shadow-inner">
