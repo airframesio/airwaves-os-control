@@ -8,10 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { mockDevices } from "@/lib/mockData";
-import { ArrowLeft, Save, Sliders, Waves, Activity, RefreshCw } from "lucide-react";
+import { ArrowLeft, Save, Sliders, Waves, Activity, RefreshCw, BarChart3 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
+import DeviceMetrics from "@/components/DeviceMetrics";
 
 export default function DeviceConfig() {
   const [, params] = useRoute("/devices/:id/config");
@@ -88,6 +89,7 @@ export default function DeviceConfig() {
             <TabsList className="bg-card border border-border/50 p-1 w-full justify-start overflow-x-auto no-scrollbar">
               <TabsTrigger value="general" className="px-4">General</TabsTrigger>
               <TabsTrigger value="advanced" className="px-4">Advanced</TabsTrigger>
+              <TabsTrigger value="metrics" className="px-4">Metrics</TabsTrigger>
               <TabsTrigger value="driver" className="px-4">Driver Info</TabsTrigger>
             </TabsList>
 
@@ -216,6 +218,10 @@ export default function DeviceConfig() {
                     </div>
                  </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="metrics" className="mt-6">
+              <DeviceMetrics />
             </TabsContent>
             
             <TabsContent value="driver" className="mt-6">
