@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, ArrowUpRight, Cpu, Radio, Server, Wifi } from "lucide-react";
 import { mockApps, mockDevices, mockFeeds, systemStats } from "@/lib/mockData";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import generatedImage from '@assets/generated_images/abstract_waveform_gradient_blue.png';
 import { cn } from "@/lib/utils";
 
 const data = [
@@ -26,7 +25,7 @@ export default function Dashboard() {
     <>
       <div className="relative overflow-hidden rounded-3xl bg-card border border-border/50 shadow-2xl">
         <div className="absolute inset-0 z-0 opacity-40">
-           <img src={generatedImage} alt="Header Background" className="w-full h-full object-cover" />
+           <img src="/header-bg.png" alt="Header Background" className="w-full h-full object-cover" />
            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
         </div>
         
