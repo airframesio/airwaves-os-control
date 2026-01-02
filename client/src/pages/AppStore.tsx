@@ -119,7 +119,7 @@ export default function AppStore() {
             <DialogDescription>
               Configure and deploy this application to your system.
             </DialogDescription>
-          </CardHeader>
+          </DialogHeader>
           
           <div className="py-4">
             {step === 1 && (

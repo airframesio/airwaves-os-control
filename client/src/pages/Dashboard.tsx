@@ -5,6 +5,7 @@ import { Activity, ArrowUpRight, Cpu, Radio, Server, Wifi } from "lucide-react";
 import { mockApps, mockDevices, mockFeeds, systemStats } from "@/lib/mockData";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import generatedImage from '@assets/generated_images/abstract_waveform_gradient_blue.png';
+import { cn } from "@/lib/utils";
 
 const data = [
   { time: "00:00", msgs: 400 },
