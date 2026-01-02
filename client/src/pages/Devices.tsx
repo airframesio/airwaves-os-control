@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Radio, RefreshCw, Settings2, Usb } from "lucide-react";
 import { mockDevices } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 export default function Devices() {
+  const [_, setLocation] = useLocation();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -57,7 +60,12 @@ export default function Devices() {
                  </div>
                  
                  <div className="pt-4 flex gap-2">
-                   <Button variant="outline" size="sm" className="w-full">
+                   <Button 
+                     variant="outline" 
+                     size="sm" 
+                     className="w-full"
+                     onClick={() => setLocation(`/devices/${device.id}/config`)}
+                   >
                      <Settings2 className="w-3 h-3 mr-2" /> Configure
                    </Button>
                  </div>

@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import AppStore from "./pages/AppStore";
 import MyApps from "./pages/MyApps";
 import Devices from "./pages/Devices";
+import DeviceConfig from "./pages/DeviceConfig";
 import Feeds from "./pages/Feeds";
 import Settings from "./pages/Settings";
 import AppLayout from "./components/layout/AppLayout";
@@ -20,6 +21,7 @@ function Router() {
         <Route path="/store" component={AppStore} />
         <Route path="/apps" component={MyApps} />
         <Route path="/devices" component={Devices} />
+        <Route path="/devices/:id/config" component={DeviceConfig} />
         <Route path="/feeds" component={Feeds} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
