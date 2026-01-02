@@ -11,6 +11,7 @@ import Devices from "./pages/Devices";
 import DeviceConfig from "./pages/DeviceConfig";
 import Feeds from "./pages/Feeds";
 import Settings from "./pages/Settings";
+import Systems from "./pages/Systems";
 import AppLayout from "./components/layout/AppLayout";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
         <Route path="/devices" component={Devices} />
         <Route path="/devices/:id/config" component={DeviceConfig} />
         <Route path="/feeds" component={Feeds} />
+        <Route path="/systems" component={Systems} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>

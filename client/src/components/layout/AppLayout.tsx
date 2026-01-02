@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe } from "lucide-react";
+import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "App Catalog", icon: Globe, href: "/store" },
     { label: "Devices", icon: Radio, href: "/devices" },
     { label: "Feeds", icon: Rss, href: "/feeds" },
+    { label: "System Fleet", icon: Server, href: "/systems" },
     { label: "Settings", icon: Settings, href: "/settings" },
   ];
 
@@ -39,12 +41,45 @@ export default function AppLayout({ children }: SidebarProps) {
         )}
       >
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border/50">
-           <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-sidebar-primary">
-             <div className="w-8 h-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center">
+           <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-sidebar-primary w-full">
+             <div className="w-8 h-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center shrink-0">
                 <Terminal className="w-5 h-5 text-sidebar-primary" />
              </div>
-             Airwaves OS
+             <div className="flex-1 min-w-0">
+               <span className="truncate block">Airwaves OS</span>
+             </div>
            </div>
+        </div>
+        
+        {/* System Selector */}
+        <div className="px-3 pt-4">
+           <DropdownMenu>
+             <DropdownMenuTrigger asChild>
+               <Button variant="outline" className="w-full justify-between bg-sidebar-accent/50 border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground group">
+                 <span className="flex items-center gap-2 truncate">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                   Core (This Device)
+                 </span>
+                 <ChevronsUpDown className="w-4 h-4 opacity-50 group-hover:opacity-100" />
+               </Button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent className="w-[230px]" align="start">
+               <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">Switch System</div>
+               <DropdownMenuItem className="gap-2">
+                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                 <span>Core (This Device)</span>
+                 <Check className="w-4 h-4 ml-auto" />
+               </DropdownMenuItem>
+               <DropdownMenuItem className="gap-2">
+                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                 <span>Attic Node</span>
+               </DropdownMenuItem>
+               <DropdownMenuItem className="gap-2 text-muted-foreground">
+                 <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
+                 <span>Garage Node</span>
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-1">

@@ -35,6 +35,46 @@ export interface Feed {
   appId: string;
 }
 
+export interface System {
+  id: string;
+  name: string;
+  hostname: string;
+  ip: string;
+  status: "online" | "offline" | "pairing";
+  role: "primary" | "secondary";
+  lastSeen: string;
+}
+
+export const mockSystems: System[] = [
+  {
+    id: "sys-1",
+    name: "Airwaves Core (This Device)",
+    hostname: "airwaves-core",
+    ip: "192.168.1.100",
+    status: "online",
+    role: "primary",
+    lastSeen: "Just now"
+  },
+  {
+    id: "sys-2",
+    name: "Attic Node",
+    hostname: "airwaves-node-1",
+    ip: "192.168.1.105",
+    status: "online",
+    role: "secondary",
+    lastSeen: "2 mins ago"
+  },
+  {
+    id: "sys-3",
+    name: "Garage Node",
+    hostname: "airwaves-node-2",
+    ip: "192.168.1.106",
+    status: "offline",
+    role: "secondary",
+    lastSeen: "2 days ago"
+  }
+];
+
 export const mockApps: App[] = [
   {
     id: "acarsdec",
