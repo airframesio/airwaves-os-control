@@ -4,7 +4,7 @@ import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Gl
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import logoIcon from "@assets/generated_images/airwaves_os_logo_icon_with_radio_waves.png";
+import logoIcon from "@/assets/airwaves-logo.png";
 
 interface SidebarProps {
   children: React.ReactNode;

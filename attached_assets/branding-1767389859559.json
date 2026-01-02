@@ -1,0 +1,100 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Inter",
+      "count": 70
+    },
+    {
+      "family": "Segoe UI",
+      "count": 70
+    },
+    {
+      "family": "Helvetica Neue",
+      "count": 70
+    },
+    {
+      "family": "Arial",
+      "count": 70
+    },
+    {
+      "family": "sans-serif",
+      "count": 70
+    }
+  ],
+  "colors": {
+    "primary": "#0EA5E9",
+    "accent": "#0F172A",
+    "background": "#F8FAFC",
+    "textPrimary": "#0F172A",
+    "link": "#0F172A"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Inter",
+      "heading": "Inter"
+    },
+    "fontStacks": {
+      "body": [
+        "Inter",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif"
+      ],
+      "heading": [
+        "Inter",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Inter",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "60.8px",
+      "h2": "30.4px",
+      "body": "22.4px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "4px"
+  },
+  "components": {},
+  "images": {
+    "logo": "https://airwavesos.com/airwaves.png",
+    "favicon": "https://airwavesos.com/favicon.ico",
+    "ogImage": "/airwaves-og.png"
+  },
+  "__framework_hints": [],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Strong indicators: header logo linking to homepage, header location, visible, top-left position, highest logo on page, alt exactly matches brand name \"Airwaves OS\", reasonable size. Score: 132 (clear winner by 89 points)",
+    "confidence": 0.9
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "confidence": 0
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  }
+}
