@@ -36,8 +36,8 @@ export default function AppLayout({ children }: SidebarProps) {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:transform-none flex flex-col",
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-200 ease-in-out",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border/50">
