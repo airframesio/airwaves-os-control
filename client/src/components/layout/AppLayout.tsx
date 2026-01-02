@@ -4,6 +4,7 @@ import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Gl
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import logoIcon from "@assets/generated_images/airwaves_os_logo_icon_with_radio_waves.png";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -42,8 +43,8 @@ export default function AppLayout({ children }: SidebarProps) {
       >
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border/50">
            <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-sidebar-primary w-full">
-             <div className="w-8 h-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center shrink-0">
-                <AudioWaveform className="w-5 h-5 text-sidebar-primary" />
+             <div className="w-8 h-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-cover" />
              </div>
              <div className="flex-1 min-w-0">
                <span className="truncate block">Airwaves OS</span>
@@ -133,8 +134,8 @@ export default function AppLayout({ children }: SidebarProps) {
         {/* Mobile Header */}
         <header className="h-16 lg:hidden flex items-center justify-between px-4 border-b border-border bg-background/50 backdrop-blur-md sticky top-0 z-30">
           <div className="flex items-center gap-2 font-bold text-lg">
-             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <AudioWaveform className="w-5 h-5 text-primary" />
+             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
+                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-cover" />
              </div>
              Airwaves OS
           </div>
