@@ -1,20 +1,45 @@
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { Icon } from "leaflet";
+import { divIcon } from "leaflet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plane, Ship, Navigation } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import { renderToStaticMarkup } from 'react-dom/server';
 
-// Fix for default marker icons in React Leaflet
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// Create custom icon function
+const createVehicleIcon = (type: string, heading: number) => {
+  const iconMarkup = renderToStaticMarkup(
+    <div style={{ 
+      transform: `rotate(${heading}deg)`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+      height: '100%'
+    }}>
+      {type === 'aircraft' ? (
+        <Plane 
+          size={24} 
+          className="text-sky-500 fill-sky-500/20" 
+          strokeWidth={2}
+        />
+      ) : (
+        <Ship 
+          size={24} 
+          className="text-emerald-500 fill-emerald-500/20" 
+          strokeWidth={2}
+        />
+      )}
+    </div>
+  );
 
-const DefaultIcon = new Icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
+  return divIcon({
+    html: iconMarkup,
+    className: 'bg-transparent',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+};
 
 // Mock data for aircraft and ships
 const vehicles = [
@@ -64,7 +89,11 @@ export default function Tracking() {
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
           {vehicles.map((v) => (
-            <Marker key={v.id} position={[v.lat, v.lng]} icon={DefaultIcon}>
+            <Marker 
+              key={v.id} 
+              position={[v.lat, v.lng]} 
+              icon={createVehicleIcon(v.type, v.heading)}
+            >
               <Popup className="bg-card text-card-foreground border-border">
                 <div className="p-1">
                   <div className="flex items-center gap-2 mb-2 font-bold text-base">
