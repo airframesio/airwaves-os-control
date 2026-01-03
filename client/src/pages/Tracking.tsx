@@ -52,7 +52,7 @@ const vehicles = [
 
 export default function Tracking() {
   return (
-    <div className="h-[calc(100vh-80px)] lg:h-[calc(100vh-3rem)] flex flex-col relative">
+    <div className="h-full flex flex-col relative">
       <div className="absolute top-4 left-4 z-[400] bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-80">
         <h1 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-primary" />
@@ -78,7 +78,7 @@ export default function Tracking() {
         </div>
       </div>
 
-      <div className="flex-1 rounded-3xl overflow-hidden border border-border/50 relative z-0">
+      <div className="flex-1 overflow-hidden relative z-0">
         <MapContainer 
           center={[37.7, -122.4]} 
           zoom={10} 
