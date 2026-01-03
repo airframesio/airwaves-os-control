@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform } from "lucide-react";
+import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -16,6 +16,7 @@ export default function AppLayout({ children }: SidebarProps) {
 
   const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+    { label: "Map", icon: Map, href: "/map" },
     { label: "My Apps", icon: AppWindow, href: "/apps" },
     { label: "App Catalog", icon: Globe, href: "/store" },
     { label: "Devices", icon: Radio, href: "/devices" },

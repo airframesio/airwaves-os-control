@@ -12,6 +12,7 @@ import DeviceConfig from "./pages/DeviceConfig";
 import Feeds from "./pages/Feeds";
 import Settings from "./pages/Settings";
 import Systems from "./pages/Systems";
+import Tracking from "./pages/Tracking";
 import AppLayout from "./components/layout/AppLayout";
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
     <AppLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/map" component={Tracking} />
         <Route path="/store" component={AppStore} />
         <Route path="/apps" component={MyApps} />
         <Route path="/devices" component={Devices} />
