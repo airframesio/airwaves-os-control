@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight, Sun, Moon, Laptop } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import logoIcon from "@/assets/airwaves-logo.png";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTheme } from "next-themes";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -15,6 +16,13 @@ export default function AppLayout({ children }: SidebarProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const { setTheme, theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -113,6 +121,39 @@ export default function AppLayout({ children }: SidebarProps) {
                  <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
                  <span>Garage Node</span>
                </DropdownMenuItem>
+               
+               <DropdownMenuSeparator />
+               
+               <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">Theme</div>
+               <div className="flex gap-1 px-2 pb-1">
+                 <Button 
+                   variant={theme === 'light' ? 'secondary' : 'ghost'} 
+                   size="sm" 
+                   className="flex-1 h-8 px-0" 
+                   onClick={() => setTheme('light')}
+                 >
+                   <Sun className="h-4 w-4" />
+                   <span className="sr-only">Light</span>
+                 </Button>
+                 <Button 
+                   variant={theme === 'dark' ? 'secondary' : 'ghost'} 
+                   size="sm" 
+                   className="flex-1 h-8 px-0" 
+                   onClick={() => setTheme('dark')}
+                 >
+                   <Moon className="h-4 w-4" />
+                   <span className="sr-only">Dark</span>
+                 </Button>
+                 <Button 
+                   variant={theme === 'system' ? 'secondary' : 'ghost'} 
+                   size="sm" 
+                   className="flex-1 h-8 px-0" 
+                   onClick={() => setTheme('system')}
+                 >
+                   <Laptop className="h-4 w-4" />
+                   <span className="sr-only">System</span>
+                 </Button>
+               </div>
              </DropdownMenuContent>
            </DropdownMenu>
         </div>
