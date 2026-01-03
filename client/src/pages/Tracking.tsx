@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plane, Ship, Navigation } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { renderToStaticMarkup } from 'react-dom/server';
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 // Create custom icon function
 const createVehicleIcon = (type: string, heading: number) => {
@@ -51,6 +53,26 @@ const vehicles = [
 ];
 
 export default function Tracking() {
+  const { theme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Determine actual theme
+  const currentTheme = theme === 'system' ? systemTheme : theme;
+  const isDark = currentTheme === 'dark';
+
+  // Tile layer URLs for different modes
+  const tileLayer = isDark 
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+
+  const mapBackground = isDark ? "#0f172a" : "#f8fafc"; // slate-900 or slate-50
+
+  if (!mounted) return null;
+
   return (
     <div className="h-full flex flex-col relative">
       <div className="absolute top-4 left-4 z-[400] bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-80">
@@ -82,11 +104,12 @@ export default function Tracking() {
         <MapContainer 
           center={[37.7, -122.4]} 
           zoom={10} 
-          style={{ height: "100%", width: "100%", background: "#0f172a" }}
+          style={{ height: "100%", width: "100%", background: mapBackground }}
+          key={currentTheme} // Force re-render on theme change
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            url={tileLayer}
           />
           {vehicles.map((v) => (
             <Marker 
