@@ -50,19 +50,19 @@ export default function AppLayout({ children }: SidebarProps) {
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 ease-in-out",
           mobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0",
-          collapsed ? "lg:w-16" : "lg:w-64"
+          collapsed ? "lg:w-16 items-center" : "lg:w-64"
         )}
       >
         <div className={cn(
-          "h-16 flex items-center border-b border-sidebar-border/50 relative",
+          "h-16 flex items-center border-b border-sidebar-border/50 relative w-full",
           collapsed ? "justify-center px-0" : "px-6"
         )}>
            <div className={cn(
              "flex items-center gap-2 font-bold text-xl tracking-tight text-sidebar-primary w-full",
              collapsed && "justify-center"
             )}>
-             <div className="w-8 h-8 rounded-lg bg-sidebar-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
-                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-cover" />
+             <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-contain" />
              </div>
              {!collapsed && (
                <div className="flex-1 min-w-0 animate-in fade-in duration-300">
@@ -83,14 +83,14 @@ export default function AppLayout({ children }: SidebarProps) {
         </div>
         
         {/* System Selector */}
-        <div className={cn("pt-4", collapsed ? "px-2" : "px-3")}>
+        <div className={cn("pt-4 w-full", collapsed ? "px-2 flex justify-center" : "px-3")}>
            <DropdownMenu>
              <DropdownMenuTrigger asChild>
                <Button 
                  variant="outline" 
                  className={cn(
-                   "w-full bg-sidebar-accent/50 border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground group",
-                   collapsed ? "px-0 justify-center h-10 w-10 p-0 rounded-lg" : "justify-between"
+                   "bg-sidebar-accent/50 border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground group",
+                   collapsed ? "px-0 justify-center h-10 w-10 p-0 rounded-lg" : "w-full justify-between"
                   )}
                 >
                  {!collapsed ? (
@@ -158,7 +158,7 @@ export default function AppLayout({ children }: SidebarProps) {
            </DropdownMenu>
         </div>
 
-        <nav className={cn("flex-1 py-6 space-y-1", collapsed ? "px-2" : "px-3")}>
+        <nav className={cn("flex-1 py-6 space-y-1 w-full", collapsed ? "px-2 flex flex-col items-center" : "px-3")}>
           {navItems.map((item) => {
             const isActive = location === item.href;
             
@@ -196,9 +196,9 @@ export default function AppLayout({ children }: SidebarProps) {
           })}
         </nav>
 
-        <div className={cn("border-t border-sidebar-border/50", collapsed ? "p-2" : "p-4")}>
+        <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex justify-center" : "p-4")}>
           {collapsed ? (
-             <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg">
+             <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
                   <div className="h-full bg-sidebar-primary w-[45%]"></div>
