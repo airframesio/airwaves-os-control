@@ -14,6 +14,7 @@ import Feeds from "./pages/Feeds";
 import Settings from "./pages/Settings";
 import Systems from "./pages/Systems";
 import Tracking from "./pages/Tracking";
+import LiveMessages from "./pages/LiveMessages";
 import AppLayout from "./components/layout/AppLayout";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/map" component={Tracking} />
+        <Route path="/messages" component={LiveMessages} />
         <Route path="/store" component={AppStore} />
         <Route path="/apps" component={MyApps} />
         <Route path="/devices" component={Devices} />

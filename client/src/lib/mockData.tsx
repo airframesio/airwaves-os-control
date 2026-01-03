@@ -257,3 +257,95 @@ export const systemStats = {
   temp: 52,
   uptime: "4d 12h 30m"
 };
+
+export interface Message {
+  id: string;
+  timestamp: string;
+  appId: string;
+  appName: string;
+  frequency: string;
+  mode: string;
+  signalLevel: number;
+  source: string;
+  content: string;
+}
+
+export const mockMessages: Message[] = [
+  {
+    id: "msg-1",
+    timestamp: "2026-01-03 14:30:05",
+    appId: "acarsdec",
+    appName: "acarsdec",
+    frequency: "131.550 MHz",
+    mode: "AM",
+    signalLevel: -12,
+    source: "N12345",
+    content: "ACARS mode: 2 label: 5U block_id: 4 msg_no: M03A flight_id: UA1234 message_content: /POS 3742N12224W"
+  },
+  {
+    id: "msg-2",
+    timestamp: "2026-01-03 14:30:12",
+    appId: "readsb",
+    appName: "readsb",
+    frequency: "1090 MHz",
+    mode: "ADSB",
+    signalLevel: -5,
+    source: "A839B1",
+    content: "DF: 17 CA: 5 TC: 11 (Airborne Position) Altitude: 32000 ft Lat: 37.65 Lon: -122.31"
+  },
+  {
+    id: "msg-3",
+    timestamp: "2026-01-03 14:30:15",
+    appId: "acarshub",
+    appName: "acarshub",
+    frequency: "N/A",
+    mode: "VDL2",
+    signalLevel: -8,
+    source: "G-ABCD",
+    content: "AVLC: 1 dst: Ground src: G-ABCD type: Data content: REQUEST DEPARTURE CLEARANCE"
+  },
+  {
+    id: "msg-4",
+    timestamp: "2026-01-03 14:30:22",
+    appId: "dumpvdl2",
+    appName: "dumpvdl2",
+    frequency: "136.975 MHz",
+    mode: "VDL2",
+    signalLevel: -15,
+    source: "Ground Station",
+    content: "XID: Handoff Request"
+  },
+  {
+    id: "msg-5",
+    timestamp: "2026-01-03 14:30:28",
+    appId: "ais-catcher",
+    appName: "AIS-Catcher",
+    frequency: "162.025 MHz",
+    mode: "AIS",
+    signalLevel: -2,
+    source: "MMSI 123456789",
+    content: "Type: 1 (Position Report Class A) Status: Under way using engine Speed: 12.5 kn Course: 185"
+  },
+  {
+    id: "msg-6",
+    timestamp: "2026-01-03 14:30:35",
+    appId: "readsb",
+    appName: "readsb",
+    frequency: "1090 MHz",
+    mode: "ADSB",
+    signalLevel: -6,
+    source: "C0FFEE",
+    content: "DF: 17 CA: 5 TC: 4 (Identification) Callsign: ACA789"
+  },
+  {
+    id: "msg-7",
+    timestamp: "2026-01-03 14:30:42",
+    appId: "acarsdec",
+    appName: "acarsdec",
+    frequency: "131.550 MHz",
+    mode: "AM",
+    signalLevel: -10,
+    source: "N67890",
+    content: "ACARS mode: E label: Q0 block_id: 8 msg_no: M12B flight_id: DL456 message_content: LINK TEST"
+  }
+];
