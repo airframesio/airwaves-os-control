@@ -1,3 +1,4 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,6 +81,10 @@ export default function Systems() {
       title: "Configuration Saved",
       description: `Node ${selectedSystem.name} updated successfully.`,
     });
+  };
+
+  const getSystemName = (id: string) => {
+    return systems.find(s => s.id === id)?.name || id;
   };
 
   return (
@@ -203,7 +208,7 @@ export default function Systems() {
                     <ArrowRight className="w-3.5 h-3.5" /> Forwarding Data
                   </div>
                   <div className="text-muted-foreground truncate" title={system.forwardingTarget}>
-                    To: <span className="font-mono text-foreground">{system.forwardingTarget}</span>
+                    To: <span className="font-mono text-foreground">{getSystemName(system.forwardingTarget)}</span>
                   </div>
                 </div>
               )}
@@ -265,17 +270,32 @@ export default function Systems() {
 
             {nodeMode === "processing" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300 bg-muted/30 p-4 rounded-md border border-border/50">
-                <Label htmlFor="target">Forwarding Target IP / Hostname</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="target" 
-                    placeholder="e.g. 192.168.1.100" 
-                    value={forwardingTarget}
-                    onChange={(e) => setForwardingTarget(e.target.value)}
-                  />
-                </div>
+                <Label htmlFor="target">Forwarding Target Node</Label>
+                <Select value={forwardingTarget} onValueChange={setForwardingTarget}>
+                  <SelectTrigger id="target" className="w-full bg-background/50">
+                    <SelectValue placeholder="Select a destination node" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {systems
+                      .filter(s => s.id !== selectedSystem?.id && s.status === 'online')
+                      .map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">{s.name}</span>
+                            <span className="text-xs text-muted-foreground">{s.ip}</span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    }
+                    {systems.filter(s => s.id !== selectedSystem?.id && s.status === 'online').length === 0 && (
+                      <div className="p-2 text-xs text-muted-foreground text-center">
+                        No available online nodes found.
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  Ensure the destination node is reachable and configured to accept external data feeds.
+                  Select an active node to receive the decoded data stream.
                 </p>
               </div>
             )}
