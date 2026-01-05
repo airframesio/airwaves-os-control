@@ -277,7 +277,7 @@ export const mockMessages: Message[] = [
     appId: "acarsdec",
     appName: "acarsdec",
     frequency: "131.550 MHz",
-    mode: "AM",
+    mode: "ACARS",
     signalLevel: -12,
     source: "N12345",
     content: "ACARS mode: 2 label: 5U block_id: 4 msg_no: M03A flight_id: UA1234 message_content: /POS 3742N12224W"
@@ -343,7 +343,7 @@ export const mockMessages: Message[] = [
     appId: "acarsdec",
     appName: "acarsdec",
     frequency: "131.550 MHz",
-    mode: "AM",
+    mode: "ACARS",
     signalLevel: -10,
     source: "N67890",
     content: "ACARS mode: E label: Q0 block_id: 8 msg_no: M12B flight_id: DL456 message_content: LINK TEST"
