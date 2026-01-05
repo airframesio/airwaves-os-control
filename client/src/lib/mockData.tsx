@@ -43,6 +43,8 @@ export interface System {
   ip: string;
   status: "online" | "offline" | "pairing";
   role: "primary" | "secondary";
+  mode: "standalone" | "processing";
+  forwardingTarget?: string;
   lastSeen: string;
 }
 
@@ -54,6 +56,7 @@ export const mockSystems: System[] = [
     ip: "192.168.1.100",
     status: "online",
     role: "primary",
+    mode: "standalone",
     lastSeen: "Just now"
   },
   {
@@ -63,6 +66,8 @@ export const mockSystems: System[] = [
     ip: "192.168.1.105",
     status: "online",
     role: "secondary",
+    mode: "processing",
+    forwardingTarget: "192.168.1.100",
     lastSeen: "2 mins ago"
   },
   {
@@ -72,6 +77,7 @@ export const mockSystems: System[] = [
     ip: "192.168.1.106",
     status: "offline",
     role: "secondary",
+    mode: "standalone",
     lastSeen: "2 days ago"
   }
 ];
