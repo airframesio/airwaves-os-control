@@ -37,7 +37,7 @@ export default function AppLayout({ children }: SidebarProps) {
   ];
 
   const systemNavItems = [
-    { label: "System Monitor", icon: Monitor, href: "/monitor" },
+    { label: "Monitor", icon: Monitor, href: "/monitor" },
     { label: "Devices", icon: Radio, href: "/devices" },
     { label: "System Fleet", icon: Server, href: "/systems" },
     { label: "Settings", icon: Settings, href: "/settings" },
