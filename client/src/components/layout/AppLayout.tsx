@@ -40,6 +40,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "System Monitor", icon: Monitor, href: "/monitor" },
     { label: "Devices", icon: Radio, href: "/devices" },
     { label: "System Fleet", icon: Server, href: "/systems" },
+    { label: "Settings", icon: Settings, href: "/settings" },
   ];
 
   // Helper function to render nav link
@@ -214,12 +215,6 @@ export default function AppLayout({ children }: SidebarProps) {
             {collapsed && <div className="h-px w-8 bg-sidebar-border/50 my-3" />}
             {systemNavItems.map((item) => <NavLink key={item.href} item={item} />)}
           </nav>
-        </div>
-
-        <div className={cn("w-full bg-sidebar", collapsed ? "px-2 pb-2" : "px-3 pb-3")}>
-           <nav className="w-full">
-             <NavLink item={{ label: "Settings", icon: Settings, href: "/settings" }} />
-           </nav>
         </div>
 
         <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex justify-center" : "p-4")}>
