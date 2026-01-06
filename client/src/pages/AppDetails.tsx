@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Download, Check, ExternalLink, Globe, HardDrive, Calendar, Server, Radio, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Check, ExternalLink, Globe, HardDrive, Calendar, Server, Radio, Loader2, Github } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -170,7 +170,12 @@ export default function AppDetails() {
               
               {app.website && (
                 <Button variant="outline" className="w-full mt-4" onClick={() => window.open(app.website, '_blank')}>
-                  <ExternalLink className="w-4 h-4 mr-2" /> Developer Website
+                  <Globe className="w-4 h-4 mr-2" /> Website
+                </Button>
+              )}
+              {app.sourceUrl && (
+                <Button variant="outline" className="w-full mt-2" onClick={() => window.open(app.sourceUrl, '_blank')}>
+                  <Github className="w-4 h-4 mr-2" /> Source Code
                 </Button>
               )}
             </CardContent>

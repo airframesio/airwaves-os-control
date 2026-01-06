@@ -18,6 +18,7 @@ export interface App {
   longDescription?: string;
   developer?: string;
   website?: string;
+  sourceUrl?: string; // New field for GitHub/Source Code
   lastUpdate?: string;
   size?: string;
   screenshots?: string[];
@@ -96,7 +97,8 @@ export const mockApps: App[] = [
     description: "A fast, lightweight ACARS decoder for RTL-SDR and other radios.",
     longDescription: "acarsdec is a multi-channel ACARS decoder with built-in error detection. It is designed to be lightweight and efficient, making it perfect for running on low-power devices like Raspberry Pis. It supports up to 8 channels simultaneously and can decode ACARS messages in real-time, outputting them to a local log file or streaming them over the network via UDP/TCP.",
     developer: "TLeconte",
-    website: "https://github.com/TLeconte/acarsdec",
+    website: "https://www.rtl-sdr.com/tag/acarsdec/",
+    sourceUrl: "https://github.com/TLeconte/acarsdec",
     lastUpdate: "2025-11-15",
     size: "4.5 MB",
     version: "3.5.0",
@@ -116,7 +118,8 @@ export const mockApps: App[] = [
     description: "A multi-source ACARS collector and forwarder.",
     longDescription: "ACARS Hub acts as a central aggregator for all your ACARS sources. It can ingest data from acarsdec, dumpvdl2, and other decoders, deduplicate messages, and forward them to various community aggregators like Airframes.io. It provides a web interface for viewing live messages and managing feeds.",
     developer: "Airframes.io",
-    website: "https://github.com/sdr-enthusiasts/acarshub",
+    website: "https://airframes.io",
+    sourceUrl: "https://github.com/sdr-enthusiasts/acarshub",
     lastUpdate: "2025-10-20",
     size: "45 MB",
     version: "2.1.0",
@@ -135,7 +138,8 @@ export const mockApps: App[] = [
     description: "High-performance ADS-B decoder.",
     longDescription: "readsb is a Mode-S/ADS-B/TIS-B decoder for RTL-SDR, Airspy, and other SDRs. It is a fork of dump1090-fa optimized for performance and lower resource usage. It includes a built-in web map for tracking aircraft in real-time and supports feeding data to multiple output formats.",
     developer: "Wiedehopf",
-    website: "https://github.com/wiedehopf/readsb",
+    website: "https://github.com/wiedehopf/readsb", // readsb doesn't really have a separate marketing site
+    sourceUrl: "https://github.com/wiedehopf/readsb",
     lastUpdate: "2025-12-01",
     size: "12 MB",
     version: "3.14.0",
@@ -155,7 +159,8 @@ export const mockApps: App[] = [
     description: "AIS receiver for decoding ship positions.",
     longDescription: "AIS-catcher is a dual-channel AIS receiver for RTL-SDR devices. It decodes AIS messages from ships and transmits them via UDP or TCP. It features advanced DSP algorithms for improved sensitivity and can decode messages even in high-noise environments.",
     developer: "jvde-github",
-    website: "https://github.com/jvde-github/AIS-catcher",
+    website: "https://aiscatcher.org",
+    sourceUrl: "https://github.com/jvde-github/AIS-catcher",
     lastUpdate: "2025-09-30",
     size: "8.2 MB",
     version: "0.41.0",
@@ -174,7 +179,8 @@ export const mockApps: App[] = [
     description: "Powerful satellite signal processing and decoding.",
     longDescription: "SatDump is a comprehensive software for processing and decoding satellite signals. It supports a wide range of weather satellites (NOAA, Meteor, GOES) and other data satellites. It handles everything from demodulation to image processing and projection.",
     developer: "SatDump Team",
-    website: "https://github.com/SatDump/SatDump",
+    website: "https://www.satdump.org",
+    sourceUrl: "https://github.com/SatDump/SatDump",
     lastUpdate: "2025-12-10",
     size: "150 MB",
     version: "1.0.1",
@@ -192,7 +198,8 @@ export const mockApps: App[] = [
     description: "Generic data receiver for 433MHz devices.",
     longDescription: "rtl_433 turns your Realtek RTL2832 based DVB dongle into a 433.92MHz generic data receiver. It can decode signals from hundreds of remote sensors, weather stations, TPMS sensors, and energy meters.",
     developer: "merbanan",
-    website: "https://github.com/merbanan/rtl_433",
+    website: "https://triq.org/rtl_433/",
+    sourceUrl: "https://github.com/merbanan/rtl_433",
     lastUpdate: "2025-11-05",
     size: "6.8 MB",
     version: "22.11",
@@ -211,6 +218,7 @@ export const mockApps: App[] = [
     longDescription: "dumpvdl2 is a VDL Mode 2 message decoder and protocol analyzer. It supports RTL-SDR, Airspy, and SDRPlay devices. VDL Mode 2 is used for Controller-Pilot Data Link Communications (CPDLC) and provides higher data rates than traditional ACARS.",
     developer: "szpajder",
     website: "https://github.com/szpajder/dumpvdl2",
+    sourceUrl: "https://github.com/szpajder/dumpvdl2",
     lastUpdate: "2025-10-15",
     size: "5.5 MB",
     version: "2.3.0",
@@ -231,6 +239,7 @@ export const mockApps: App[] = [
     longDescription: "rtl_airband is a multichannel AM/FM receiver designed for RTL-SDR dongles. It is primarily used for monitoring air traffic control (ATC) communications. It can scan multiple frequencies or monitor a set of frequencies simultaneously and stream the audio to Icecast or save it to MP3 files.",
     developer: "charlie-foxtrot",
     website: "https://github.com/charlie-foxtrot/rtl_airband",
+    sourceUrl: "https://github.com/charlie-foxtrot/rtl_airband",
     lastUpdate: "2025-08-20",
     size: "3.2 MB",
     version: "4.0.3",
