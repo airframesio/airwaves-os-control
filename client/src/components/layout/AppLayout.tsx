@@ -28,7 +28,6 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Map", icon: Map, href: "/map" },
     { label: "Live Messages", icon: MessageSquareText, href: "/messages" },
-    { label: "Monitor", icon: Monitor, href: "/monitor" },
     { label: "Feeds", icon: Rss, href: "/feeds" },
   ];
 
@@ -38,6 +37,7 @@ export default function AppLayout({ children }: SidebarProps) {
   ];
 
   const systemNavItems = [
+    { label: "System Monitor", icon: Monitor, href: "/monitor" },
     { label: "Devices", icon: Radio, href: "/devices" },
     { label: "System Fleet", icon: Server, href: "/systems" },
   ];
