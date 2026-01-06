@@ -51,22 +51,35 @@ export default function MyApps() {
   const [selectedAppId, setSelectedAppId] = useState<string>(apps[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
-  const isMobile = useIsMobile();
+  // We use a custom breakpoint check here because this specific layout 
+  // switches to desktop mode at 'lg' (1024px), not the standard mobile breakpoint.
+  const [isCompact, setIsCompact] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+
+  useEffect(() => {
+    const checkCompact = () => setIsCompact(window.innerWidth < 1024);
+    
+    // Initial check
+    checkCompact();
+    
+    // Listen for resize
+    window.addEventListener('resize', checkCompact);
+    return () => window.removeEventListener('resize', checkCompact);
+  }, []);
 
   const selectedApp = apps.find(app => app.id === selectedAppId);
 
   // Reset showDetail when switching to desktop
   useEffect(() => {
-    if (!isMobile) {
+    if (!isCompact) {
       setShowDetail(true);
     } else {
-      // On mobile, if we have a selected app initially, we might not want to show it immediately 
-      // unless user navigated there. But for simplicity, let's start with list view on mobile 
+      // On mobile/tablet, if we have a selected app initially, we might not want to show it immediately 
+      // unless user navigated there. But for simplicity, let's start with list view 
       // unless specifically requested.
       if (!showDetail) setShowDetail(false); 
     }
-  }, [isMobile]);
+  }, [isCompact]);
 
   // Filter apps based on search
   const filteredApps = apps.filter(app => 
@@ -76,7 +89,7 @@ export default function MyApps() {
 
   const handleAppSelect = (appId: string) => {
     setSelectedAppId(appId);
-    if (isMobile) {
+    if (isCompact) {
       setShowDetail(true);
     }
   };
@@ -100,7 +113,7 @@ export default function MyApps() {
     } else if (selectedAppId === appId) {
       // Select next available
       setSelectedAppId(newApps[0].id);
-      if (isMobile) setShowDetail(false); // Go back to list on mobile after uninstall
+      if (isCompact) setShowDetail(false); // Go back to list on mobile after uninstall
     }
   };
 
@@ -140,7 +153,7 @@ export default function MyApps() {
       {/* Sidebar - App List */}
       <div className={cn(
         "w-full lg:w-80 flex flex-col gap-4 transition-all duration-300 absolute lg:relative inset-0 z-10 bg-background lg:bg-transparent",
-        isMobile && showDetail ? "-translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
+        isCompact && showDetail ? "-translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
       )}>
         <div className="flex items-center justify-between px-1">
           <h1 className="text-2xl font-bold tracking-tight">My Apps</h1>
@@ -167,7 +180,7 @@ export default function MyApps() {
                 onClick={() => handleAppSelect(app.id)}
                 className={cn(
                   "group relative p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left",
-                  selectedAppId === app.id && !isMobile
+                  selectedAppId === app.id && !isCompact
                     ? "bg-card border-primary/50 shadow-md shadow-primary/5 ring-1 ring-primary/20" 
                     : "bg-card/40 border-border/50 hover:bg-card hover:border-border hover:shadow-sm"
                 )}
@@ -175,7 +188,7 @@ export default function MyApps() {
                 <div className="flex items-start gap-3">
                   <div className={cn(
                     "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                    selectedAppId === app.id && !isMobile ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground group-hover:bg-muted/80"
+                    selectedAppId === app.id && !isCompact ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground group-hover:bg-muted/80"
                   )}>
                     <app.icon className="w-5 h-5" />
                   </div>
@@ -230,13 +243,13 @@ export default function MyApps() {
       {/* Main Content - Detail View */}
       <div className={cn(
         "flex-1 flex flex-col bg-card/30 backdrop-blur-sm rounded-3xl border border-border/60 shadow-sm overflow-hidden transition-all duration-300 absolute lg:relative inset-0 z-20 bg-background lg:bg-card/30",
-        isMobile && !showDetail ? "translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
+        isCompact && !showDetail ? "translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
       )}>
         {selectedApp ? (
           <>
           {/* Header */}
           <div className="p-6 md:p-8 border-b border-border/40 bg-card/40">
-            {isMobile && (
+            {isCompact && (
               <Button variant="ghost" size="sm" className="mb-4 pl-0 hover:bg-transparent" onClick={handleBackToList}>
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Apps
               </Button>
