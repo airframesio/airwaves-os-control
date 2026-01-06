@@ -24,18 +24,60 @@ export default function AppLayout({ children }: SidebarProps) {
     setMounted(true);
   }, []);
 
-  const navItems = [
+  const mainNavItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Map", icon: Map, href: "/map" },
     { label: "Live Messages", icon: MessageSquareText, href: "/messages" },
     { label: "Monitor", icon: Monitor, href: "/monitor" },
+    { label: "Feeds", icon: Rss, href: "/feeds" },
+  ];
+
+  const appNavItems = [
     { label: "My Apps", icon: AppWindow, href: "/apps" },
     { label: "App Catalog", icon: Globe, href: "/store" },
-    { label: "Devices", icon: Radio, href: "/devices" },
-    { label: "Feeds", icon: Rss, href: "/feeds" },
-    { label: "System Fleet", icon: Server, href: "/systems" },
-    { label: "Settings", icon: Settings, href: "/settings" },
   ];
+
+  const systemNavItems = [
+    { label: "Devices", icon: Radio, href: "/devices" },
+    { label: "System Fleet", icon: Server, href: "/systems" },
+  ];
+
+  // Helper function to render nav link
+  const NavLink = ({ item }: { item: any }) => {
+    const isActive = location === item.href;
+    
+    if (collapsed) {
+      return (
+        <Tooltip key={item.href} delayDuration={0}>
+          <TooltipTrigger asChild>
+            <Link href={item.href} className={cn(
+              "flex items-center justify-center w-10 h-10 mx-auto rounded-md transition-all duration-200",
+              isActive 
+                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border" 
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            )} onClick={() => setMobileMenuOpen(false)}>
+              <item.icon className={cn("w-5 h-5", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Link href={item.href} className={cn(
+        "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
+        isActive 
+          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border" 
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+      )} onClick={() => setMobileMenuOpen(false)}>
+          <item.icon className={cn("w-5 h-5", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
+          {item.label}
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex overflow-hidden selection:bg-primary/20">
@@ -160,43 +202,25 @@ export default function AppLayout({ children }: SidebarProps) {
            </DropdownMenu>
         </div>
 
-        <nav className={cn("flex-1 py-6 space-y-1 w-full", collapsed ? "px-2 flex flex-col items-center" : "px-3")}>
-          {navItems.map((item) => {
-            const isActive = location === item.href;
+        <div className="flex-1 overflow-y-auto py-6">
+          <nav className={cn("space-y-1 w-full", collapsed ? "px-2 flex flex-col items-center" : "px-3")}>
+            {mainNavItems.map((item) => <NavLink key={item.href} item={item} />)}
             
-            if (collapsed) {
-              return (
-                <Tooltip key={item.href} delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Link href={item.href} className={cn(
-                      "flex items-center justify-center w-10 h-10 mx-auto rounded-md transition-all duration-200",
-                      isActive 
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border" 
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                    )} onClick={() => setMobileMenuOpen(false)}>
-                      <item.icon className={cn("w-5 h-5", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {item.label}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            }
+            {!collapsed && <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-2">Apps</div>}
+            {collapsed && <div className="h-px w-8 bg-sidebar-border/50 my-3" />}
+            {appNavItems.map((item) => <NavLink key={item.href} item={item} />)}
 
-            return (
-              <Link key={item.href} href={item.href} className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
-                isActive 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border" 
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              )} onClick={() => setMobileMenuOpen(false)}>
-                  <item.icon className={cn("w-5 h-5", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
-                  {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+            {!collapsed && <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-2">System</div>}
+            {collapsed && <div className="h-px w-8 bg-sidebar-border/50 my-3" />}
+            {systemNavItems.map((item) => <NavLink key={item.href} item={item} />)}
+          </nav>
+        </div>
+
+        <div className={cn("w-full bg-sidebar", collapsed ? "px-2 pb-2" : "px-3 pb-3")}>
+           <nav className="w-full">
+             <NavLink item={{ label: "Settings", icon: Settings, href: "/settings" }} />
+           </nav>
+        </div>
 
         <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex justify-center" : "p-4")}>
           {collapsed ? (
