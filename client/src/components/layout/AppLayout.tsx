@@ -18,10 +18,21 @@ export default function AppLayout({ children }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [systemStats, setSystemStats] = useState({ cpu: 45, ram: 62 });
 
   // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
+    
+    // Simulate system stats changes
+    const interval = setInterval(() => {
+      setSystemStats(prev => ({
+        cpu: Math.max(10, Math.min(90, prev.cpu + (Math.random() * 10 - 5))),
+        ram: Math.max(20, Math.min(85, prev.ram + (Math.random() * 6 - 3)))
+      }));
+    }, 2000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const mainNavItems = [
@@ -222,10 +233,16 @@ export default function AppLayout({ children }: SidebarProps) {
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
-                  <div className="h-full bg-sidebar-primary w-[45%]"></div>
+                  <div 
+                    className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out" 
+                    style={{ width: `${systemStats.cpu}%` }}
+                  ></div>
                 </div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
-                   <div className="h-full bg-purple-500 w-[62%]"></div>
+                   <div 
+                     className="h-full bg-purple-500 transition-all duration-1000 ease-in-out" 
+                     style={{ width: `${systemStats.ram}%` }}
+                   ></div>
                 </div>
              </div>
           ) : (
@@ -240,17 +257,23 @@ export default function AppLayout({ children }: SidebarProps) {
               <div className="space-y-1.5">
                 <div className="flex justify-between">
                   <span>CPU</span>
-                  <span>45%</span>
+                  <span>{Math.round(systemStats.cpu)}%</span>
                 </div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
-                  <div className="h-full bg-sidebar-primary w-[45%]"></div>
+                  <div 
+                    className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out" 
+                    style={{ width: `${systemStats.cpu}%` }}
+                  ></div>
                 </div>
                 <div className="flex justify-between mt-2">
                   <span>RAM</span>
-                  <span>62%</span>
+                  <span>{Math.round(systemStats.ram)}%</span>
                 </div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
-                   <div className="h-full bg-purple-500 w-[62%]"></div>
+                   <div 
+                     className="h-full bg-purple-500 transition-all duration-1000 ease-in-out" 
+                     style={{ width: `${systemStats.ram}%` }}
+                   ></div>
                 </div>
               </div>
             </div>
