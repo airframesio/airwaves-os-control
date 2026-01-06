@@ -14,6 +14,7 @@ import DeviceConfig from "./pages/DeviceConfig";
 import Feeds from "./pages/Feeds";
 import Settings from "./pages/Settings";
 import Systems from "./pages/Systems";
+import SystemMonitor from "./pages/SystemMonitor";
 import Tracking from "./pages/Tracking";
 import LiveMessages from "./pages/LiveMessages";
 import AppLayout from "./components/layout/AppLayout";
@@ -25,6 +26,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/map" component={Tracking} />
         <Route path="/messages" component={LiveMessages} />
+        <Route path="/monitor" component={SystemMonitor} />
         <Route path="/store" component={AppStore} />
         <Route path="/store/:id" component={AppDetails} />
         <Route path="/apps" component={MyApps} />

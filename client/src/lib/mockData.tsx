@@ -324,8 +324,14 @@ export const systemStats = {
   cpu: 45,
   memory: 62,
   disk: 28,
+  diskTotal: "256 GB",
+  diskUsed: "71.6 GB",
   temp: 52,
-  uptime: "4d 12h 30m"
+  uptime: "4d 12h 30m",
+  os: "Airwaves OS v1.2.0 (Linux 6.1.0)",
+  arch: "aarch64",
+  model: "Raspberry Pi 5 Model B",
+  ip: "192.168.1.100"
 };
 
 export interface Message {
