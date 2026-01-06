@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import NotFound from "./pages/not-found";
 import Dashboard from "./pages/Dashboard";
 import AppStore from "./pages/AppStore";
+import AppDetails from "./pages/AppDetails";
 import MyApps from "./pages/MyApps";
 import Devices from "./pages/Devices";
 import DeviceConfig from "./pages/DeviceConfig";
@@ -25,7 +26,9 @@ function Router() {
         <Route path="/map" component={Tracking} />
         <Route path="/messages" component={LiveMessages} />
         <Route path="/store" component={AppStore} />
+        <Route path="/store/:id" component={AppDetails} />
         <Route path="/apps" component={MyApps} />
+
         <Route path="/devices" component={Devices} />
         <Route path="/devices/:id/config" component={DeviceConfig} />
         <Route path="/feeds" component={Feeds} />
