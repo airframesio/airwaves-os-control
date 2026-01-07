@@ -37,7 +37,7 @@ export interface Device {
 export interface Feed {
   id: string;
   name: string;
-  type: "dedicated_app" | "integrated_option" | "raw_stream";
+  type: "dedicated_app" | "integrated_option" | "raw_stream" | "audio_stream";
   destination: string;
   protocol: "TCP" | "UDP";
   port: number;
@@ -364,6 +364,17 @@ export const mockFeeds: Feed[] = [
     status: "connected",
     messageRate: 22,
     appId: "dumpvdl2"
+  },
+  {
+    id: "feed-5",
+    name: "Tower Audio Feed",
+    type: "audio_stream",
+    destination: "stream.airwaves.local",
+    protocol: "TCP",
+    port: 8000,
+    status: "connected",
+    messageRate: 0,
+    appId: "rtl_airband"
   }
 ];
 
