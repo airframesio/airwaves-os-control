@@ -194,30 +194,41 @@ export default function Tracking() {
 
         for (const feed of enabledFeeds) {
           try {
-            // In a real scenario, we would fetch(feed.url)
-            // For this mockup, we'll simulate data if the URL is a "mock" one or generic
-            // or if the fetch fails (which it likely will due to CORS/network in this environment)
-            
-            // Simulate some vehicles for this feed
-            // Deterministic based on feed ID so they don't jump around too crazily between polls
-            // In real app: const data = await fetch(feed.url).then(r => r.json());
-            
-            const seed = feed.id.charCodeAt(0);
-            const count = 5; 
-            
-            for (let i = 0; i < count; i++) {
-               newExternalVehicles.push({
-                 id: `EXT-${feed.id}-${i}`,
-                 type: 'aircraft',
-                 callsign: `EXT${seed}${i}`,
-                 icao: (seed * 10000 + i).toString(16).toUpperCase(),
-                 lat: 37.7 + (Math.sin(Date.now() / 10000 + i) * 0.5), // Slowly moving
-                 lng: -122.4 + (Math.cos(Date.now() / 10000 + i) * 0.5),
-                 heading: (Date.now() / 100 % 360),
-                 speed: 250,
-                 alt: 15000 + i * 1000
-               });
+            if (!feed.url) continue;
+
+            const response = await fetch(feed.url);
+            if (!response.ok) {
+              console.error(`Failed to fetch feed ${feed.id}: ${response.statusText}`);
+              continue;
             }
+
+            const data = await response.json();
+            
+            // Handle both standard aircraft.json (dump1090/readsb) and potentially array format if simplified
+            // Standard format has "aircraft": [] array
+            const aircraftList = Array.isArray(data) ? data : (data.aircraft || []);
+
+            // Map to internal format
+            aircraftList.forEach((ac: any, index: number) => {
+              // Basic validation - need lat/lon
+              if (ac.lat === undefined || ac.lon === undefined) return;
+
+              // Use hex/flight or generate ID
+              const hex = ac.hex || ac.icao || `UNK${index}`;
+              const callsign = (ac.flight || ac.callsign || hex).trim();
+              
+              newExternalVehicles.push({
+                id: `EXT-${feed.id}-${hex}`,
+                type: 'aircraft',
+                callsign: callsign,
+                icao: hex.toUpperCase(),
+                lat: typeof ac.lat === 'number' ? ac.lat : parseFloat(ac.lat),
+                lng: typeof ac.lon === 'number' ? ac.lon : parseFloat(ac.lon),
+                heading: typeof ac.track === 'number' ? ac.track : (typeof ac.heading === 'number' ? ac.heading : 0),
+                speed: typeof ac.speed === 'number' ? ac.speed : (typeof ac.gs === 'number' ? ac.gs : 0), // gs = ground speed
+                alt: typeof ac.alt_baro === 'number' ? ac.alt_baro : (typeof ac.altitude === 'number' ? ac.altitude : 0)
+              });
+            });
 
           } catch (e) {
             console.error(`Failed to fetch feed ${feed.id}`, e);
