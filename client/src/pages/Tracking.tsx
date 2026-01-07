@@ -3,14 +3,40 @@ import { divIcon } from "leaflet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Plane, Ship, Navigation, X, Clock, MapPin, Radio, Activity, ArrowUpRight } from "lucide-react";
+import { Plane, Ship, Navigation, X, Clock, MapPin, Radio, Activity, ArrowUpRight, Eye } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+
+// Helper to generate simulated path
+const generateSimulatedPath = (vehicle: { lat: number, lng: number, heading: number }) => {
+  const path: [number, number][] = [];
+  let { lat, lng, heading } = vehicle;
+  
+  // Add current position
+  path.push([lat, lng]);
+
+  // Generate 20 points backwards
+  for (let i = 0; i < 20; i++) {
+    const dist = 0.01; 
+    const rad = (90 - heading) * (Math.PI / 180);
+    
+    // Reverse direction
+    lat -= Math.sin(rad) * dist;
+    lng -= Math.cos(rad) * dist;
+    
+    // Slight curve for realism
+    heading += (Math.random() * 10 - 5);
+
+    path.push([lat, lng]);
+  }
+  return path;
+};
 
 // Helper component to update map center
 function MapUpdater({ selectedVehicle }: { selectedVehicle: { lat: number, lng: number } | null }) {
@@ -183,41 +209,17 @@ export default function Tracking() {
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
   const [showFlightPath, setShowFlightPath] = useState(false);
+  const [showAllTrails, setShowAllTrails] = useState(false);
   const [vehicleHistory, setVehicleHistory] = useState<Record<string, [number, number][]>>({});
 
-  // Generate simulated flight path history
+  // Generate simulated flight path history for selected vehicle
   useEffect(() => {
     if (selectedVehicle && showFlightPath) {
       if (selectedVehicle.id.startsWith('EXT-')) {
         // For external vehicles, use real recorded history
         setFlightPath(vehicleHistory[selectedVehicle.id] || []);
       } else {
-        // Create a mock path based on heading and speed, backwards
-        const path: [number, number][] = [];
-        let { lat, lng, heading } = selectedVehicle;
-        
-        // Add current position
-        path.push([lat, lng]);
-  
-        // Generate 20 points backwards
-        for (let i = 0; i < 20; i++) {
-          // Simple projection backwards
-          // 1 degree latitude ~ 60nm
-          // Rough scale for visual
-          const dist = 0.01; 
-          const rad = (90 - heading) * (Math.PI / 180);
-          
-          // Reverse direction
-          lat -= Math.sin(rad) * dist;
-          lng -= Math.cos(rad) * dist;
-          
-          // Slight curve for realism
-          heading += (Math.random() * 10 - 5);
-  
-          path.push([lat, lng]);
-        }
-        
-        setFlightPath(path);
+        setFlightPath(generateSimulatedPath(selectedVehicle));
       }
     } else {
       setFlightPath([]);
@@ -469,6 +471,19 @@ export default function Tracking() {
               <Badge variant="outline" className="font-mono text-[10px] h-5 border-amber-500/30 text-amber-600">{externalVehicles.length}</Badge>
             </div>
           )}
+          
+          <Separator className="my-2" />
+          
+          <div className="flex items-center justify-between text-xs p-2">
+            <span className="flex items-center gap-2 font-medium">
+              <Eye className="w-3 h-3" /> Show All Trails
+            </span>
+            <Switch 
+              checked={showAllTrails}
+              onCheckedChange={setShowAllTrails}
+              className="scale-75 origin-right"
+            />
+          </div>
         </div>
       </div>
 
@@ -487,17 +502,40 @@ export default function Tracking() {
             url={tileLayer}
           />
           
-          {showFlightPath && flightPath.length > 0 && (
-            <Polyline 
-              positions={flightPath}
-              pathOptions={{ 
-                color: selectedVehicle?.type === 'aircraft' ? '#0ea5e9' : '#10b981', // sky-500 or emerald-500
-                weight: 2,
-                opacity: 0.6,
-                dashArray: '4 8'
-              }} 
-            />
-          )}
+          {/* Render trails for all vehicles if enabled, or just the selected one */}
+          {[...vehicles, ...externalVehicles].map(v => {
+            const isSelected = selectedVehicle?.id === v.id;
+            
+            // Should we show this trail?
+            // Yes if: 
+            // 1. Show All Trails is ON
+            // 2. OR this vehicle is selected AND Show Flight Path is ON
+            if (!showAllTrails && (!isSelected || !showFlightPath)) return null;
+
+            // Get path data
+            let path: [number, number][] = [];
+            if (v.id.startsWith('EXT-')) {
+               path = vehicleHistory[v.id] || [];
+            } else {
+               // Only generate simulated path if we need it
+               path = generateSimulatedPath(v);
+            }
+
+            if (path.length < 2) return null;
+
+            return (
+              <Polyline 
+                key={`trail-${v.id}`}
+                positions={path}
+                pathOptions={{ 
+                  color: v.type === 'aircraft' ? '#0ea5e9' : '#10b981', // sky-500 or emerald-500
+                  weight: isSelected ? 3 : 1, // Thicker if selected
+                  opacity: isSelected ? 0.8 : 0.4, // More opaque if selected
+                  dashArray: '4 8'
+                }} 
+              />
+            );
+          })}
 
           {[...vehicles, ...externalVehicles].map((v) => {
             const isSelected = selectedVehicle?.id === v.id;
