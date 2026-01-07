@@ -40,9 +40,28 @@ export default function RtlAirband() {
 
   const handleSaveChannel = () => {
     if (editingChannel) {
-      setChannels(prev => prev.map(c => c.id === editingChannel.id ? editingChannel : c));
+      if (editingChannel.id === -1) {
+        // Create new channel
+        const newId = Math.max(...channels.map(c => c.id), 0) + 1;
+        setChannels(prev => [...prev, { ...editingChannel, id: newId }]);
+      } else {
+        // Update existing channel
+        setChannels(prev => prev.map(c => c.id === editingChannel.id ? editingChannel : c));
+      }
       setEditingChannel(null);
     }
+  };
+
+  const handleAddChannel = () => {
+    setEditingChannel({
+      id: -1,
+      name: "New Channel",
+      freq: "118.000",
+      squelch: 30,
+      gain: 40,
+      status: "idle",
+      scanning: false
+    });
   };
 
   return (
@@ -268,7 +287,7 @@ export default function RtlAirband() {
                   ))}
                 </TableBody>
               </Table>
-              <Button className="w-full">Add New Channel</Button>
+              <Button className="w-full" onClick={handleAddChannel}>Add New Channel</Button>
             </CardContent>
           </Card>
 
@@ -342,7 +361,7 @@ export default function RtlAirband() {
       <Dialog open={!!editingChannel} onOpenChange={(open) => !open && setEditingChannel(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Channel</DialogTitle>
+            <DialogTitle>{editingChannel?.id === -1 ? 'Add New Channel' : 'Edit Channel'}</DialogTitle>
             <DialogDescription>
               Configure frequency and receiver settings for this channel.
             </DialogDescription>
