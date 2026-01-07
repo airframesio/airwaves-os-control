@@ -187,7 +187,7 @@ export default function Tracking() {
         const savedFeeds = localStorage.getItem('external_feeds');
         if (!savedFeeds) return;
 
-        const feeds: Array<{ id: string, url: string, interval: number, enabled: boolean }> = JSON.parse(savedFeeds);
+        const feeds: Array<{ id: string, url: string, interval: number, enabled: boolean, useProxy?: boolean }> = JSON.parse(savedFeeds);
         const enabledFeeds = feeds.filter(f => f.enabled);
 
         const newExternalVehicles: typeof initialVehicles = [];
@@ -200,7 +200,7 @@ export default function Tracking() {
             let fetchUrl = feed.url;
             
             if (useProxy) {
-              fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`;
+              fetchUrl = `https://corsproxy.io/?${encodeURIComponent(feed.url)}`;
             }
 
             const response = await fetch(fetchUrl);
