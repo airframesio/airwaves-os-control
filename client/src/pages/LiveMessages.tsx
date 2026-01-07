@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Activity, Search, Filter, Signal, Pause, Play } from "lucide-react";
+import { Activity, Search, Filter, Signal, Pause, Play, Monitor } from "lucide-react";
+import { useNodeStore } from "@/lib/nodeStore";
 
 const SAMPLE_MESSAGES = [
   {
@@ -33,17 +34,31 @@ const SAMPLE_MESSAGES = [
 ];
 
 export default function LiveMessages() {
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const { activeNode, data } = useNodeStore();
+  const runningAppIds = data.apps.filter(a => a.status === 'running').map(a => a.id);
+  
+  // Initialize messages filtered by the current node's running apps
+  const [messages, setMessages] = useState<Message[]>([]);
   const [filterApp, setFilterApp] = useState("all");
   const [filterMode, setFilterMode] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isPaused, setIsPaused] = useState(false);
 
+  // Reset messages when active node changes
+  useEffect(() => {
+    setMessages(mockMessages.filter(m => runningAppIds.includes(m.appId)));
+  }, [activeNode.id]);
+
   useEffect(() => {
     if (isPaused) return;
 
+    // Filter templates to only include running apps on this node
+    const validTemplates = SAMPLE_MESSAGES.filter(t => runningAppIds.includes(t.appId));
+
+    if (validTemplates.length === 0) return;
+
     const interval = setInterval(() => {
-      const template = SAMPLE_MESSAGES[Math.floor(Math.random() * SAMPLE_MESSAGES.length)];
+      const template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
       const id = Math.random().toString(36).substr(2, 9);
       
       const newMessage: Message = {
@@ -62,7 +77,7 @@ export default function LiveMessages() {
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, activeNode.id]); // Re-run if node or pause state changes
 
   const filteredMessages = messages.filter(msg => {
     const matchesApp = filterApp === "all" || msg.appId === filterApp;
@@ -75,9 +90,9 @@ export default function LiveMessages() {
     return matchesApp && matchesMode && matchesSearch;
   });
 
-  // Get unique apps and modes for filter dropdowns
-  const apps = Array.from(new Set(mockMessages.map(m => m.appName)));
-  const modes = Array.from(new Set(mockMessages.map(m => m.mode)));
+  // Get unique apps and modes for filter dropdowns based on available data
+  const apps = Array.from(new Set(messages.map(m => m.appName)));
+  const modes = Array.from(new Set(messages.map(m => m.mode)));
 
   return (
     <div className="space-y-6">
@@ -87,16 +102,24 @@ export default function LiveMessages() {
             <Activity className="w-8 h-8 text-primary" />
             Live Messages
           </h1>
-          <p className="text-muted-foreground mt-1">Real-time decoded data stream from all active applications.</p>
+          <p className="text-muted-foreground mt-1">
+            Real-time decoded data stream for <span className="font-medium text-foreground">{activeNode.name}</span>
+          </p>
         </div>
-        <Button 
-          variant={isPaused ? "default" : "outline"}
-          onClick={() => setIsPaused(!isPaused)}
-          className="w-full md:w-auto"
-        >
-          {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
-          {isPaused ? "Resume Feed" : "Pause Feed"}
-        </Button>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Badge variant="outline" className="hidden md:flex h-10 px-4 gap-2 text-sm font-normal">
+             <Monitor className="w-4 h-4 text-muted-foreground" />
+             {activeNode.hostname}
+          </Badge>
+          <Button 
+            variant={isPaused ? "default" : "outline"}
+            onClick={() => setIsPaused(!isPaused)}
+            className="w-full md:w-auto"
+          >
+            {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+            {isPaused ? "Resume Feed" : "Pause Feed"}
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
@@ -122,7 +145,7 @@ export default function LiveMessages() {
                 <SelectContent>
                   <SelectItem value="all">All Apps</SelectItem>
                   {apps.map(app => (
-                    <SelectItem key={app} value={mockMessages.find(m => m.appName === app)?.appId || app}>{app}</SelectItem>
+                    <SelectItem key={app} value={messages.find(m => m.appName === app)?.appId || app}>{app}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
