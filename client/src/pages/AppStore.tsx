@@ -61,7 +61,7 @@ export default function AppStore() {
             <div 
               key={app.id} 
               className="group cursor-pointer flex flex-col h-full rounded-3xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden"
-              onClick={() => !app.installed && app.status !== 'installing' ? installApp(app.id) : null}
+              onClick={() => setLocation(`/store/${app.id}`)}
             >
               <div className="p-6 flex flex-col h-full">
                 <div className="flex items-start justify-between mb-4">
