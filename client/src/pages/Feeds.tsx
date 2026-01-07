@@ -326,36 +326,38 @@ export default function Feeds() {
                  </div>
               </div>
               
-              <div className="p-5 flex items-center gap-6 border-t md:border-t-0 md:border-l border-border/50 bg-background/30 backdrop-blur-[2px] w-full md:w-auto justify-between md:justify-end">
-                 <div className="text-center min-w-[80px]">
-                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Source</div>
-                   <div className="font-medium text-sm flex items-center justify-center gap-1.5">
-                     <div className="w-2 h-2 rounded-full bg-primary/40"></div>
-                     {feed.appId}
+              <div className="p-4 md:p-5 flex flex-col md:flex-row items-stretch md:items-center border-t md:border-t-0 md:border-l border-border/50 bg-background/30 backdrop-blur-[2px] w-full md:w-auto">
+                 <div className="flex items-center justify-between md:justify-end gap-4 md:gap-6 mb-4 md:mb-0">
+                   <div className="text-center min-w-[70px] md:min-w-[80px]">
+                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Source</div>
+                     <div className="font-medium text-sm flex items-center justify-center gap-1.5">
+                       <div className="w-2 h-2 rounded-full bg-primary/40"></div>
+                       {feed.appId}
+                     </div>
                    </div>
-                 </div>
-                 <div className="text-center min-w-[80px]">
-                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Rate</div>
-                   <div className="font-medium font-mono text-sm">
-                     {feed.type === 'audio_stream' ? (
-                        <span className="flex items-center gap-1.5 text-green-600">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                   <div className="text-center min-w-[70px] md:min-w-[80px]">
+                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Rate</div>
+                     <div className="font-medium font-mono text-sm flex justify-center">
+                       {feed.type === 'audio_stream' ? (
+                          <span className="flex items-center justify-center gap-1.5 text-green-600">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            Live
                           </span>
-                          Live
-                        </span>
-                     ) : (
-                       `${feed.messageRate}/min`
-                     )}
+                       ) : (
+                         `${feed.messageRate}/min`
+                       )}
+                     </div>
                    </div>
-                 </div>
-                 <div className="text-center min-w-[80px]">
-                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Upload</div>
-                   <div className="font-medium font-mono text-sm">{feed.bandwidth} kbps</div>
+                   <div className="text-center min-w-[70px] md:min-w-[80px]">
+                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Upload</div>
+                     <div className="font-medium font-mono text-sm">{feed.bandwidth} kbps</div>
+                   </div>
                  </div>
                  
-                 <div className="flex gap-2 pl-6 ml-2 border-l border-border/50">
+                 <div className="flex gap-2 justify-end md:pl-6 md:ml-6 md:border-l border-border/50 pt-3 md:pt-0 border-t md:border-t-0 border-border/50">
                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" title={typeDetails.actionLabel}>
                      {feed.type === "raw_stream" ? <Edit className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
                    </Button>
