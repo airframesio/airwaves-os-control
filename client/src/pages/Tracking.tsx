@@ -70,35 +70,48 @@ const createVehicleIcon = (type: string, heading: number, zoom: number, isSelect
 
   const iconMarkup = renderToStaticMarkup(
     <div style={{ 
-      transform: `rotate(${heading + rotationOffset}deg)`,
+      position: 'relative',
+      width: '100%',
+      height: '100%',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      width: '100%',
-      height: '100%',
-      transition: 'all 0.3s ease',
-      filter: isSelected ? `drop-shadow(0 0 6px ${type === 'aircraft' ? '#0ea5e9' : '#10b981'})` : 'none'
     }}>
-      {zoom < 6 ? (
-        // Simple dot for low zoom
-        <div className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : 'bg-emerald-500'} ${isSelected ? 'ring-2 ring-white scale-150' : ''}`} />
-      ) : (
-        type === 'aircraft' ? (
-          <Plane 
-            size={size} 
-            className={`${isSelected ? 'text-sky-400 fill-sky-500/40' : 'text-sky-500 fill-sky-500/20'}`}
-            strokeWidth={isSelected ? 3 : 2}
-          />
+      {/* Target indicator for selected vehicle */}
+      {isSelected && (
+        <div className="absolute inset-[-8px] border-2 border-orange-500 rounded-full animate-pulse opacity-80" />
+      )}
+      
+      <div style={{ 
+        transform: `rotate(${heading + rotationOffset}deg)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        transition: 'all 0.3s ease',
+      }}>
+        {zoom < 6 ? (
+          // Simple dot for low zoom
+          <div className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : 'bg-emerald-500'} ${isSelected ? 'ring-2 ring-white scale-150' : ''}`} />
         ) : (
-          <div style={{ transform: 'rotate(-90deg)' }}> 
-            <Ship 
+          type === 'aircraft' ? (
+            <Plane 
               size={size} 
-              className={`${isSelected ? 'text-emerald-400 fill-emerald-500/40' : 'text-emerald-500 fill-emerald-500/20'}`}
+              className={`${isSelected ? 'text-sky-400 fill-sky-500/40' : 'text-sky-500 fill-sky-500/20'}`}
               strokeWidth={isSelected ? 3 : 2}
             />
-          </div>
-        )
-      )}
+          ) : (
+            <div style={{ transform: 'rotate(-90deg)' }}> 
+              <Ship 
+                size={size} 
+                className={`${isSelected ? 'text-emerald-400 fill-emerald-500/40' : 'text-emerald-500 fill-emerald-500/20'}`}
+                strokeWidth={isSelected ? 3 : 2}
+              />
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 
