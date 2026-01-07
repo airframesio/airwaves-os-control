@@ -39,7 +39,6 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Map", icon: Map, href: "/map" },
     { label: "Live Messages", icon: MessageSquareText, href: "/messages" },
-    { label: "Feeds", icon: Rss, href: "/feeds" },
   ];
 
   const appNavItems = [
@@ -51,6 +50,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Monitor", icon: Monitor, href: "/monitor" },
     { label: "Devices", icon: Radio, href: "/devices" },
     { label: "Fleet", icon: Server, href: "/systems" },
+    { label: "Feeds", icon: Rss, href: "/feeds" },
     { label: "Settings", icon: Settings, href: "/settings" },
   ];
 
