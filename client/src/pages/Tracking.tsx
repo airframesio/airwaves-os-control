@@ -529,8 +529,8 @@ export default function Tracking() {
                 positions={path}
                 pathOptions={{ 
                   color: v.type === 'aircraft' ? '#0ea5e9' : '#10b981', // sky-500 or emerald-500
-                  weight: isSelected ? 3 : 1, // Thicker if selected
-                  opacity: isSelected ? 0.8 : 0.4, // More opaque if selected
+                  weight: isSelected ? 3 : 2, // Thicker if selected, slightly thicker for all trails
+                  opacity: isSelected ? 0.8 : 0.6, // More opaque for all trails
                   dashArray: '4 8'
                 }} 
               />
