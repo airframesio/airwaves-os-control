@@ -10,7 +10,7 @@ import { Plane, Ship, Navigation, X, Clock, MapPin, Radio, Activity, ArrowUpRigh
 import "leaflet/dist/leaflet.css";
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 // Helper to generate simulated path
@@ -206,11 +206,17 @@ export default function Tracking() {
   const [externalVehicles, setExternalVehicles] = useState<typeof initialVehicles>([]);
   const [zoom, setZoom] = useState(10);
   const [selectedVehicle, setSelectedVehicle] = useState<typeof initialVehicles[0] | null>(null);
+  const selectedVehicleRef = useRef(selectedVehicle);
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
   const [showFlightPath, setShowFlightPath] = useState(false);
   const [showAllTrails, setShowAllTrails] = useState(false);
   const [vehicleHistory, setVehicleHistory] = useState<Record<string, [number, number][]>>({});
+
+  // Keep ref synced with state
+  useEffect(() => {
+    selectedVehicleRef.current = selectedVehicle;
+  }, [selectedVehicle]);
 
   // Generate simulated flight path history for selected vehicle
   useEffect(() => {
@@ -303,15 +309,29 @@ export default function Tracking() {
         // Update history for external vehicles
         setVehicleHistory(prev => {
           const next = { ...prev };
+          const currentIds = new Set(newExternalVehicles.map(v => v.id));
           let hasChanges = false;
           
+          // 1. Add/Update existing
           newExternalVehicles.forEach(v => {
             const existing = next[v.id] || [];
             // Check distance to avoid duplicates if stationary (approx 1m)
             const last = existing[existing.length - 1];
             if (!last || Math.abs(last[0] - v.lat) > 0.00001 || Math.abs(last[1] - v.lng) > 0.00001) {
-               next[v.id] = [...existing, [v.lat, v.lng]].slice(-100); // Keep last 100 points
+               next[v.id] = [...existing, [v.lat, v.lng]].slice(-200); // Keep last 200 points
                hasChanges = true;
+            }
+          });
+
+          // 2. Remove stale vehicles from history (cleanup)
+          // Keep history ONLY if vehicle is still present OR if it's the currently selected vehicle
+          Object.keys(next).forEach(id => {
+            if (!currentIds.has(id)) {
+              // If it's not the selected vehicle, remove it to prevent memory leaks and stale trails
+              if (selectedVehicleRef.current?.id !== id) {
+                 delete next[id];
+                 hasChanges = true;
+              }
             }
           });
           
@@ -319,8 +339,8 @@ export default function Tracking() {
         });
 
         // Update selected vehicle if it's external
-        if (selectedVehicle && selectedVehicle.id.startsWith('EXT-')) {
-          const updatedExternal = newExternalVehicles.find(v => v.id === selectedVehicle.id);
+        if (selectedVehicleRef.current && selectedVehicleRef.current.id.startsWith('EXT-')) {
+          const updatedExternal = newExternalVehicles.find(v => v.id === selectedVehicleRef.current?.id);
           if (updatedExternal) {
             setSelectedVehicle(updatedExternal);
           }
@@ -395,8 +415,8 @@ export default function Tracking() {
         });
 
         // Update selected vehicle reference if one is selected
-        if (selectedVehicle) {
-          const updatedSelected = nextVehicles.find(v => v.id === selectedVehicle.id);
+        if (selectedVehicleRef.current) {
+          const updatedSelected = nextVehicles.find(v => v.id === selectedVehicleRef.current?.id);
           if (updatedSelected) {
             setSelectedVehicle(updatedSelected);
           }
@@ -410,7 +430,7 @@ export default function Tracking() {
       clearInterval(interval);
       clearInterval(feedInterval);
     };
-  }, [selectedVehicle]); // Add selectedVehicle to dependency to keep it updated
+  }, []); // Only run once on mount, use refs for dynamic values
 
   // Determine actual theme
   const currentTheme = theme === 'system' ? systemTheme : theme;
