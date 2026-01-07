@@ -36,9 +36,26 @@ export default function Feeds() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedAggregator, setSelectedAggregator] = useState<string>("custom");
   const [selectedSource, setSelectedSource] = useState<string>("");
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("");
 
   const activeAggregator = aggregators.find(a => a.id === selectedAggregator);
   const sourceApps = mockApps.filter(app => ["aviation", "maritime"].includes(app.category));
+
+  const handleAggregatorChange = (id: string) => {
+    setSelectedAggregator(id);
+    const agg = aggregators.find(a => a.id === id);
+    if (agg) {
+       if (agg.defaultDest) {
+         const [h, p] = agg.defaultDest.split(':');
+         setHost(h);
+         setPort(p);
+       } else {
+         setHost("");
+         setPort("");
+       }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -101,7 +118,7 @@ export default function Feeds() {
                           "cursor-pointer rounded-lg border p-4 hover:border-primary transition-all relative",
                           selectedAggregator === agg.id ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card"
                         )}
-                        onClick={() => setSelectedAggregator(agg.id)}
+                        onClick={() => handleAggregatorChange(agg.id)}
                       >
                         {selectedAggregator === agg.id && (
                           <div className="absolute top-2 right-2 text-primary">
@@ -132,11 +149,11 @@ export default function Feeds() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Destination Host / IP</Label>
-                      <Input defaultValue={activeAggregator?.defaultDest?.split(':')[0] || ""} placeholder="e.g. 1.2.3.4" />
+                      <Input value={host} onChange={e => setHost(e.target.value)} placeholder="e.g. 1.2.3.4" />
                     </div>
                     <div className="space-y-2">
                       <Label>Port</Label>
-                      <Input defaultValue={activeAggregator?.defaultDest?.split(':')[1] || ""} placeholder="e.g. 30005" />
+                      <Input value={port} onChange={e => setPort(e.target.value)} placeholder="e.g. 30005" />
                     </div>
                   </div>
                 )}
