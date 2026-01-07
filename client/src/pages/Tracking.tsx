@@ -12,6 +12,22 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+// Helper component to update map center
+function MapUpdater({ selectedVehicle }: { selectedVehicle: { lat: number, lng: number } | null }) {
+  const map = useMapEvents({});
+  
+  useEffect(() => {
+    if (selectedVehicle) {
+      map.setView([selectedVehicle.lat, selectedVehicle.lng], map.getZoom(), {
+        animate: true,
+        duration: 0.1 // Short duration for smoother following
+      });
+    }
+  }, [selectedVehicle, map]);
+
+  return null;
+}
+
 // Helper component to track map zoom
 function MapEvents({ setZoom }: { setZoom: (z: number) => void }) {
   const map = useMapEvents({
@@ -256,6 +272,7 @@ export default function Tracking() {
           key={currentTheme} // Force re-render on theme change
         >
           <MapEvents setZoom={setZoom} />
+          <MapUpdater selectedVehicle={selectedVehicle} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
