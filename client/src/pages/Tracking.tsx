@@ -84,22 +84,42 @@ const initialVehicles = [
     id: `A${i + 1}`,
     type: "aircraft",
     callsign: `FLT${100 + i}`,
-    lat: 37.7 + (Math.random() - 0.5) * 2,
-    lng: -122.4 + (Math.random() - 0.5) * 2,
+    // Aircraft can be anywhere
+    lat: 37.7 + (Math.random() - 0.5) * 3,
+    lng: -122.4 + (Math.random() - 0.5) * 3,
     heading: Math.floor(Math.random() * 360),
-    speed: 250 + Math.floor(Math.random() * 300),
+    // Realistic aircraft speeds (150-550 knots)
+    speed: 150 + Math.floor(Math.random() * 400),
     alt: 5000 + Math.floor(Math.random() * 30000)
   })),
-  ...Array.from({ length: 100 }, (_, i) => ({
-    id: `M${i + 1}`,
-    type: "ship",
-    callsign: `VESSEL${100 + i}`,
-    lat: 37.7 + (Math.random() - 0.5) * 2,
-    lng: -122.4 + (Math.random() - 0.5) * 2,
-    heading: Math.floor(Math.random() * 360),
-    speed: 10 + Math.floor(Math.random() * 20),
-    alt: undefined
-  }))
+  ...Array.from({ length: 100 }, (_, i) => {
+    // Ships restricted to water areas (roughly)
+    // Pacific Ocean (West of SF) or Bay Area
+    const isOcean = Math.random() > 0.3;
+    let lat, lng;
+    
+    if (isOcean) {
+      // Pacific Ocean - West of SF coastline approx -122.55
+      lat = 37.0 + Math.random() * 1.5; // 37.0 to 38.5
+      lng = -123.5 + Math.random() * 0.9; // -123.5 to -122.6
+    } else {
+      // SF Bay (rough approximation)
+      lat = 37.6 + Math.random() * 0.3;
+      lng = -122.35 + Math.random() * 0.1;
+    }
+
+    return {
+      id: `M${i + 1}`,
+      type: "ship",
+      callsign: `VESSEL${100 + i}`,
+      lat,
+      lng,
+      heading: Math.floor(Math.random() * 360),
+      // Realistic ship speeds (10-35 knots)
+      speed: 10 + Math.floor(Math.random() * 25),
+      alt: undefined
+    };
+  })
 ];
 
 export default function Tracking() {
@@ -121,8 +141,8 @@ export default function Tracking() {
           // 1 degree latitude ~ 60nm
           // Speed in knots = nm/hour
           // degrees/sec = (speed / 3600) / 60
-          // We'll slow it down even more for the visual so they don't fly off screen instantly
-          const speedFactor = 0.000005; 
+          // We'll slow it down slightly for the visual scale
+          const speedFactor = 0.000003; 
           const moveDist = v.speed * speedFactor;
           
           // Calculate new position based on heading
@@ -134,19 +154,41 @@ export default function Tracking() {
           const newLat = v.lat + Math.sin(rad) * moveDist;
           const newLng = v.lng + Math.cos(rad) * moveDist;
 
+          // Constraints logic
+          let nextLat = newLat;
+          let nextLng = newLng;
+          let nextHeading = v.heading;
+
+          if (v.type === 'ship') {
+             // Simple bounding box checks to keep ships roughly in water
+             // West boundary (Ocean) -> East boundary (Coast)
+             // Very rough approximation of SF coastline + Bay
+             
+             const isOcean = nextLng < -122.55;
+             const isBay = nextLng > -122.45 && nextLng < -122.2 && nextLat > 37.55 && nextLat < 38.1;
+             
+             if (!isOcean && !isBay) {
+                // If hit land/boundary, turn around
+                nextHeading = (v.heading + 180) % 360;
+                // Bounce back slightly
+                nextLat = v.lat;
+                nextLng = v.lng;
+             }
+          }
+
           // Random slight heading wobble
           const wobble = (Math.random() * 2 - 1); // +/- 1 degree
-          let newHeading = v.heading + wobble;
+          nextHeading = nextHeading + wobble;
           
           // Keep heading 0-360
-          if (newHeading < 0) newHeading += 360;
-          if (newHeading >= 360) newHeading -= 360;
+          if (nextHeading < 0) nextHeading += 360;
+          if (nextHeading >= 360) nextHeading -= 360;
 
           return {
             ...v,
-            lat: newLat,
-            lng: newLng,
-            heading: newHeading
+            lat: nextLat,
+            lng: nextLng,
+            heading: nextHeading
           };
         });
 
