@@ -112,7 +112,23 @@ export function NodeProvider({ children }: { children: ReactNode }) {
 
   const [nodeData, setNodeData] = useState<Record<string, NodeData>>(() => {
     const saved = localStorage.getItem('nodeData');
-    return saved ? JSON.parse(saved) : generateInitialData();
+    if (saved) {
+      const parsed: Record<string, NodeData> = JSON.parse(saved);
+      // Re-hydrate app icons from mockApps since they are lost during JSON serialization
+      Object.keys(parsed).forEach(nodeId => {
+        if (parsed[nodeId].apps) {
+          parsed[nodeId].apps = parsed[nodeId].apps.map(savedApp => {
+            const originalApp = mockApps.find(a => a.id === savedApp.id);
+            if (originalApp) {
+              return { ...savedApp, icon: originalApp.icon };
+            }
+            return savedApp;
+          });
+        }
+      });
+      return parsed;
+    }
+    return generateInitialData();
   });
 
   const [nodes] = useState<Node[]>(initialNodes);
