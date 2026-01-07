@@ -183,40 +183,46 @@ export default function Tracking() {
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
   const [showFlightPath, setShowFlightPath] = useState(false);
+  const [vehicleHistory, setVehicleHistory] = useState<Record<string, [number, number][]>>({});
 
   // Generate simulated flight path history
   useEffect(() => {
     if (selectedVehicle && showFlightPath) {
-      // Create a mock path based on heading and speed, backwards
-      const path: [number, number][] = [];
-      let { lat, lng, heading } = selectedVehicle;
-      
-      // Add current position
-      path.push([lat, lng]);
-
-      // Generate 20 points backwards
-      for (let i = 0; i < 20; i++) {
-        // Simple projection backwards
-        // 1 degree latitude ~ 60nm
-        // Rough scale for visual
-        const dist = 0.01; 
-        const rad = (90 - heading) * (Math.PI / 180);
+      if (selectedVehicle.id.startsWith('EXT-')) {
+        // For external vehicles, use real recorded history
+        setFlightPath(vehicleHistory[selectedVehicle.id] || []);
+      } else {
+        // Create a mock path based on heading and speed, backwards
+        const path: [number, number][] = [];
+        let { lat, lng, heading } = selectedVehicle;
         
-        // Reverse direction
-        lat -= Math.sin(rad) * dist;
-        lng -= Math.cos(rad) * dist;
-        
-        // Slight curve for realism
-        heading += (Math.random() * 10 - 5);
-
+        // Add current position
         path.push([lat, lng]);
+  
+        // Generate 20 points backwards
+        for (let i = 0; i < 20; i++) {
+          // Simple projection backwards
+          // 1 degree latitude ~ 60nm
+          // Rough scale for visual
+          const dist = 0.01; 
+          const rad = (90 - heading) * (Math.PI / 180);
+          
+          // Reverse direction
+          lat -= Math.sin(rad) * dist;
+          lng -= Math.cos(rad) * dist;
+          
+          // Slight curve for realism
+          heading += (Math.random() * 10 - 5);
+  
+          path.push([lat, lng]);
+        }
+        
+        setFlightPath(path);
       }
-      
-      setFlightPath(path);
     } else {
       setFlightPath([]);
     }
-  }, [selectedVehicle, showFlightPath]);
+  }, [selectedVehicle, showFlightPath, vehicleHistory]);
   
   // Reset flight path view when deselected
   useEffect(() => {
@@ -292,6 +298,24 @@ export default function Tracking() {
         }
         setExternalVehicles(newExternalVehicles);
         
+        // Update history for external vehicles
+        setVehicleHistory(prev => {
+          const next = { ...prev };
+          let hasChanges = false;
+          
+          newExternalVehicles.forEach(v => {
+            const existing = next[v.id] || [];
+            // Check distance to avoid duplicates if stationary (approx 1m)
+            const last = existing[existing.length - 1];
+            if (!last || Math.abs(last[0] - v.lat) > 0.00001 || Math.abs(last[1] - v.lng) > 0.00001) {
+               next[v.id] = [...existing, [v.lat, v.lng]].slice(-100); // Keep last 100 points
+               hasChanges = true;
+            }
+          });
+          
+          return hasChanges ? next : prev;
+        });
+
         // Update selected vehicle if it's external
         if (selectedVehicle && selectedVehicle.id.startsWith('EXT-')) {
           const updatedExternal = newExternalVehicles.find(v => v.id === selectedVehicle.id);
