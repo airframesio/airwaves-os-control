@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Radio as RadioIcon, Play, Pause, Download, Settings, Music, Mic2, Save, Trash2, Volume2, Cast, Activity } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 export default function RtlAirband() {
   const [channels, setChannels] = useState([
@@ -31,6 +32,18 @@ export default function RtlAirband() {
   ]);
 
   const [activeTab, setActiveTab] = useState("monitor");
+  const [editingChannel, setEditingChannel] = useState<any>(null);
+
+  const handleEditChannel = (channel: any) => {
+    setEditingChannel({ ...channel });
+  };
+
+  const handleSaveChannel = () => {
+    if (editingChannel) {
+      setChannels(prev => prev.map(c => c.id === editingChannel.id ? editingChannel : c));
+      setEditingChannel(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -49,7 +62,7 @@ export default function RtlAirband() {
              <Activity className="w-4 h-4" />
              Service Running
           </Badge>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setActiveTab("config")}>
             <Settings className="w-4 h-4 mr-2" />
             Global Config
           </Button>
@@ -102,7 +115,9 @@ export default function RtlAirband() {
                        </div>
                        <div className="flex gap-2">
                           <Button size="sm" variant="ghost" className="h-8 w-8 p-0"><Volume2 className="w-4 h-4" /></Button>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0"><Settings className="w-4 h-4" /></Button>
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleEditChannel(channel)}>
+                            <Settings className="w-4 h-4" />
+                          </Button>
                        </div>
                     </div>
                   </div>
@@ -245,7 +260,7 @@ export default function RtlAirband() {
                       <TableCell>{channel.gain}</TableCell>
                       <TableCell>{channel.squelch}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditChannel(channel)}>
                           <Settings className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -323,6 +338,67 @@ export default function RtlAirband() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!editingChannel} onOpenChange={(open) => !open && setEditingChannel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Channel</DialogTitle>
+            <DialogDescription>
+              Configure frequency and receiver settings for this channel.
+            </DialogDescription>
+          </DialogHeader>
+          {editingChannel && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Channel Name</Label>
+                <Input 
+                  value={editingChannel.name} 
+                  onChange={(e) => setEditingChannel({ ...editingChannel, name: e.target.value })} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Frequency (MHz)</Label>
+                <Input 
+                  value={editingChannel.freq} 
+                  onChange={(e) => setEditingChannel({ ...editingChannel, freq: e.target.value })} 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Squelch ({editingChannel.squelch}dB)</Label>
+                  <Slider 
+                    value={[editingChannel.squelch]} 
+                    max={100} 
+                    step={1} 
+                    onValueChange={([val]) => setEditingChannel({ ...editingChannel, squelch: val })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gain ({editingChannel.gain}dB)</Label>
+                  <Slider 
+                    value={[editingChannel.gain]} 
+                    max={50} 
+                    step={1} 
+                    onValueChange={([val]) => setEditingChannel({ ...editingChannel, gain: val })}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <Switch 
+                  id="scanning-mode" 
+                  checked={editingChannel.scanning}
+                  onCheckedChange={(checked) => setEditingChannel({ ...editingChannel, scanning: checked })}
+                />
+                <Label htmlFor="scanning-mode">Enable Scanning Mode</Label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingChannel(null)}>Cancel</Button>
+            <Button onClick={handleSaveChannel}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
