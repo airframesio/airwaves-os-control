@@ -200,7 +200,7 @@ export default function Tracking() {
             let fetchUrl = feed.url;
             
             if (useProxy) {
-              fetchUrl = `https://corsproxy.io/?${encodeURIComponent(feed.url)}`;
+              fetchUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
             }
 
             const response = await fetch(fetchUrl);
@@ -209,7 +209,11 @@ export default function Tracking() {
               continue;
             }
 
-            const data = await response.json();
+            const rawData = await response.json();
+            // Handle proxy wrapper or direct response
+            const responseData = useProxy ? JSON.parse(rawData.contents) : rawData;
+            
+            const data = responseData;
             
             // Handle both standard aircraft.json (dump1090/readsb) and potentially array format if simplified
             // Standard format has "aircraft": [] array
