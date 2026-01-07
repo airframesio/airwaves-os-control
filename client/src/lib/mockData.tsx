@@ -36,6 +36,7 @@ export interface Device {
 export interface Feed {
   id: string;
   name: string;
+  type: "dedicated_app" | "integrated_option" | "raw_stream";
   destination: string;
   protocol: "TCP" | "UDP";
   port: number;
@@ -313,6 +314,7 @@ export const mockFeeds: Feed[] = [
   {
     id: "feed-1",
     name: "Airframes.io ACARS",
+    type: "dedicated_app",
     destination: "feed.airframes.io",
     protocol: "TCP",
     port: 5550,
@@ -323,6 +325,7 @@ export const mockFeeds: Feed[] = [
   {
     id: "feed-2",
     name: "Airplanes.live ADS-B",
+    type: "integrated_option",
     destination: "feed.airplanes.live",
     protocol: "TCP",
     port: 30005,
@@ -333,12 +336,24 @@ export const mockFeeds: Feed[] = [
   {
     id: "feed-3",
     name: "MarineTraffic",
+    type: "integrated_option",
     destination: "5.9.207.224",
     protocol: "UDP",
     port: 5321,
     status: "disconnected",
     messageRate: 0,
     appId: "ais-catcher"
+  },
+  {
+    id: "feed-4",
+    name: "Local VDL2 Stream",
+    type: "raw_stream",
+    destination: "192.168.1.50",
+    protocol: "UDP",
+    port: 5555,
+    status: "connected",
+    messageRate: 22,
+    appId: "dumpvdl2"
   }
 ];
 
