@@ -173,6 +173,7 @@ export default function Tracking() {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [vehicles, setVehicles] = useState(initialVehicles);
+  const [externalVehicles, setExternalVehicles] = useState<typeof initialVehicles>([]);
   const [zoom, setZoom] = useState(10);
   const [selectedVehicle, setSelectedVehicle] = useState<typeof initialVehicles[0] | null>(null);
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
@@ -180,7 +181,59 @@ export default function Tracking() {
   useEffect(() => {
     setMounted(true);
 
-    // Simulate movement
+    // Poll external feeds
+    const pollExternalFeeds = async () => {
+      try {
+        const savedFeeds = localStorage.getItem('external_feeds');
+        if (!savedFeeds) return;
+
+        const feeds: Array<{ id: string, url: string, interval: number, enabled: boolean }> = JSON.parse(savedFeeds);
+        const enabledFeeds = feeds.filter(f => f.enabled);
+
+        const newExternalVehicles: typeof initialVehicles = [];
+
+        for (const feed of enabledFeeds) {
+          try {
+            // In a real scenario, we would fetch(feed.url)
+            // For this mockup, we'll simulate data if the URL is a "mock" one or generic
+            // or if the fetch fails (which it likely will due to CORS/network in this environment)
+            
+            // Simulate some vehicles for this feed
+            // Deterministic based on feed ID so they don't jump around too crazily between polls
+            // In real app: const data = await fetch(feed.url).then(r => r.json());
+            
+            const seed = feed.id.charCodeAt(0);
+            const count = 5; 
+            
+            for (let i = 0; i < count; i++) {
+               newExternalVehicles.push({
+                 id: `EXT-${feed.id}-${i}`,
+                 type: 'aircraft',
+                 callsign: `EXT${seed}${i}`,
+                 icao: (seed * 10000 + i).toString(16).toUpperCase(),
+                 lat: 37.7 + (Math.sin(Date.now() / 10000 + i) * 0.5), // Slowly moving
+                 lng: -122.4 + (Math.cos(Date.now() / 10000 + i) * 0.5),
+                 heading: (Date.now() / 100 % 360),
+                 speed: 250,
+                 alt: 15000 + i * 1000
+               });
+            }
+
+          } catch (e) {
+            console.error(`Failed to fetch feed ${feed.id}`, e);
+          }
+        }
+        setExternalVehicles(newExternalVehicles);
+
+      } catch (e) {
+        console.error("Error polling feeds", e);
+      }
+    };
+
+    const feedInterval = setInterval(pollExternalFeeds, 2000);
+    pollExternalFeeds();
+
+    // Simulate movement for internal vehicles
     const interval = setInterval(() => {
       setVehicles(prev => {
         const nextVehicles = prev.map(v => {
@@ -252,7 +305,10 @@ export default function Tracking() {
       });
     }, 100); // 10fps update for smoothness
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(feedInterval);
+    };
   }, [selectedVehicle]); // Add selectedVehicle to dependency to keep it updated
 
   // Determine actual theme
@@ -298,7 +354,7 @@ export default function Tracking() {
             <span className="flex items-center gap-2">
               <Plane className="w-3 h-3 text-sky-500" /> Aircraft
             </span>
-            <Badge variant="secondary" className="font-mono text-[10px] h-5">{vehicles.filter(v => v.type === 'aircraft').length}</Badge>
+            <Badge variant="secondary" className="font-mono text-[10px] h-5">{vehicles.filter(v => v.type === 'aircraft').length + externalVehicles.length}</Badge>
           </div>
           <div className="flex items-center justify-between text-xs p-2 bg-muted/50 rounded-lg">
             <span className="flex items-center gap-2">
@@ -306,6 +362,14 @@ export default function Tracking() {
             </span>
             <Badge variant="secondary" className="font-mono text-[10px] h-5">{vehicles.filter(v => v.type === 'ship').length}</Badge>
           </div>
+          {externalVehicles.length > 0 && (
+            <div className="flex items-center justify-between text-xs p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-1">
+              <span className="flex items-center gap-2 text-amber-600">
+                <Activity className="w-3 h-3" /> External
+              </span>
+              <Badge variant="outline" className="font-mono text-[10px] h-5 border-amber-500/30 text-amber-600">{externalVehicles.length}</Badge>
+            </div>
+          )}
         </div>
       </div>
 
@@ -323,7 +387,7 @@ export default function Tracking() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
           />
-          {vehicles.map((v) => {
+          {[...vehicles, ...externalVehicles].map((v) => {
             const isSelected = selectedVehicle?.id === v.id;
             const isHovered = hoveredVehicleId === v.id;
             const showTooltip = isSelected || isHovered;

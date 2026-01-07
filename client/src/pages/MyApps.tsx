@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Power,
   ArrowLeft,
-  Menu
+  Menu,
+  Plus,
+  Save
 } from "lucide-react";
 import { 
   AlertDialog,
@@ -45,6 +47,114 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppMetrics from "@/components/AppMetrics";
+
+interface ExternalFeed {
+  id: string;
+  url: string;
+  interval: number;
+  enabled: boolean;
+}
+
+function ExternalFeedConfig() {
+  const [feeds, setFeeds] = useState<ExternalFeed[]>(() => {
+    const saved = localStorage.getItem('external_feeds');
+    return saved ? JSON.parse(saved) : [
+      { id: '1', url: 'http://adsbexchange.local/tar1090/data/aircraft.json', interval: 5, enabled: true }
+    ];
+  });
+  const { toast } = useToast();
+
+  const handleSave = () => {
+    localStorage.setItem('external_feeds', JSON.stringify(feeds));
+    toast({
+      title: "Configuration Saved",
+      description: "External feed settings have been updated.",
+    });
+  };
+
+  const addFeed = () => {
+    setFeeds([...feeds, { id: Math.random().toString(36).substr(2, 9), url: '', interval: 5, enabled: true }]);
+  };
+
+  const removeFeed = (id: string) => {
+    setFeeds(feeds.filter(f => f.id !== id));
+  };
+
+  const updateFeed = (id: string, field: keyof ExternalFeed, value: any) => {
+    setFeeds(feeds.map(f => f.id === id ? { ...f, [field]: value } : f));
+  };
+
+  return (
+    <div className="bg-card border border-border/50 rounded-xl p-6 space-y-6">
+      <div>
+        <h3 className="text-lg font-medium mb-1">External Data Sources</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Configure external aircraft.json feeds to visualize on the map. 
+          <br/>
+          <span className="text-amber-500 font-medium text-xs">Note: These sources are strictly for visualization and are never forwarded to aggregators.</span>
+        </p>
+
+        <div className="space-y-4">
+          {feeds.map((feed) => (
+            <div key={feed.id} className="flex flex-col gap-3 p-4 border border-border/50 rounded-lg bg-muted/20">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div className="md:col-span-3 space-y-1">
+                       <label className="text-xs font-medium text-muted-foreground">Source URL (aircraft.json)</label>
+                       <Input 
+                        value={feed.url} 
+                        onChange={(e) => updateFeed(feed.id, 'url', e.target.value)}
+                        placeholder="http://192.168.1.x/tar1090/data/aircraft.json"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-xs font-medium text-muted-foreground">Interval (sec)</label>
+                       <Input 
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={feed.interval} 
+                        onChange={(e) => updateFeed(feed.id, 'interval', parseInt(e.target.value) || 5)}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 pt-6">
+                   <Button 
+                    variant={feed.enabled ? "default" : "secondary"} 
+                    size="sm"
+                    className={cn("h-9 w-24", feed.enabled ? "bg-emerald-600 hover:bg-emerald-700" : "")}
+                    onClick={() => updateFeed(feed.id, 'enabled', !feed.enabled)}
+                   >
+                     {feed.enabled ? "Enabled" : "Disabled"}
+                   </Button>
+                   <Button variant="ghost" size="sm" className="h-9 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeFeed(feed.id)}>
+                     <Trash2 className="w-4 h-4" />
+                   </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <Button variant="outline" size="sm" onClick={addFeed} className="w-full border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5">
+            <Plus className="w-4 h-4 mr-2" /> Add New Source
+          </Button>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} className="gap-2">
+          <Save className="w-4 h-4" /> Save Configuration
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function MyApps() {
   const [apps, setApps] = useState(mockApps.filter(app => app.installed));
@@ -478,6 +588,9 @@ export default function MyApps() {
                 </TabsContent>
 
                 <TabsContent value="config" className="mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {selectedApp.id === 'external-feed-source' ? (
+                    <ExternalFeedConfig />
+                  ) : (
                   <div className="bg-card border border-border/50 rounded-xl p-6 space-y-6">
                     <div>
                       <h3 className="text-lg font-medium mb-1">Network Settings</h3>
@@ -525,6 +638,7 @@ export default function MyApps() {
                       <Button>Save Changes</Button>
                     </div>
                   </div>
+                  )}
                 </TabsContent>
               </div>
             </ScrollArea>

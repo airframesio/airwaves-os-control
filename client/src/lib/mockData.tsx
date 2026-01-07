@@ -250,6 +250,26 @@ export const mockApps: App[] = [
     cpuUsage: 0,
     memoryUsage: 0,
     screenshots: []
+  },
+  {
+    id: "external-feed-source",
+    name: "External Feed Source",
+    description: "Connect to external aircraft.json feeds.",
+    longDescription: "This app allows you to connect to external ADS-B receivers exposing aircraft.json data (e.g., from tar1090 or readsb). Data from these sources is displayed on your local map but is NEVER forwarded to aggregator feeds.",
+    developer: "Airwaves OS",
+    website: "",
+    sourceUrl: "",
+    lastUpdate: "2026-01-07",
+    size: "1.2 MB",
+    version: "1.0.0",
+    status: "running",
+    icon: Globe,
+    category: "utility",
+    installed: true,
+    cpuUsage: 1,
+    memoryUsage: 15,
+    messageRate: 0,
+    screenshots: []
   }
 ];
 
