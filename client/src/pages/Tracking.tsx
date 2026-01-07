@@ -305,35 +305,31 @@ export default function Tracking() {
                 },
               }}
             >
-              <Popup className="bg-transparent border-none shadow-none p-0" offset={[0, -10]}>
-                <div className="bg-popover/95 backdrop-blur-md text-popover-foreground border border-border/50 shadow-xl rounded-xl overflow-hidden min-w-[200px]">
-                  <div className="p-3 border-b border-border/50 flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                      v.type === 'aircraft' ? "bg-sky-500/10 text-sky-500" : "bg-emerald-500/10 text-emerald-500"
-                    )}>
-                      {v.type === 'aircraft' ? <Plane className="w-4 h-4" /> : <Ship className="w-4 h-4" />}
-                    </div>
-                    <div>
-                      <div className="font-bold text-sm leading-none">{v.callsign}</div>
-                      <div className="text-[10px] text-muted-foreground mt-1 capitalize">{v.type}</div>
-                    </div>
+              <Popup className="bg-transparent border-none shadow-none p-0" offset={[0, -10]} closeButton={false}>
+                <div className="bg-popover/90 backdrop-blur-md text-popover-foreground border border-border/50 shadow-xl rounded-lg overflow-hidden min-w-[160px] flex flex-col gap-0.5 p-2 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center gap-2 mb-1">
+                     <span className={cn(
+                        "font-bold text-xs px-1.5 py-0.5 rounded text-white shadow-sm",
+                        v.type === 'aircraft' ? "bg-sky-500" : "bg-emerald-500"
+                      )}>
+                        {v.callsign}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground ml-auto">{v.icao}</span>
                   </div>
-                  <div className="p-2 grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-muted/50 rounded p-1.5 text-center">
-                      <div className="text-muted-foreground scale-90 origin-center mb-0.5">SPD</div>
-                      <div className="font-mono font-medium">{Math.round(v.speed)}</div>
-                    </div>
+                  
+                  <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border/40 pt-1 mt-0.5">
+                    <span className="flex items-center gap-0.5">
+                      <ArrowUpRight className="w-3 h-3" />
+                      <span className="text-foreground font-medium">{Math.round(v.speed)}</span>
+                      {v.type === 'aircraft' ? 'kts' : 'kn'}
+                    </span>
                     {v.alt && (
-                      <div className="bg-muted/50 rounded p-1.5 text-center">
-                        <div className="text-muted-foreground scale-90 origin-center mb-0.5">ALT</div>
-                        <div className="font-mono font-medium">{Math.round(v.alt)}</div>
-                      </div>
+                      <span className="flex items-center gap-0.5 ml-2">
+                        <Activity className="w-3 h-3" />
+                        <span className="text-foreground font-medium">{Math.round(v.alt/1000)}k</span>
+                        ft
+                      </span>
                     )}
-                    <div className="bg-muted/50 rounded p-1.5 text-center">
-                      <div className="text-muted-foreground scale-90 origin-center mb-0.5">HDG</div>
-                      <div className="font-mono font-medium">{Math.round(v.heading)}°</div>
-                    </div>
                   </div>
                 </div>
               </Popup>
