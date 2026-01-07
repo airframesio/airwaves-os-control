@@ -44,7 +44,7 @@ const createVehicleIcon = (type: string, heading: number) => {
 };
 
 // Mock data for aircraft and ships
-const vehicles = [
+const initialVehicles = [
   { id: "A1", type: "aircraft", callsign: "UAL123", lat: 37.6, lng: -122.3, heading: 45, speed: 350, alt: 12000 },
   { id: "A2", type: "aircraft", callsign: "DAL456", lat: 37.7, lng: -122.45, heading: 135, speed: 420, alt: 18000 },
   { id: "A3", type: "aircraft", callsign: "SWA789", lat: 37.5, lng: -122.2, heading: 270, speed: 280, alt: 8000 },
@@ -55,9 +55,46 @@ const vehicles = [
 export default function Tracking() {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [vehicles, setVehicles] = useState(initialVehicles);
 
   useEffect(() => {
     setMounted(true);
+
+    // Simulate movement
+    const interval = setInterval(() => {
+      setVehicles(prev => prev.map(v => {
+        // Simple physics simulation
+        // Convert speed (knots) to degrees/sec (very rough approximation for visual)
+        // 1 degree latitude ~ 60nm
+        // Speed in knots = nm/hour
+        // degrees/sec = (speed / 3600) / 60
+        // We'll slow it down even more for the visual so they don't fly off screen instantly
+        const speedFactor = 0.000005; 
+        const moveDist = v.speed * speedFactor;
+        
+        // Calculate new position based on heading
+        const rad = (v.heading - 90) * (Math.PI / 180); // -90 to convert compass to math angle
+        const newLat = v.lat + Math.sin(rad) * moveDist;
+        const newLng = v.lng + Math.cos(rad) * moveDist;
+
+        // Random slight heading wobble
+        const wobble = (Math.random() * 2 - 1); // +/- 1 degree
+        let newHeading = v.heading + wobble;
+        
+        // Keep heading 0-360
+        if (newHeading < 0) newHeading += 360;
+        if (newHeading >= 360) newHeading -= 360;
+
+        return {
+          ...v,
+          lat: newLat,
+          lng: newLng,
+          heading: newHeading
+        };
+      }));
+    }, 100); // 10fps update for smoothness
+
+    return () => clearInterval(interval);
   }, []);
 
   // Determine actual theme

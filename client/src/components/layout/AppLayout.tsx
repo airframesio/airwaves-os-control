@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import logoIcon from "@/assets/airwaves-logo.png";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "next-themes";
+import { CommandMenu } from "@/components/CommandMenu";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -93,6 +94,7 @@ export default function AppLayout({ children }: SidebarProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex overflow-hidden selection:bg-primary/20">
+      <CommandMenu />
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div 

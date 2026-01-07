@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +28,42 @@ export default function Dashboard() {
   const totalApps = activeApps.length * 2 + 1; // Simulated extra apps on other nodes
   const totalDevices = activeDevices.length + 3; // Simulated devices on other nodes
   const onlineNodes = mockSystems.filter(s => s.status === "online");
+  
+  // Live chart data
+  const [chartData, setChartData] = React.useState(aggregateData);
+  const [globalRate, setGlobalRate] = React.useState(580);
+
+  // Simulate live data updates
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      // Update global rate
+      setGlobalRate(prev => {
+        const change = Math.floor(Math.random() * 40) - 20;
+        return Math.max(100, prev + change);
+      });
+
+      // Update chart data - shift and add new point
+      setChartData(prev => {
+        const newData = [...prev];
+        const lastItem = newData[newData.length - 1];
+        
+        // In a real app we'd shift properly, but for this visual we'll just jitter the values
+        // to look like they are updating live without changing the x-axis time labels constantly for now
+        // or we can make it feel more "alive" by updating the last few points
+        
+        return newData.map((item, index) => {
+           // Make the graph "breathe" a bit
+           if (index > 2) {
+             const jitter = Math.floor(Math.random() * 100) - 50;
+             return { ...item, msgs: Math.max(0, item.msgs + jitter) };
+           }
+           return item;
+        });
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -51,6 +88,12 @@ export default function Dashboard() {
                <Button size="lg" variant="secondary" className="bg-background/50 backdrop-blur-md border border-white/10 hover:bg-background/70" asChild>
                   <Link href="/apps">View Logs</Link>
                </Button>
+               <div className="hidden md:flex items-center gap-2 text-muted-foreground text-sm ml-4 px-3 py-1 bg-background/30 backdrop-blur rounded-full border border-white/5">
+                  <span className="text-xs border border-border/50 rounded px-1.5 py-0.5 bg-background/50">Cmd</span>
+                  <span>+</span>
+                  <span className="text-xs border border-border/50 rounded px-1.5 py-0.5 bg-background/50">K</span>
+                  <span>to search</span>
+               </div>
             </div>
           </div>
         </div>
@@ -101,7 +144,7 @@ export default function Dashboard() {
               <Activity className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">~580<span className="text-sm font-normal text-muted-foreground">/sec</span></div>
+              <div className="text-2xl font-bold transition-all duration-500">~{globalRate}<span className="text-sm font-normal text-muted-foreground">/sec</span></div>
               <p className="text-xs text-muted-foreground">
                 Aggregated throughput
               </p>
@@ -128,13 +171,13 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle>Global Signal Activity</CardTitle>
             <CardDescription>
-              Total messages decoded across all nodes over last 24h
+              Total messages decoded across all nodes over last 24h (Live)
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={aggregateData}>
+                <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -170,6 +213,8 @@ export default function Dashboard() {
                     strokeWidth={2}
                     fillOpacity={1} 
                     fill="url(#colorMsgs)" 
+                    isAnimationActive={true}
+                    animationDuration={500}
                   />
                 </AreaChart>
               </ResponsiveContainer>
