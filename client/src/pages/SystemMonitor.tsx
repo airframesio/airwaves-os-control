@@ -64,7 +64,7 @@ export default function SystemMonitor() {
           System Monitor
         </h1>
         <p className="text-muted-foreground mt-1">
-          Real-time performance metrics for <span className="font-medium text-foreground">{activeNode.name}</span>
+          Real-time performance metrics for <span className="font-medium text-foreground">{activeNode.name}</span> <span className="text-muted-foreground/50 mx-1">•</span> <span className="font-mono text-sm">{activeNode.hostname}</span>
         </p>
       </div>
 
