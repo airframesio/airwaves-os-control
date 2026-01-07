@@ -175,6 +175,7 @@ export default function Tracking() {
   const [vehicles, setVehicles] = useState(initialVehicles);
   const [zoom, setZoom] = useState(10);
   const [selectedVehicle, setSelectedVehicle] = useState<typeof initialVehicles[0] | null>(null);
+  const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -324,6 +325,9 @@ export default function Tracking() {
           />
           {vehicles.map((v) => {
             const isSelected = selectedVehicle?.id === v.id;
+            const isHovered = hoveredVehicleId === v.id;
+            const showTooltip = isSelected || isHovered;
+
             return (
             <Marker 
               key={v.id} 
@@ -333,44 +337,51 @@ export default function Tracking() {
                 click: () => {
                   setSelectedVehicle(v);
                 },
+                mouseover: () => {
+                  setHoveredVehicleId(v.id);
+                },
+                mouseout: () => {
+                  setHoveredVehicleId(null);
+                }
               }}
             >
-              <Tooltip 
-                key={`${v.id}-${isSelected}`} // Force remount when selection state changes to prevent sticky tooltips
-                permanent={isSelected} 
-                direction="top" 
-                offset={[0, -10]}
-                className="bg-transparent border-none shadow-none p-0"
-                opacity={1}
-                interactive={false} // Prevent tooltip from capturing mouse events
-              >
-                <div className="bg-popover/90 backdrop-blur-md text-popover-foreground border border-border/50 shadow-xl rounded-lg overflow-hidden min-w-[160px] flex flex-col gap-0.5 p-2 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex items-center gap-2 mb-1">
-                     <span className={cn(
-                        "font-bold text-xs px-1.5 py-0.5 rounded text-white shadow-sm",
-                        v.type === 'aircraft' ? "bg-sky-500" : "bg-emerald-500"
-                      )}>
-                        {v.callsign}
+              {showTooltip && (
+                <Tooltip 
+                  permanent={true} 
+                  direction="top" 
+                  offset={[0, -10]}
+                  className="bg-transparent border-none shadow-none p-0"
+                  opacity={1}
+                  interactive={false} 
+                >
+                  <div className="bg-popover/90 backdrop-blur-md text-popover-foreground border border-border/50 shadow-xl rounded-lg overflow-hidden min-w-[160px] flex flex-col gap-0.5 p-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center gap-2 mb-1">
+                       <span className={cn(
+                          "font-bold text-xs px-1.5 py-0.5 rounded text-white shadow-sm",
+                          v.type === 'aircraft' ? "bg-sky-500" : "bg-emerald-500"
+                        )}>
+                          {v.callsign}
+                        </span>
+                        <span className="text-[10px] font-mono text-muted-foreground ml-auto">{v.icao}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border/40 pt-1 mt-0.5">
+                      <span className="flex items-center gap-0.5">
+                        <ArrowUpRight className="w-3 h-3" />
+                        <span className="text-foreground font-medium">{Math.round(v.speed)}</span>
+                        {v.type === 'aircraft' ? 'kts' : 'kn'}
                       </span>
-                      <span className="text-[10px] font-mono text-muted-foreground ml-auto">{v.icao}</span>
+                      {v.alt && (
+                        <span className="flex items-center gap-0.5 ml-2">
+                          <Activity className="w-3 h-3" />
+                          <span className="text-foreground font-medium">{Math.round(v.alt/1000)}k</span>
+                          ft
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border/40 pt-1 mt-0.5">
-                    <span className="flex items-center gap-0.5">
-                      <ArrowUpRight className="w-3 h-3" />
-                      <span className="text-foreground font-medium">{Math.round(v.speed)}</span>
-                      {v.type === 'aircraft' ? 'kts' : 'kn'}
-                    </span>
-                    {v.alt && (
-                      <span className="flex items-center gap-0.5 ml-2">
-                        <Activity className="w-3 h-3" />
-                        <span className="text-foreground font-medium">{Math.round(v.alt/1000)}k</span>
-                        ft
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Tooltip>
+                </Tooltip>
+              )}
             </Marker>
           )})}
         </MapContainer>
