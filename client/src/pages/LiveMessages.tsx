@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Activity, Search, Filter, Signal, Pause, Play, Monitor } from "lucide-react";
+import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
 
 const SAMPLE_MESSAGES = [
@@ -43,10 +43,13 @@ export default function LiveMessages() {
   const [filterMode, setFilterMode] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isPaused, setIsPaused] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Reset messages when active node changes
   useEffect(() => {
     setMessages(mockMessages.filter(m => runningAppIds.includes(m.appId)));
+    setCurrentPage(1); // Reset to first page on node change
   }, [activeNode.id]);
 
   useEffect(() => {
@@ -89,6 +92,16 @@ export default function LiveMessages() {
     
     return matchesApp && matchesMode && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredMessages.length / itemsPerPage);
+  const paginatedMessages = filteredMessages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset page if filtered results are less than current page
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredMessages.length, totalPages, currentPage]);
 
   // Get unique apps and modes for filter dropdowns based on available data
   const apps = Array.from(new Set(messages.map(m => m.appName)));
@@ -135,10 +148,16 @@ export default function LiveMessages() {
                   placeholder="Search content, source, freq..."
                   className="pl-9 bg-background/50"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
-              <Select value={filterApp} onValueChange={setFilterApp}>
+              <Select value={filterApp} onValueChange={(val) => {
+                setFilterApp(val);
+                setCurrentPage(1);
+              }}>
                 <SelectTrigger className="w-[140px] bg-background/50">
                   <SelectValue placeholder="Application" />
                 </SelectTrigger>
@@ -149,7 +168,10 @@ export default function LiveMessages() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={filterMode} onValueChange={setFilterMode}>
+              <Select value={filterMode} onValueChange={(val) => {
+                setFilterMode(val);
+                setCurrentPage(1);
+              }}>
                 <SelectTrigger className="w-[120px] bg-background/50">
                   <SelectValue placeholder="Mode" />
                 </SelectTrigger>
@@ -178,8 +200,8 @@ export default function LiveMessages() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMessages.length > 0 ? (
-                  filteredMessages.map((msg) => (
+                {paginatedMessages.length > 0 ? (
+                  paginatedMessages.map((msg) => (
                     <TableRow key={msg.id} className="hover:bg-muted/30">
                       <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
                         {msg.timestamp}
@@ -213,8 +235,55 @@ export default function LiveMessages() {
               </TableBody>
             </Table>
           </div>
-          <div className="mt-4 text-xs text-muted-foreground text-center">
-            Showing {filteredMessages.length} messages (Feed {isPaused ? 'Paused' : 'Live'})
+          
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+            <div>
+              Showing {filteredMessages.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredMessages.length)} of {filteredMessages.length} messages (Feed {isPaused ? 'Paused' : 'Live'})
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex items-center gap-1 mx-2 font-medium">
+                Page {currentPage} of {totalPages || 1}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages || totalPages === 0}
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
