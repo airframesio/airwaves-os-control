@@ -232,7 +232,7 @@ export default function Feeds() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
@@ -252,6 +252,17 @@ export default function Feeds() {
             </div>
             <div className="p-3 bg-green-500/10 rounded-full text-green-500">
               <Zap className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Total Rate</p>
+              <p className="text-2xl font-bold font-mono">{totalRate} <span className="text-xs font-normal text-muted-foreground">msg/min</span></p>
+            </div>
+            <div className="p-3 bg-orange-500/10 rounded-full text-orange-500">
+              <BarChart3 className="w-5 h-5" />
             </div>
           </CardContent>
         </Card>
