@@ -255,6 +255,21 @@ export default function Tracking() {
 
   return (
     <div className="h-full flex flex-col relative">
+      <style>{`
+        .leaflet-popup-content-wrapper {
+          background: transparent !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          border: none !important;
+        }
+        .leaflet-popup-content {
+          margin: 0 !important;
+          width: auto !important;
+        }
+        .leaflet-popup-tip {
+          display: none !important;
+        }
+      `}</style>
       <div className="absolute top-4 left-4 z-[400] bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-80">
         <h1 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-primary" />
