@@ -44,7 +44,7 @@ export default function LiveMessages() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isPaused, setIsPaused] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Reset messages when active node changes
   useEffect(() => {
@@ -237,8 +237,28 @@ export default function LiveMessages() {
           </div>
           
           <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-            <div>
-              Showing {filteredMessages.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredMessages.length)} of {filteredMessages.length} messages (Feed {isPaused ? 'Paused' : 'Live'})
+            <div className="flex items-center gap-4">
+              <div>
+                Showing {filteredMessages.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredMessages.length)} of {filteredMessages.length} messages (Feed {isPaused ? 'Paused' : 'Live'})
+              </div>
+              <div className="flex items-center gap-2">
+                <span>Rows per page:</span>
+                <Select value={itemsPerPage.toString()} onValueChange={(val) => {
+                  setItemsPerPage(parseInt(val));
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((size) => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <div className="flex items-center gap-2">
