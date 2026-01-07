@@ -25,11 +25,11 @@ const getFeedTypeDetails = (type: string) => {
 };
 
 const aggregators = [
-  { id: "fr24", name: "FlightRadar24", icon: Plane, type: "dedicated", fixedDest: true, description: "World's most popular flight tracker." },
-  { id: "fa", name: "FlightAware", icon: Plane, type: "dedicated", fixedDest: true, description: "Global aviation software and data services." },
-  { id: "airframes", name: "Airframes.io", icon: Plane, type: "connector", fixedDest: false, defaultDest: "feed.airframes.io:5550", description: "Open protocol aviation data aggregator." },
-  { id: "mt", name: "MarineTraffic", icon: Ship, type: "connector", fixedDest: false, defaultDest: "5.9.207.224:5321", description: "Global ship tracking intelligence." },
-  { id: "custom", name: "Custom Destination", icon: Network, type: "raw", fixedDest: false, description: "Send raw data to a custom IP and port." },
+  { id: "fr24", name: "FlightRadar24", icon: Plane, type: "dedicated", fixedDest: true, description: "World's most popular flight tracker.", categories: ["aviation"] },
+  { id: "fa", name: "FlightAware", icon: Plane, type: "dedicated", fixedDest: true, description: "Global aviation software and data services.", categories: ["aviation"] },
+  { id: "airframes", name: "Airframes.io", icon: Plane, type: "connector", fixedDest: false, defaultDest: "feed.airframes.io:5550", description: "Open protocol aviation data aggregator.", categories: ["aviation"] },
+  { id: "mt", name: "MarineTraffic", icon: Ship, type: "connector", fixedDest: false, defaultDest: "5.9.207.224:5321", description: "Global ship tracking intelligence.", categories: ["maritime"] },
+  { id: "custom", name: "Custom Destination", icon: Network, type: "raw", fixedDest: false, description: "Send raw data to a custom IP and port.", categories: ["aviation", "maritime", "system", "utility", "satcom"] },
 ];
 
 export default function Feeds() {
@@ -39,8 +39,31 @@ export default function Feeds() {
   const [host, setHost] = useState("");
   const [port, setPort] = useState("");
 
+  const selectedApp = mockApps.find(app => app.id === selectedSource);
   const activeAggregator = aggregators.find(a => a.id === selectedAggregator);
   const sourceApps = mockApps.filter(app => ["aviation", "maritime"].includes(app.category));
+  
+  // Filter aggregators based on selected app category
+  const availableAggregators = selectedApp 
+    ? aggregators.filter(agg => agg.categories.includes(selectedApp.category))
+    : aggregators;
+
+  const handleSourceChange = (appId: string) => {
+    setSelectedSource(appId);
+    const app = mockApps.find(a => a.id === appId);
+    
+    // Reset aggregator selection if current one is not valid for new app
+    if (app) {
+      const validAggregators = aggregators.filter(agg => agg.categories.includes(app.category));
+      if (!validAggregators.find(a => a.id === selectedAggregator)) {
+        // Default to the first dedicated/connector option if available, otherwise custom
+        const defaultAgg = validAggregators.find(a => a.type !== 'raw') || validAggregators[0];
+        if (defaultAgg) {
+          handleAggregatorChange(defaultAgg.id);
+        }
+      }
+    }
+  };
 
   const handleAggregatorChange = (id: string) => {
     setSelectedAggregator(id);
@@ -83,7 +106,7 @@ export default function Feeds() {
               <div className="space-y-3">
                 <Label className="text-base font-medium">1. Select Data Source</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Select value={selectedSource} onValueChange={setSelectedSource}>
+                  <Select value={selectedSource} onValueChange={handleSourceChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a running application..." />
                     </SelectTrigger>
@@ -109,7 +132,7 @@ export default function Feeds() {
               <div className="space-y-3">
                 <Label className="text-base font-medium">2. Select Destination</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {aggregators.map((agg) => {
+                  {availableAggregators.map((agg) => {
                     const Icon = agg.icon;
                     return (
                       <div
