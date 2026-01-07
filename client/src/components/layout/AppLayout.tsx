@@ -45,7 +45,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Map", icon: Map, href: "/map" },
     { label: "Live Messages", icon: MessageSquareText, href: "/messages" },
-    ...(hasRtlAirband ? [{ label: "RTL Airband", icon: Radio, href: "/airband" }] : []),
+    ...(hasRtlAirband ? [{ label: "Airband", icon: Radio, href: "/airband" }] : []),
   ];
 
   const appNavItems = [

@@ -38,7 +38,7 @@ export default function RtlAirband() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <RadioIcon className="w-8 h-8 text-primary" />
-            RTL Airband
+            Airband
           </h1>
           <p className="text-muted-foreground mt-1">
             Multichannel AM/FM receiver for air traffic monitoring
@@ -221,6 +221,42 @@ export default function RtlAirband() {
         </TabsContent>
 
         <TabsContent value="config" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Channel Configuration</CardTitle>
+              <CardDescription>Manage monitored frequencies and channel settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Channel Name</TableHead>
+                    <TableHead>Frequency (MHz)</TableHead>
+                    <TableHead>Gain</TableHead>
+                    <TableHead>Squelch</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {channels.map((channel) => (
+                    <TableRow key={channel.id}>
+                      <TableCell className="font-medium">{channel.name}</TableCell>
+                      <TableCell>{channel.freq}</TableCell>
+                      <TableCell>{channel.gain}</TableCell>
+                      <TableCell>{channel.squelch}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Settings className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Button className="w-full">Add New Channel</Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Icecast Configuration</CardTitle>
