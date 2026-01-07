@@ -60,11 +60,26 @@ const createVehicleIcon = (type: string, heading: number) => {
 
 // Mock data for aircraft and ships
 const initialVehicles = [
-  { id: "A1", type: "aircraft", callsign: "UAL123", lat: 37.6, lng: -122.3, heading: 45, speed: 350, alt: 12000 },
-  { id: "A2", type: "aircraft", callsign: "DAL456", lat: 37.7, lng: -122.45, heading: 135, speed: 420, alt: 18000 },
-  { id: "A3", type: "aircraft", callsign: "SWA789", lat: 37.5, lng: -122.2, heading: 270, speed: 280, alt: 8000 },
-  { id: "M1", type: "ship", callsign: "CMA CGM", lat: 37.8, lng: -122.5, heading: 90, speed: 15 },
-  { id: "M2", type: "ship", callsign: "MAERSK", lat: 37.82, lng: -122.4, heading: 180, speed: 12 },
+  ...Array.from({ length: 100 }, (_, i) => ({
+    id: `A${i + 1}`,
+    type: "aircraft",
+    callsign: `FLT${100 + i}`,
+    lat: 37.7 + (Math.random() - 0.5) * 2,
+    lng: -122.4 + (Math.random() - 0.5) * 2,
+    heading: Math.floor(Math.random() * 360),
+    speed: 250 + Math.floor(Math.random() * 300),
+    alt: 5000 + Math.floor(Math.random() * 30000)
+  })),
+  ...Array.from({ length: 100 }, (_, i) => ({
+    id: `M${i + 1}`,
+    type: "ship",
+    callsign: `VESSEL${100 + i}`,
+    lat: 37.7 + (Math.random() - 0.5) * 2,
+    lng: -122.4 + (Math.random() - 0.5) * 2,
+    heading: Math.floor(Math.random() * 360),
+    speed: 10 + Math.floor(Math.random() * 20),
+    alt: undefined
+  }))
 ];
 
 export default function Tracking() {
@@ -145,13 +160,13 @@ export default function Tracking() {
             <span className="flex items-center gap-2">
               <Plane className="w-4 h-4 text-sky-500" /> Aircraft
             </span>
-            <Badge variant="secondary" className="font-mono">3</Badge>
+            <Badge variant="secondary" className="font-mono">{vehicles.filter(v => v.type === 'aircraft').length}</Badge>
           </div>
           <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded-lg">
             <span className="flex items-center gap-2">
               <Ship className="w-4 h-4 text-emerald-500" /> Vessels
             </span>
-            <Badge variant="secondary" className="font-mono">2</Badge>
+            <Badge variant="secondary" className="font-mono">{vehicles.filter(v => v.type === 'ship').length}</Badge>
           </div>
         </div>
       </div>
