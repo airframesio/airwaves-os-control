@@ -578,7 +578,7 @@ export default function MyApps() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="metrics" className="mt-0 p-4 md:p-8 pb-20 md:pb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <TabsContent value="metrics" className="mt-0 p-4 md:p-6 pb-20 md:pb-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <AppMetrics />
                 </TabsContent>
 

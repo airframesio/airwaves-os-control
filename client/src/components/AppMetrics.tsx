@@ -48,7 +48,7 @@ const networkData = [
 
 export default function AppMetrics() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Message Processing Rate</CardTitle>
@@ -95,7 +95,7 @@ export default function AppMetrics() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Resource Usage</CardTitle>
