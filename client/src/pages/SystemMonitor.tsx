@@ -2,11 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Activity, HardDrive, Cpu, Thermometer, Clock, Server, Monitor, AlertCircle, PlayCircle, StopCircle, Laptop } from "lucide-react";
+import { Activity, HardDrive, Cpu, Thermometer, Clock, Server, Monitor, AlertCircle, PlayCircle, StopCircle, Laptop, Terminal } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
 import { cn } from "@/lib/utils";
 import { motion, useSpring, useTransform } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
@@ -46,6 +48,86 @@ const getNodeStats = (nodeId: string) => {
   };
 };
 
+const WebTerminal = ({ hostname }: { hostname: string }) => {
+  const [history, setHistory] = useState<string[]>([
+    `Connecting to ${hostname}...`,
+    "Authentication successful.",
+    `Welcome to Airwaves OS v1.2.0 (${hostname})`,
+    "Type 'help' for a list of commands."
+  ]);
+  const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [history]);
+
+  const handleCommand = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const cmd = input.trim().toLowerCase();
+    const newHistory = [...history, `user@${hostname}:~$ ${input}`];
+
+    switch (cmd) {
+      case "help":
+        newHistory.push("Available commands: help, clear, status, uname, date, top, ls");
+        break;
+      case "clear":
+        setHistory([]);
+        setInput("");
+        return;
+      case "status":
+        newHistory.push("System Status: OPERATIONAL");
+        newHistory.push("Services: 4 running, 0 failed");
+        break;
+      case "uname":
+        newHistory.push("Linux airwaves-os 6.1.0-rpi7-rpi-v8 #1 SMP PREEMPT aarch64 GNU/Linux");
+        break;
+      case "date":
+        newHistory.push(new Date().toString());
+        break;
+      case "top":
+        newHistory.push("top - 14:32:05 up 4 days, 12:30,  1 user,  load average: 0.45, 0.52, 0.48");
+        newHistory.push("Tasks: 118 total,   1 running, 117 sleeping,   0 stopped,   0 zombie");
+        newHistory.push("%Cpu(s): 12.5 us,  3.2 sy,  0.0 ni, 84.1 id,  0.0 wa,  0.0 hi,  0.2 si,  0.0 st");
+        break;
+      case "ls":
+        newHistory.push("Desktop  Downloads  Music     Public     Videos");
+        newHistory.push("Documents  logs       Pictures  Templates");
+        break;
+      default:
+        newHistory.push(`bash: ${cmd}: command not found`);
+    }
+
+    setHistory(newHistory);
+    setInput("");
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-black font-mono text-xs md:text-sm p-4 rounded-lg border border-zinc-800 shadow-inner">
+      <div className="flex-1 overflow-y-auto min-h-[300px]" ref={scrollRef}>
+        {history.map((line, i) => (
+          <div key={i} className="text-zinc-300 whitespace-pre-wrap leading-relaxed">{line}</div>
+        ))}
+      </div>
+      <form onSubmit={handleCommand} className="mt-2 flex items-center gap-2">
+        <span className="text-emerald-500 font-bold shrink-0">user@{hostname}:~$</span>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="flex-1 bg-transparent border-none outline-none text-zinc-100 placeholder-zinc-600 focus:ring-0 p-0"
+          autoFocus
+          spellCheck={false}
+        />
+      </form>
+    </div>
+  );
+};
+
 export default function SystemMonitor() {
   const { activeNode, data } = useNodeStore();
   const runningApps = data.apps.filter(app => app.status === "running");
@@ -57,7 +139,7 @@ export default function SystemMonitor() {
   const stats = getNodeStats(activeNode.id);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <Monitor className="w-8 h-8 text-primary" />
@@ -271,6 +353,27 @@ export default function SystemMonitor() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Web Terminal Section */}
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Terminal className="w-5 h-5 text-primary" /> Remote Access
+              </CardTitle>
+              <CardDescription>Direct web-based SSH terminal session</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Connected via SSH (Port 22)
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <WebTerminal hostname={activeNode.hostname} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
