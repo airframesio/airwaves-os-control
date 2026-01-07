@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Download, Check, ExternalLink, ArrowRight, LayoutGrid, List } from "lucide-react";
-import { mockApps } from "@/lib/mockData";
+import { Search, Download, Check, ExternalLink, ArrowRight, LayoutGrid, List, Loader2 } from "lucide-react";
+import { useNodeStore } from "@/lib/nodeStore";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -14,8 +14,9 @@ export default function AppStore() {
   const categories = ["All", "Aviation", "Maritime", "Satcom", "Utility"];
   const [activeCategory, setActiveCategory] = useState("All");
   const [, setLocation] = useLocation();
+  const { data, installApp, activeNode } = useNodeStore();
 
-  const filteredApps = mockApps.filter(app => {
+  const filteredApps = data.apps.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(search.toLowerCase()) || 
                           app.description.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = activeCategory === "All" || app.category.toLowerCase() === activeCategory.toLowerCase();
@@ -27,7 +28,7 @@ export default function AppStore() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/50">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">App Store</h1>
-          <p className="text-xl text-muted-foreground mt-2">Discover powerful SDR applications for your node.</p>
+          <p className="text-xl text-muted-foreground mt-2">Discover powerful SDR applications for {activeNode.name}.</p>
         </div>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -60,7 +61,7 @@ export default function AppStore() {
             <div 
               key={app.id} 
               className="group cursor-pointer flex flex-col h-full rounded-3xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden"
-              onClick={() => setLocation(`/store/${app.id}`)}
+              onClick={() => !app.installed && app.status !== 'installing' ? installApp(app.id) : null}
             >
               <div className="p-6 flex flex-col h-full">
                 <div className="flex items-start justify-between mb-4">
@@ -69,6 +70,8 @@ export default function AppStore() {
                   </div>
                   {app.installed ? (
                     <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">Installed</Badge>
+                  ) : app.status === 'installing' ? (
+                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 flex gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Installing</Badge>
                   ) : (
                     <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                       <Download className="w-4 h-4" />
@@ -86,7 +89,7 @@ export default function AppStore() {
                 </p>
 
                 <div className="flex items-center text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
-                  View Details <ArrowRight className="w-3 h-3 ml-1" />
+                  {app.installed ? "Manage App" : "Click to Install"} <ArrowRight className="w-3 h-3 ml-1" />
                 </div>
               </div>
             </div>

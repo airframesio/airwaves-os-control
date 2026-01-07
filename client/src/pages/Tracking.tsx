@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useNodeStore } from "@/lib/nodeStore";
 
 // Helper to generate simulated path
 const generateSimulatedPath = (vehicle: { lat: number, lng: number, heading: number }) => {
@@ -39,21 +40,25 @@ const generateSimulatedPath = (vehicle: { lat: number, lng: number, heading: num
 };
 
 // Helper component to update map center
-function MapUpdater({ selectedVehicle }: { selectedVehicle: { lat: number, lng: number } | null }) {
+function MapUpdater({ selectedVehicle, activeNodeLocation }: { selectedVehicle: { lat: number, lng: number } | null, activeNodeLocation: { lat: number, lng: number } }) {
   const map = useMapEvents({});
+  const prevNodeLoc = useRef(activeNodeLocation);
+
+  // Effect to move to node location when it changes
+  useEffect(() => {
+    if (prevNodeLoc.current.lat !== activeNodeLocation.lat || prevNodeLoc.current.lng !== activeNodeLocation.lng) {
+      map.setView([activeNodeLocation.lat, activeNodeLocation.lng], 10, {
+        animate: true,
+        duration: 1.5
+      });
+      prevNodeLoc.current = activeNodeLocation;
+    }
+  }, [activeNodeLocation, map]);
   
+  // Effect to follow selected vehicle
   useEffect(() => {
     if (selectedVehicle) {
       // Calculate offset based on sidebar width (320px + padding)
-      // We want the vehicle to be centered in the remaining visible area
-      // Map width W, Sidebar S = 336px (320px + 16px margin)
-      // Visible width V = W - S
-      // Center of visible area is at x = V/2
-      // True map center is at x = W/2
-      // We want the vehicle to be at screen x = V/2
-      // Offset needed = W/2 - V/2 = (W - (W-S))/2 = S/2
-      // So we need to shift the map center by S/2 to the RIGHT (so vehicle appears S/2 to the LEFT)
-      
       const sidebarOffset = 168; // 336px / 2
       const targetPoint = map.project([selectedVehicle.lat, selectedVehicle.lng], map.getZoom());
       const newCenterPoint = targetPoint.add([sidebarOffset, 0]);
@@ -149,69 +154,36 @@ const createVehicleIcon = (type: string, heading: number, zoom: number, isSelect
   });
 };
 
-// Mock data for aircraft and ships
-const initialVehicles = [
-  ...Array.from({ length: 100 }, (_, i) => ({
-    id: `A${i + 1}`,
-    type: "aircraft",
-    callsign: `FLT${100 + i}`,
-    icao: Math.floor(Math.random()*16777215).toString(16).toUpperCase().padStart(6, '0'), // Random Hex
-    // Aircraft can be anywhere
-    lat: 37.7 + (Math.random() - 0.5) * 3,
-    lng: -122.4 + (Math.random() - 0.5) * 3,
-    heading: Math.floor(Math.random() * 360),
-    // Realistic aircraft speeds (150-550 knots)
-    speed: 150 + Math.floor(Math.random() * 400),
-    alt: 5000 + Math.floor(Math.random() * 30000),
-    source: "Simulated Feed",
-    rssi: -10 - Math.floor(Math.random() * 20)
-  })),
-  ...Array.from({ length: 100 }, (_, i) => {
-    // Ships restricted to water areas (roughly)
-    // Pacific Ocean (West of SF) or Bay Area
-    const isOcean = Math.random() > 0.3;
-    let lat, lng;
-    
-    if (isOcean) {
-      // Pacific Ocean - West of SF coastline approx -122.55
-      lat = 37.0 + Math.random() * 1.5; // 37.0 to 38.5
-      lng = -123.5 + Math.random() * 0.9; // -123.5 to -122.6
-    } else {
-      // SF Bay (rough approximation)
-      lat = 37.6 + Math.random() * 0.3;
-      lng = -122.35 + Math.random() * 0.1;
-    }
-
-    return {
-      id: `M${i + 1}`,
-      type: "ship",
-      callsign: `VESSEL${100 + i}`,
-      icao: Math.floor(Math.random() * 900000000 + 100000000).toString(), // Random MMSI-like number
-      lat,
-      lng,
-      heading: Math.floor(Math.random() * 360),
-      // Realistic ship speeds (10-35 knots)
-      speed: 10 + Math.floor(Math.random() * 25),
-      alt: undefined,
-      source: "Marine Traffic Feed",
-      rssi: -5 - Math.floor(Math.random() * 15)
-    };
-  })
-];
-
 export default function Tracking() {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [vehicles, setVehicles] = useState(initialVehicles);
-  const [externalVehicles, setExternalVehicles] = useState<typeof initialVehicles>([]);
+  
+  // Connect to Node Store
+  const { activeNode, data } = useNodeStore();
+  
+  const [vehicles, setVehicles] = useState<any[]>([]); // Will sync with node data
+  const [externalVehicles, setExternalVehicles] = useState<any[]>([]);
   const [zoom, setZoom] = useState(10);
-  const [selectedVehicle, setSelectedVehicle] = useState<typeof initialVehicles[0] | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
   const selectedVehicleRef = useRef(selectedVehicle);
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
   const [showFlightPath, setShowFlightPath] = useState(false);
   const [showAllTrails, setShowAllTrails] = useState(false);
   const [vehicleHistory, setVehicleHistory] = useState<Record<string, [number, number][]>>({});
+
+  // Reset state when active node changes
+  useEffect(() => {
+    setSelectedVehicle(null);
+    setExternalVehicles([]);
+    setVehicleHistory({});
+    // Internal vehicles will be updated by the polling effect below
+  }, [activeNode.id]);
+
+  // Sync internal vehicles from store
+  useEffect(() => {
+    setVehicles(data.vehicles || []);
+  }, [data.vehicles]);
 
   // Keep ref synced with state
   useEffect(() => {
@@ -251,7 +223,7 @@ export default function Tracking() {
         const feeds: Array<{ id: string, url: string, interval: number, enabled: boolean, useProxy?: boolean }> = JSON.parse(savedFeeds);
         const enabledFeeds = feeds.filter(f => f.enabled);
 
-        const newExternalVehicles: typeof initialVehicles = [];
+        const newExternalVehicles: any[] = [];
 
         for (const feed of enabledFeeds) {
           try {
@@ -354,55 +326,32 @@ export default function Tracking() {
     const feedInterval = setInterval(pollExternalFeeds, 2000);
     pollExternalFeeds();
 
-    // Simulate movement for internal vehicles
+    // Simulate movement for internal vehicles (updates local state based on NodeStore data)
     const interval = setInterval(() => {
       setVehicles(prev => {
+        // Only run simulation if we have vehicles
+        if (prev.length === 0) return prev;
+
         const nextVehicles = prev.map(v => {
           // Simple physics simulation
-          // Convert speed (knots) to degrees/sec (very rough approximation for visual)
-          // 1 degree latitude ~ 60nm
-          // Speed in knots = nm/hour
-          // degrees/sec = (speed / 3600) / 60
-          // We'll slow it down slightly for the visual scale
           const speedFactor = 0.000003; 
           const moveDist = v.speed * speedFactor;
           
-          // Calculate new position based on heading
-          // Convert Compass Heading (0 is North, CW) to Math Angle (0 is East, CCW)
-          // Math Angle = 90 - Heading
           const rad = (90 - v.heading) * (Math.PI / 180); 
-          
-          // Lat is Y, Lng is X
           const newLat = v.lat + Math.sin(rad) * moveDist;
           const newLng = v.lng + Math.cos(rad) * moveDist;
 
-          // Constraints logic
           let nextLat = newLat;
           let nextLng = newLng;
           let nextHeading = v.heading;
 
-          if (v.type === 'ship') {
-             // Simple bounding box checks to keep ships roughly in water
-             // West boundary (Ocean) -> East boundary (Coast)
-             // Very rough approximation of SF coastline + Bay
-             
-             const isOcean = nextLng < -122.55;
-             const isBay = nextLng > -122.45 && nextLng < -122.2 && nextLat > 37.55 && nextLat < 38.1;
-             
-             if (!isOcean && !isBay) {
-                // If hit land/boundary, turn around
-                nextHeading = (v.heading + 180) % 360;
-                // Bounce back slightly
-                nextLat = v.lat;
-                nextLng = v.lng;
-             }
-          }
-
+          // Constraints (simplified for generic locations, just keep bounds sanity)
+          // Just bounce if they go too far from start (not implementing complex geo-fencing per node for now)
+          
           // Random slight heading wobble
-          const wobble = (Math.random() * 2 - 1); // +/- 1 degree
+          const wobble = (Math.random() * 2 - 1); 
           nextHeading = nextHeading + wobble;
           
-          // Keep heading 0-360
           if (nextHeading < 0) nextHeading += 360;
           if (nextHeading >= 360) nextHeading -= 360;
 
@@ -424,13 +373,13 @@ export default function Tracking() {
 
         return nextVehicles;
       });
-    }, 100); // 10fps update for smoothness
+    }, 100); 
 
     return () => {
       clearInterval(interval);
       clearInterval(feedInterval);
     };
-  }, []); // Only run once on mount, use refs for dynamic values
+  }, []); // Only run once on mount
 
   // Determine actual theme
   const currentTheme = theme === 'system' ? systemTheme : theme;
@@ -467,7 +416,7 @@ export default function Tracking() {
           Live Tracking
         </h1>
         <p className="text-xs text-muted-foreground mb-3">
-          Real-time positions from feeds.
+          Connected to {activeNode.name}
         </p>
         
         <div className="space-y-2">
@@ -509,14 +458,14 @@ export default function Tracking() {
 
       <div className="flex-1 overflow-hidden relative z-0">
         <MapContainer 
-          center={[37.7, -122.4]} 
+          center={[activeNode.location.lat, activeNode.location.lng]} 
           zoom={10} 
           minZoom={3}
           style={{ height: "100%", width: "100%", background: mapBackground }}
           key={currentTheme} // Force re-render on theme change
         >
           <MapEvents setZoom={setZoom} />
-          <MapUpdater selectedVehicle={selectedVehicle} />
+          <MapUpdater selectedVehicle={selectedVehicle} activeNodeLocation={activeNode.location} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
@@ -696,28 +645,22 @@ export default function Tracking() {
                   )}
                 </div>
 
-                <Separator className="bg-border/50" />
-
-                {/* Location */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-primary" /> Location
                   </h3>
-                  <div className="bg-muted/30 rounded-lg p-3 space-y-2 border border-border/50 font-mono text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Lat</span>
-                      <span>{selectedVehicle.lat.toFixed(6)}</span>
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-2 border border-border/50">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Latitude</span>
+                      <span className="font-mono">{selectedVehicle.lat.toFixed(6)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Lng</span>
-                      <span>{selectedVehicle.lng.toFixed(6)}</span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Longitude</span>
+                      <span className="font-mono">{selectedVehicle.lng.toFixed(6)}</span>
                     </div>
                   </div>
                 </div>
 
-                <Separator className="bg-border/50" />
-
-                {/* Signal Info */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
                     <Radio className="w-4 h-4 text-primary" /> Signal

@@ -8,6 +8,7 @@ import logoIcon from "@/assets/airwaves-logo.png";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "next-themes";
 import { CommandMenu } from "@/components/CommandMenu";
+import { useNodeStore } from "@/lib/nodeStore";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: SidebarProps) {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [systemStats, setSystemStats] = useState({ cpu: 45, ram: 62 });
+  const { activeNode, nodes, setActiveNode } = useNodeStore();
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -154,31 +156,38 @@ export default function AppLayout({ children }: SidebarProps) {
                  {!collapsed ? (
                    <>
                      <span className="flex items-center gap-2 truncate">
-                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                       Core (This Device)
+                       <div className={cn(
+                         "w-2 h-2 rounded-full animate-pulse",
+                         activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                       )}></div>
+                       {activeNode.name}
                      </span>
                      <ChevronsUpDown className="w-4 h-4 opacity-50 group-hover:opacity-100" />
                    </>
                  ) : (
-                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                   <div className={cn(
+                    "w-2 h-2 rounded-full animate-pulse",
+                    activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                  )}></div>
                  )}
                </Button>
              </DropdownMenuTrigger>
              <DropdownMenuContent className="w-[230px]" align="start" side={collapsed ? "right" : "bottom"}>
                <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">Switch System</div>
-               <DropdownMenuItem className="gap-2">
-                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                 <span>Core (This Device)</span>
-                 <Check className="w-4 h-4 ml-auto" />
-               </DropdownMenuItem>
-               <DropdownMenuItem className="gap-2">
-                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                 <span>Attic Node</span>
-               </DropdownMenuItem>
-               <DropdownMenuItem className="gap-2 text-muted-foreground">
-                 <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
-                 <span>Garage Node</span>
-               </DropdownMenuItem>
+               {nodes.map(node => (
+                <DropdownMenuItem 
+                  key={node.id} 
+                  className="gap-2"
+                  onClick={() => setActiveNode(node.id)}
+                >
+                   <div className={cn(
+                     "w-2 h-2 rounded-full",
+                     node.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                   )}></div>
+                   <span>{node.name}</span>
+                   {activeNode.id === node.id && <Check className="w-4 h-4 ml-auto" />}
+                 </DropdownMenuItem>
+               ))}
                
                <DropdownMenuSeparator />
                
@@ -233,7 +242,10 @@ export default function AppLayout({ children }: SidebarProps) {
         <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex justify-center" : "p-4")}>
           {collapsed ? (
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full animate-pulse",
+                  activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                )}></div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
                   <div 
                     className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out" 
@@ -251,9 +263,15 @@ export default function AppLayout({ children }: SidebarProps) {
             <div className="bg-sidebar-accent/30 rounded-lg p-3 text-xs text-sidebar-foreground/60">
               <div className="flex justify-between items-center mb-2">
                 <span>System Status</span>
-                <span className="text-emerald-500 font-medium flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Online
+                <span className={cn(
+                  "font-medium flex items-center gap-1.5",
+                  activeNode.status === 'online' ? "text-emerald-500" : "text-red-500"
+                )}>
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full animate-pulse",
+                    activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                  )}></span>
+                  {activeNode.status === 'online' ? 'Online' : 'Offline'}
                 </span>
               </div>
               <div className="space-y-1.5">
