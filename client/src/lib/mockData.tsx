@@ -14,6 +14,7 @@ export interface App {
   memoryUsage: number;
   messageRate?: number;
   assignedDevice?: string;
+  hasOutput?: boolean; // Indicates if the app produces message data for feeding
   // Extended fields for App Store
   longDescription?: string;
   developer?: string;
@@ -107,6 +108,7 @@ export const mockApps: App[] = [
     icon: Plane,
     category: "aviation",
     installed: true,
+    hasOutput: true,
     cpuUsage: 12,
     memoryUsage: 45,
     messageRate: 15,
@@ -128,6 +130,7 @@ export const mockApps: App[] = [
     icon: Server,
     category: "aviation",
     installed: true,
+    hasOutput: true,
     cpuUsage: 5,
     memoryUsage: 120,
     messageRate: 85,
@@ -148,6 +151,7 @@ export const mockApps: App[] = [
     icon: Radar,
     category: "aviation",
     installed: true,
+    hasOutput: true,
     cpuUsage: 25,
     memoryUsage: 80,
     messageRate: 420,
@@ -169,6 +173,7 @@ export const mockApps: App[] = [
     icon: Ship,
     category: "maritime",
     installed: true,
+    hasOutput: true,
     cpuUsage: 0,
     memoryUsage: 0,
     messageRate: 0,
@@ -189,6 +194,7 @@ export const mockApps: App[] = [
     icon: Satellite,
     category: "satcom",
     installed: false,
+    hasOutput: false,
     cpuUsage: 0,
     memoryUsage: 0,
     screenshots: ["/screenshots/satdump-1.jpg", "/screenshots/satdump-2.jpg"]
@@ -208,6 +214,7 @@ export const mockApps: App[] = [
     icon: Wifi,
     category: "utility",
     installed: false,
+    hasOutput: true,
     cpuUsage: 0,
     memoryUsage: 0,
     screenshots: []
@@ -227,6 +234,7 @@ export const mockApps: App[] = [
     icon: Plane,
     category: "aviation",
     installed: true,
+    hasOutput: true,
     cpuUsage: 15,
     memoryUsage: 60,
     messageRate: 22,
@@ -248,6 +256,7 @@ export const mockApps: App[] = [
     icon: Radio,
     category: "aviation",
     installed: true,
+    hasOutput: false, // rtl_airband streams audio, not message data
     cpuUsage: 18,
     memoryUsage: 45,
     messageRate: 0,
@@ -269,6 +278,7 @@ export const mockApps: App[] = [
     icon: Globe,
     category: "utility",
     installed: true,
+    hasOutput: true,
     cpuUsage: 1,
     memoryUsage: 15,
     messageRate: 0,

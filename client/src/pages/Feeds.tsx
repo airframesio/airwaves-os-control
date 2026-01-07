@@ -41,7 +41,7 @@ export default function Feeds() {
 
   const selectedApp = mockApps.find(app => app.id === selectedSource);
   const activeAggregator = aggregators.find(a => a.id === selectedAggregator);
-  const sourceApps = mockApps.filter(app => ["aviation", "maritime"].includes(app.category));
+  const sourceApps = mockApps.filter(app => app.hasOutput);
   
   // Filter aggregators based on selected app category
   const availableAggregators = selectedApp 
