@@ -136,7 +136,9 @@ const initialVehicles = [
     heading: Math.floor(Math.random() * 360),
     // Realistic aircraft speeds (150-550 knots)
     speed: 150 + Math.floor(Math.random() * 400),
-    alt: 5000 + Math.floor(Math.random() * 30000)
+    alt: 5000 + Math.floor(Math.random() * 30000),
+    source: "Simulated Feed",
+    rssi: -10 - Math.floor(Math.random() * 20)
   })),
   ...Array.from({ length: 100 }, (_, i) => {
     // Ships restricted to water areas (roughly)
@@ -164,7 +166,9 @@ const initialVehicles = [
       heading: Math.floor(Math.random() * 360),
       // Realistic ship speeds (10-35 knots)
       speed: 10 + Math.floor(Math.random() * 25),
-      alt: undefined
+      alt: undefined,
+      source: "Marine Traffic Feed",
+      rssi: -5 - Math.floor(Math.random() * 15)
     };
   })
 ];
@@ -233,7 +237,9 @@ export default function Tracking() {
                 lng: typeof ac.lon === 'number' ? ac.lon : parseFloat(ac.lon),
                 heading: typeof ac.track === 'number' ? ac.track : (typeof ac.heading === 'number' ? ac.heading : 0),
                 speed: typeof ac.speed === 'number' ? ac.speed : (typeof ac.gs === 'number' ? ac.gs : 0), // gs = ground speed
-                alt: typeof ac.alt_baro === 'number' ? ac.alt_baro : (typeof ac.altitude === 'number' ? ac.altitude : 0)
+                alt: typeof ac.alt_baro === 'number' ? ac.alt_baro : (typeof ac.altitude === 'number' ? ac.altitude : 0),
+                source: "External Feed Source",
+                rssi: typeof ac.rssi === 'number' ? ac.rssi : (typeof ac.sig === 'number' ? ac.sig : undefined)
               });
             });
 
@@ -242,6 +248,14 @@ export default function Tracking() {
           }
         }
         setExternalVehicles(newExternalVehicles);
+        
+        // Update selected vehicle if it's external
+        if (selectedVehicle && selectedVehicle.id.startsWith('EXT-')) {
+          const updatedExternal = newExternalVehicles.find(v => v.id === selectedVehicle.id);
+          if (updatedExternal) {
+            setSelectedVehicle(updatedExternal);
+          }
+        }
 
       } catch (e) {
         console.error("Error polling feeds", e);
@@ -573,12 +587,20 @@ export default function Tracking() {
                   <div className="bg-muted/30 rounded-lg p-3 space-y-2 border border-border/50">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Source</span>
-                      <span className="font-medium">ADS-B Receiver #4</span>
+                      <span className="font-medium">{selectedVehicle.source || 'Unknown Source'}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Signal Strength</span>
-                      <span className="text-emerald-500 font-medium">-12 dBFS</span>
-                    </div>
+                    {selectedVehicle.rssi !== undefined && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Signal Strength (RSSI)</span>
+                        <span className={cn(
+                          "font-medium font-mono",
+                          selectedVehicle.rssi > -10 ? "text-emerald-500" : 
+                          selectedVehicle.rssi > -20 ? "text-yellow-500" : "text-red-500"
+                        )}>
+                          {selectedVehicle.rssi} dBFS
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Last Seen</span>
                       <span className="font-mono text-xs">Just now</span>
