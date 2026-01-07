@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents, Polyline } from "react-leaflet";
 import { divIcon } from "leaflet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -181,6 +181,49 @@ export default function Tracking() {
   const [zoom, setZoom] = useState(10);
   const [selectedVehicle, setSelectedVehicle] = useState<typeof initialVehicles[0] | null>(null);
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
+  const [flightPath, setFlightPath] = useState<[number, number][]>([]);
+  const [showFlightPath, setShowFlightPath] = useState(false);
+
+  // Generate simulated flight path history
+  useEffect(() => {
+    if (selectedVehicle && showFlightPath) {
+      // Create a mock path based on heading and speed, backwards
+      const path: [number, number][] = [];
+      let { lat, lng, heading } = selectedVehicle;
+      
+      // Add current position
+      path.push([lat, lng]);
+
+      // Generate 20 points backwards
+      for (let i = 0; i < 20; i++) {
+        // Simple projection backwards
+        // 1 degree latitude ~ 60nm
+        // Rough scale for visual
+        const dist = 0.01; 
+        const rad = (90 - heading) * (Math.PI / 180);
+        
+        // Reverse direction
+        lat -= Math.sin(rad) * dist;
+        lng -= Math.cos(rad) * dist;
+        
+        // Slight curve for realism
+        heading += (Math.random() * 10 - 5);
+
+        path.push([lat, lng]);
+      }
+      
+      setFlightPath(path);
+    } else {
+      setFlightPath([]);
+    }
+  }, [selectedVehicle, showFlightPath]);
+  
+  // Reset flight path view when deselected
+  useEffect(() => {
+    if (!selectedVehicle) {
+      setShowFlightPath(false);
+    }
+  }, [selectedVehicle]);
 
   useEffect(() => {
     setMounted(true);
@@ -419,6 +462,19 @@ export default function Tracking() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
           />
+          
+          {showFlightPath && flightPath.length > 0 && (
+            <Polyline 
+              positions={flightPath}
+              pathOptions={{ 
+                color: selectedVehicle?.type === 'aircraft' ? '#0ea5e9' : '#10b981', // sky-500 or emerald-500
+                weight: 2,
+                opacity: 0.6,
+                dashArray: '4 8'
+              }} 
+            />
+          )}
+
           {[...vehicles, ...externalVehicles].map((v) => {
             const isSelected = selectedVehicle?.id === v.id;
             const isHovered = hoveredVehicleId === v.id;
@@ -610,8 +666,12 @@ export default function Tracking() {
 
                 {/* Simulated Flight Path (Placeholder) */}
                 <div className="pt-2">
-                  <Button variant="outline" className="w-full gap-2 text-xs h-9">
-                    <Activity className="w-3 h-3" /> View Flight Path
+                  <Button 
+                    variant={showFlightPath ? "secondary" : "outline"} 
+                    className="w-full gap-2 text-xs h-9"
+                    onClick={() => setShowFlightPath(!showFlightPath)}
+                  >
+                    <Activity className="w-3 h-3" /> {showFlightPath ? "Hide Flight Path" : "View Flight Path"}
                   </Button>
                 </div>
               </div>
