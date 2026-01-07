@@ -194,7 +194,7 @@ export const mockApps: App[] = [
     icon: Satellite,
     category: "satcom",
     installed: false,
-    hasOutput: false,
+    hasOutput: true,
     cpuUsage: 0,
     memoryUsage: 0,
     screenshots: ["/screenshots/satdump-1.jpg", "/screenshots/satdump-2.jpg"]
