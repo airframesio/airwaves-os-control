@@ -138,6 +138,26 @@ export function NodeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('activeNodeId', activeNodeId);
   }, [activeNodeId]);
 
+  // Ensure rtl_airband is installed for the demo (self-healing for existing sessions)
+  useEffect(() => {
+    setNodeData(prev => {
+      const coreNode = prev['sys-1'];
+      if (!coreNode) return prev;
+
+      const app = coreNode.apps.find(a => a.id === 'rtl_airband');
+      if (app && !app.installed) {
+         return {
+          ...prev,
+          ['sys-1']: {
+            ...coreNode,
+            apps: coreNode.apps.map(a => a.id === 'rtl_airband' ? { ...a, installed: true, status: 'running' } : a)
+          }
+        };
+      }
+      return prev;
+    });
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('nodeData', JSON.stringify(nodeData));
   }, [nodeData]);
