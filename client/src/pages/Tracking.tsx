@@ -115,6 +115,7 @@ const initialVehicles = [
     id: `A${i + 1}`,
     type: "aircraft",
     callsign: `FLT${100 + i}`,
+    icao: Math.floor(Math.random()*16777215).toString(16).toUpperCase().padStart(6, '0'), // Random Hex
     // Aircraft can be anywhere
     lat: 37.7 + (Math.random() - 0.5) * 3,
     lng: -122.4 + (Math.random() - 0.5) * 3,
@@ -143,6 +144,7 @@ const initialVehicles = [
       id: `M${i + 1}`,
       type: "ship",
       callsign: `VESSEL${100 + i}`,
+      icao: Math.floor(Math.random() * 900000000 + 100000000).toString(), // Random MMSI-like number
       lat,
       lng,
       heading: Math.floor(Math.random() * 360),
@@ -361,7 +363,7 @@ export default function Tracking() {
                     <Badge variant="outline" className="text-[10px] py-0 h-5 px-1.5 bg-background/50 uppercase tracking-wide">
                       {selectedVehicle.type}
                     </Badge>
-                    <span className="text-xs text-muted-foreground font-mono">ID: {selectedVehicle.id}</span>
+                    <span className="text-xs text-muted-foreground font-mono">ICAO: {selectedVehicle.icao}</span>
                   </div>
                 </div>
               </div>
