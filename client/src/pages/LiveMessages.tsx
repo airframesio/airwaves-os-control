@@ -1,18 +1,70 @@
-import { useState } from "react";
-import { mockMessages } from "@/lib/mockData";
+import { useState, useEffect } from "react";
+import { mockMessages, Message } from "@/lib/mockData";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Search, Filter, Signal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Activity, Search, Filter, Signal, Pause, Play } from "lucide-react";
+
+const SAMPLE_MESSAGES = [
+  {
+    appId: "readsb",
+    appName: "readsb", 
+    frequency: "1090 MHz",
+    mode: "ADSB",
+    content: (icao: string) => `DF: 17 CA: 5 TC: 11 (Airborne Position) Altitude: ${Math.floor(Math.random() * 40000)} ft`
+  },
+  {
+    appId: "acarsdec",
+    appName: "acarsdec",
+    frequency: "131.550 MHz", 
+    mode: "ACARS",
+    content: () => `ACARS mode: 2 label: 5U block_id: ${Math.floor(Math.random() * 9)} msg_no: M0${Math.floor(Math.random() * 9)}A`
+  },
+  {
+    appId: "ais-catcher",
+    appName: "AIS-Catcher",
+    frequency: "162.025 MHz",
+    mode: "AIS",
+    content: () => `Type: 1 (Position Report) Status: Under way using engine Speed: ${(Math.random() * 20).toFixed(1)} kn`
+  }
+];
 
 export default function LiveMessages() {
+  const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [filterApp, setFilterApp] = useState("all");
   const [filterMode, setFilterMode] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isPaused, setIsPaused] = useState(false);
 
-  const filteredMessages = mockMessages.filter(msg => {
+  useEffect(() => {
+    if (isPaused) return;
+
+    const interval = setInterval(() => {
+      const template = SAMPLE_MESSAGES[Math.floor(Math.random() * SAMPLE_MESSAGES.length)];
+      const id = Math.random().toString(36).substr(2, 9);
+      
+      const newMessage: Message = {
+        id: `msg-${id}`,
+        timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
+        appId: template.appId,
+        appName: template.appName,
+        frequency: template.frequency,
+        mode: template.mode,
+        signalLevel: -Math.floor(Math.random() * 30),
+        source: Math.random().toString(36).substr(2, 6).toUpperCase(),
+        content: typeof template.content === 'function' ? template.content('TEST') : template.content
+      };
+
+      setMessages(prev => [newMessage, ...prev].slice(0, 100)); // Keep last 100 messages
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const filteredMessages = messages.filter(msg => {
     const matchesApp = filterApp === "all" || msg.appId === filterApp;
     const matchesMode = filterMode === "all" || msg.mode === filterMode;
     const matchesSearch = 
@@ -37,6 +89,14 @@ export default function LiveMessages() {
           </h1>
           <p className="text-muted-foreground mt-1">Real-time decoded data stream from all active applications.</p>
         </div>
+        <Button 
+          variant={isPaused ? "default" : "outline"}
+          onClick={() => setIsPaused(!isPaused)}
+          className="w-full md:w-auto"
+        >
+          {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+          {isPaused ? "Resume Feed" : "Pause Feed"}
+        </Button>
       </div>
 
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
@@ -131,7 +191,7 @@ export default function LiveMessages() {
             </Table>
           </div>
           <div className="mt-4 text-xs text-muted-foreground text-center">
-            Showing {filteredMessages.length} of {mockMessages.length} messages
+            Showing {filteredMessages.length} messages (Feed {isPaused ? 'Paused' : 'Live'})
           </div>
         </CardContent>
       </Card>
