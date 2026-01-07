@@ -88,7 +88,11 @@ export default function Tracking() {
         const moveDist = v.speed * speedFactor;
         
         // Calculate new position based on heading
-        const rad = (v.heading - 90) * (Math.PI / 180); // -90 to convert compass to math angle
+        // Convert Compass Heading (0 is North, CW) to Math Angle (0 is East, CCW)
+        // Math Angle = 90 - Heading
+        const rad = (90 - v.heading) * (Math.PI / 180); 
+        
+        // Lat is Y, Lng is X
         const newLat = v.lat + Math.sin(rad) * moveDist;
         const newLng = v.lng + Math.cos(rad) * moveDist;
 
