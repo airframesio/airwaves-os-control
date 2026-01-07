@@ -87,6 +87,7 @@ export default function Feeds() {
   const totalFeeds = mockFeeds.length;
   const activeFeeds = mockFeeds.filter(f => f.status === 'connected').length;
   const totalRate = mockFeeds.reduce((acc, f) => acc + (f.messageRate || 0), 0);
+  const totalBandwidth = mockFeeds.reduce((acc, f) => acc + (f.bandwidth || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -257,11 +258,11 @@ export default function Feeds() {
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Total Rate</p>
-              <p className="text-2xl font-bold font-mono">{totalRate} <span className="text-xs font-normal text-muted-foreground">msg/min</span></p>
+              <p className="text-sm font-medium text-muted-foreground">Total Bandwidth</p>
+              <p className="text-2xl font-bold font-mono">{totalBandwidth.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">kbps</span></p>
             </div>
             <div className="p-3 bg-blue-500/10 rounded-full text-blue-500">
-              <BarChart3 className="w-5 h-5" />
+              <Activity className="w-5 h-5" />
             </div>
           </CardContent>
         </Card>
@@ -337,6 +338,10 @@ export default function Feeds() {
                        `${feed.messageRate}/min`
                      )}
                    </div>
+                 </div>
+                 <div className="text-center min-w-[80px]">
+                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Upload</div>
+                   <div className="font-medium font-mono text-sm">{feed.bandwidth} kbps</div>
                  </div>
                  
                  <div className="flex gap-2 pl-6 ml-2 border-l border-border/50">

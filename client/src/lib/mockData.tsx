@@ -43,6 +43,7 @@ export interface Feed {
   port: number;
   status: "connected" | "disconnected" | "error";
   messageRate: number; // msgs per minute
+  bandwidth: number; // kbps
   appId: string;
 }
 
@@ -330,6 +331,7 @@ export const mockFeeds: Feed[] = [
     port: 5550,
     status: "connected",
     messageRate: 42,
+    bandwidth: 1.2,
     appId: "acarshub"
   },
   {
@@ -341,6 +343,7 @@ export const mockFeeds: Feed[] = [
     port: 30005,
     status: "connected",
     messageRate: 150,
+    bandwidth: 12.5,
     appId: "readsb"
   },
   {
@@ -352,6 +355,7 @@ export const mockFeeds: Feed[] = [
     port: 5321,
     status: "disconnected",
     messageRate: 0,
+    bandwidth: 0,
     appId: "ais-catcher"
   },
   {
@@ -363,6 +367,7 @@ export const mockFeeds: Feed[] = [
     port: 5555,
     status: "connected",
     messageRate: 22,
+    bandwidth: 0.8,
     appId: "dumpvdl2"
   },
   {
@@ -374,6 +379,7 @@ export const mockFeeds: Feed[] = [
     port: 8000,
     status: "connected",
     messageRate: 0,
+    bandwidth: 128,
     appId: "rtl_airband"
   }
 ];
