@@ -18,7 +18,22 @@ function MapUpdater({ selectedVehicle }: { selectedVehicle: { lat: number, lng: 
   
   useEffect(() => {
     if (selectedVehicle) {
-      map.setView([selectedVehicle.lat, selectedVehicle.lng], map.getZoom(), {
+      // Calculate offset based on sidebar width (320px + padding)
+      // We want the vehicle to be centered in the remaining visible area
+      // Map width W, Sidebar S = 336px (320px + 16px margin)
+      // Visible width V = W - S
+      // Center of visible area is at x = V/2
+      // True map center is at x = W/2
+      // We want the vehicle to be at screen x = V/2
+      // Offset needed = W/2 - V/2 = (W - (W-S))/2 = S/2
+      // So we need to shift the map center by S/2 to the RIGHT (so vehicle appears S/2 to the LEFT)
+      
+      const sidebarOffset = 168; // 336px / 2
+      const targetPoint = map.project([selectedVehicle.lat, selectedVehicle.lng], map.getZoom());
+      const newCenterPoint = targetPoint.add([sidebarOffset, 0]);
+      const newCenter = map.unproject(newCenterPoint, map.getZoom());
+
+      map.setView(newCenter, map.getZoom(), {
         animate: true,
         duration: 0.1 // Short duration for smoother following
       });
