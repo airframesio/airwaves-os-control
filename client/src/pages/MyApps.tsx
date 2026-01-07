@@ -47,6 +47,18 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppMetrics from "@/components/AppMetrics";
+import { motion, useSpring, useTransform } from "framer-motion";
+
+const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
+  const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
+  const display = useTransform(spring, (current) => format(current));
+
+  useEffect(() => {
+    spring.set(value);
+  }, [value, spring]);
+
+  return <motion.span>{display}</motion.span>;
+};
 
 interface ExternalFeed {
   id: string;
@@ -484,7 +496,9 @@ export default function MyApps() {
                         <Cpu className="w-4 h-4 text-primary" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold mb-2">{selectedApp.status === "running" ? selectedApp.cpuUsage : 0}%</div>
+                        <div className="text-2xl font-bold mb-2">
+                          <AnimatedNumber value={selectedApp.status === "running" ? selectedApp.cpuUsage : 0} />%
+                        </div>
                         <Progress value={selectedApp.status === "running" ? selectedApp.cpuUsage : 0} className="h-1.5 bg-muted" indicatorClassName="bg-primary" />
                         <p className="text-xs text-muted-foreground mt-2">Core 1</p>
                       </CardContent>
@@ -495,7 +509,9 @@ export default function MyApps() {
                         <Database className="w-4 h-4 text-purple-500" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold mb-2">{selectedApp.status === "running" ? selectedApp.memoryUsage : 0} MB</div>
+                        <div className="text-2xl font-bold mb-2">
+                          <AnimatedNumber value={selectedApp.status === "running" ? selectedApp.memoryUsage : 0} /> MB
+                        </div>
                         <Progress value={selectedApp.status === "running" ? (selectedApp.memoryUsage / 512) * 100 : 0} className="h-1.5 bg-muted" indicatorClassName="bg-purple-500" />
                         <p className="text-xs text-muted-foreground mt-2">of 512 MB Limit</p>
                       </CardContent>
@@ -506,7 +522,12 @@ export default function MyApps() {
                         <HardDrive className="w-4 h-4 text-orange-500" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold mb-2">{selectedApp.status === "running" ? "1.2" : "0"} MB/s</div>
+                        <div className="text-2xl font-bold mb-2">
+                          <AnimatedNumber 
+                            value={selectedApp.status === "running" ? 1.2 : 0} 
+                            format={(v) => v.toFixed(1)} 
+                          /> MB/s
+                        </div>
                         <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
                           <div className="h-full bg-orange-500 w-[15%]"></div>
                         </div>
