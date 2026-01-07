@@ -461,7 +461,7 @@ export default function Tracking() {
           display: none !important;
         }
       `}</style>
-      <div className="absolute top-4 left-4 z-[400] bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-64">
+      <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-64">
         <h1 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-primary" />
           Live Tracking
@@ -623,7 +623,7 @@ export default function Tracking() {
 
       {/* Floating Details Pane */}
       <div className={cn(
-        "absolute top-4 bottom-4 right-4 w-80 bg-card/95 backdrop-blur-md border border-border/50 rounded-xl shadow-2xl z-[400] transition-transform duration-300 ease-in-out flex flex-col",
+        "absolute top-4 bottom-4 right-4 w-80 bg-card/95 backdrop-blur-md border border-border/50 rounded-xl shadow-2xl z-10 transition-transform duration-300 ease-in-out flex flex-col",
         selectedVehicle ? "translate-x-0" : "translate-x-[120%]"
       )}>
         {selectedVehicle && (
