@@ -10,9 +10,21 @@ import { useEffect, useState } from "react";
 
 // Create custom icon function
 const createVehicleIcon = (type: string, heading: number) => {
+  // Determine rotation offset based on default icon orientation
+  // Plane icon points top-right (45deg), so rotate -45 to align with North (0deg)
+  // Ship icon points right (90deg) usually? Or left?
+  // Let's assume standard rotation. 
+  // Standard CSS rotation is clockwise. 
+  // If Heading 0 is North.
+  // Plane (45deg natural). To point North, rotate -45deg.
+  // Ship (generic boat shape). Let's treat it same way if it's top down but Ship icon is profile.
+  // Actually, let's keep it simple.
+  
+  const rotationOffset = type === 'aircraft' ? -45 : 0;
+  
   const iconMarkup = renderToStaticMarkup(
     <div style={{ 
-      transform: `rotate(${heading}deg)`,
+      transform: `rotate(${heading + rotationOffset}deg)`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -26,11 +38,14 @@ const createVehicleIcon = (type: string, heading: number) => {
           strokeWidth={2}
         />
       ) : (
-        <Ship 
-          size={24} 
-          className="text-emerald-500 fill-emerald-500/20" 
-          strokeWidth={2}
-        />
+        <div style={{ transform: 'rotate(-90deg)' }}> 
+           {/* Ship icon usually points right, so rotate -90 to point up, then apply heading */}
+          <Ship 
+            size={24} 
+            className="text-emerald-500 fill-emerald-500/20" 
+            strokeWidth={2}
+          />
+        </div>
       )}
     </div>
   );
