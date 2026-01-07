@@ -49,6 +49,16 @@ const SAMPLE_MESSAGES = [
   }
 ];
 
+interface VisibleColumns {
+  timestamp: boolean;
+  app: boolean;
+  mode: boolean;
+  frequency: boolean;
+  signal: boolean;
+  source: boolean;
+  details: boolean;
+}
+
 export default function LiveMessages() {
   const { activeNode, data } = useNodeStore();
   const runningAppIds = data.apps.filter(a => a.status === 'running').map(a => a.id);
@@ -64,15 +74,30 @@ export default function LiveMessages() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
   // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState({
-    timestamp: true,
-    app: true,
-    mode: true,
-    frequency: false, // Unchecked by default
-    signal: true,
-    source: true,
-    details: true
+  const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
+    const saved = localStorage.getItem('liveMessagesColumns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved columns", e);
+      }
+    }
+    return {
+      timestamp: true,
+      app: true,
+      mode: true,
+      frequency: false, // Unchecked by default
+      signal: true,
+      source: true,
+      details: true
+    };
   });
+
+  // Save to localStorage whenever visibleColumns changes
+  useEffect(() => {
+    localStorage.setItem('liveMessagesColumns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
 
   // Reset messages when active node changes
   useEffect(() => {
