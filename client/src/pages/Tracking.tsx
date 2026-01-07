@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import { divIcon } from "leaflet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,20 +8,31 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
+// Helper component to track map zoom
+function MapEvents({ setZoom }: { setZoom: (z: number) => void }) {
+  const map = useMapEvents({
+    zoomend: () => {
+      setZoom(map.getZoom());
+    },
+  });
+  return null;
+}
+
 // Create custom icon function
-const createVehicleIcon = (type: string, heading: number) => {
-  // Determine rotation offset based on default icon orientation
-  // Plane icon points top-right (45deg), so rotate -45 to align with North (0deg)
-  // Ship icon points right (90deg) usually? Or left?
-  // Let's assume standard rotation. 
-  // Standard CSS rotation is clockwise. 
-  // If Heading 0 is North.
-  // Plane (45deg natural). To point North, rotate -45deg.
-  // Ship (generic boat shape). Let's treat it same way if it's top down but Ship icon is profile.
-  // Actually, let's keep it simple.
-  
+const createVehicleIcon = (type: string, heading: number, zoom: number) => {
   const rotationOffset = type === 'aircraft' ? -45 : 0;
   
+  // Scale icon size based on zoom
+  const baseSize = 24;
+  let scale = 1;
+  
+  if (zoom < 6) scale = 0.2; // Tiny dots
+  else if (zoom < 8) scale = 0.5; // Small icons
+  else if (zoom < 10) scale = 0.8; // Medium icons
+  else scale = 1; // Full size
+
+  const size = baseSize * scale;
+
   const iconMarkup = renderToStaticMarkup(
     <div style={{ 
       transform: `rotate(${heading + rotationOffset}deg)`,
@@ -29,23 +40,28 @@ const createVehicleIcon = (type: string, heading: number) => {
       alignItems: 'center',
       justifyContent: 'center',
       width: '100%',
-      height: '100%'
+      height: '100%',
+      transition: 'all 0.3s ease'
     }}>
-      {type === 'aircraft' ? (
-        <Plane 
-          size={24} 
-          className="text-sky-500 fill-sky-500/20" 
-          strokeWidth={2}
-        />
+      {zoom < 6 ? (
+        // Simple dot for low zoom
+        <div className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : 'bg-emerald-500'}`} />
       ) : (
-        <div style={{ transform: 'rotate(-90deg)' }}> 
-           {/* Ship icon usually points right, so rotate -90 to point up, then apply heading */}
-          <Ship 
-            size={24} 
-            className="text-emerald-500 fill-emerald-500/20" 
+        type === 'aircraft' ? (
+          <Plane 
+            size={size} 
+            className="text-sky-500 fill-sky-500/20" 
             strokeWidth={2}
           />
-        </div>
+        ) : (
+          <div style={{ transform: 'rotate(-90deg)' }}> 
+            <Ship 
+              size={size} 
+              className="text-emerald-500 fill-emerald-500/20" 
+              strokeWidth={2}
+            />
+          </div>
+        )
       )}
     </div>
   );
@@ -53,8 +69,8 @@ const createVehicleIcon = (type: string, heading: number) => {
   return divIcon({
     html: iconMarkup,
     className: 'bg-transparent',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
   });
 };
 
@@ -86,6 +102,7 @@ export default function Tracking() {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [vehicles, setVehicles] = useState(initialVehicles);
+  const [zoom, setZoom] = useState(10);
 
   useEffect(() => {
     setMounted(true);
@@ -179,6 +196,7 @@ export default function Tracking() {
           style={{ height: "100%", width: "100%", background: mapBackground }}
           key={currentTheme} // Force re-render on theme change
         >
+          <MapEvents setZoom={setZoom} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
@@ -187,7 +205,7 @@ export default function Tracking() {
             <Marker 
               key={v.id} 
               position={[v.lat, v.lng]} 
-              icon={createVehicleIcon(v.type, v.heading)}
+              icon={createVehicleIcon(v.type, v.heading, zoom)}
             >
               <Popup className="bg-card text-card-foreground border-border">
                 <div className="p-1">
