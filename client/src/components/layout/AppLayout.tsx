@@ -21,7 +21,10 @@ export default function AppLayout({ children }: SidebarProps) {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [systemStats, setSystemStats] = useState({ cpu: 45, ram: 62 });
-  const { activeNode, nodes, setActiveNode } = useNodeStore();
+  const { activeNode, nodes, setActiveNode, data } = useNodeStore();
+
+  // Check if rtl_airband is installed on the active node
+  const hasRtlAirband = data.apps.some(app => app.id === 'rtl_airband' && app.installed);
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -42,6 +45,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Map", icon: Map, href: "/map" },
     { label: "Live Messages", icon: MessageSquareText, href: "/messages" },
+    ...(hasRtlAirband ? [{ label: "RTL Airband", icon: Radio, href: "/airband" }] : []),
   ];
 
   const appNavItems = [

@@ -243,12 +243,14 @@ export const mockApps: App[] = [
     lastUpdate: "2025-08-20",
     size: "3.2 MB",
     version: "4.0.3",
-    status: "stopped",
+    status: "running",
     icon: Radio,
     category: "aviation",
-    installed: false,
-    cpuUsage: 0,
-    memoryUsage: 0,
+    installed: true,
+    cpuUsage: 18,
+    memoryUsage: 45,
+    messageRate: 0,
+    assignedDevice: "dev-4",
     screenshots: []
   },
   {

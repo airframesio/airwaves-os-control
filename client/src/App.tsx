@@ -18,6 +18,7 @@ import Systems from "./pages/Systems";
 import SystemMonitor from "./pages/SystemMonitor";
 import Tracking from "./pages/Tracking";
 import LiveMessages from "./pages/LiveMessages";
+import RtlAirband from "./pages/RtlAirband";
 import AppLayout from "./components/layout/AppLayout";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/map" component={Tracking} />
         <Route path="/messages" component={LiveMessages} />
+        <Route path="/airband" component={RtlAirband} />
         <Route path="/monitor" component={SystemMonitor} />
         <Route path="/store" component={AppStore} />
         <Route path="/store/:id" component={AppDetails} />
