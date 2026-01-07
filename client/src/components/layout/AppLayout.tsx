@@ -286,8 +286,8 @@ export default function AppLayout({ children }: SidebarProps) {
         {/* Mobile Header */}
         <header className="h-16 lg:hidden flex items-center justify-between px-4 border-b border-border bg-background/50 backdrop-blur-md sticky top-0 z-30">
           <div className="flex items-center gap-2 font-bold text-lg">
-             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
-                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-cover" />
+             <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
+                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-contain" />
              </div>
              Airwaves OS
           </div>
