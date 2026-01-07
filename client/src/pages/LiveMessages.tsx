@@ -6,8 +6,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Clock, Radio, User, FileText, Cpu } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 
 const SAMPLE_MESSAGES = [
   {
@@ -45,6 +61,18 @@ export default function LiveMessages() {
   const [isPaused, setIsPaused] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    timestamp: true,
+    app: true,
+    mode: true,
+    frequency: false, // Unchecked by default
+    signal: true,
+    source: true,
+    details: true
+  });
 
   // Reset messages when active node changes
   useEffect(() => {
@@ -182,6 +210,60 @@ export default function LiveMessages() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="bg-background/50">
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[150px]">
+                  <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.timestamp}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, timestamp: checked }))}
+                  >
+                    Timestamp
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.app}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, app: checked }))}
+                  >
+                    Application
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.mode}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, mode: checked }))}
+                  >
+                    Mode
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.frequency}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, frequency: checked }))}
+                  >
+                    Frequency
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.signal}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, signal: checked }))}
+                  >
+                    Signal
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.source}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, source: checked }))}
+                  >
+                    Source
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={visibleColumns.details}
+                    onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, details: checked }))}
+                  >
+                    Details
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
@@ -190,44 +272,62 @@ export default function LiveMessages() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead className="w-[120px]">App</TableHead>
-                  <TableHead className="w-[100px]">Mode</TableHead>
-                  <TableHead className="w-[120px]">Frequency</TableHead>
-                  <TableHead className="w-[80px]">Signal</TableHead>
-                  <TableHead className="w-[150px]">Source</TableHead>
-                  <TableHead>Message Details</TableHead>
+                  {visibleColumns.timestamp && <TableHead className="w-[180px]">Timestamp</TableHead>}
+                  {visibleColumns.app && <TableHead className="w-[120px]">App</TableHead>}
+                  {visibleColumns.mode && <TableHead className="w-[100px]">Mode</TableHead>}
+                  {visibleColumns.frequency && <TableHead className="w-[120px]">Frequency</TableHead>}
+                  {visibleColumns.signal && <TableHead className="w-[80px]">Signal</TableHead>}
+                  {visibleColumns.source && <TableHead className="w-[150px]">Source</TableHead>}
+                  {visibleColumns.details && <TableHead>Message Details</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedMessages.length > 0 ? (
                   paginatedMessages.map((msg) => (
-                    <TableRow key={msg.id} className="hover:bg-muted/30">
-                      <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                        {msg.timestamp}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-normal bg-primary/5 border-primary/20 text-primary">
-                          {msg.appName}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">{msg.mode}</TableCell>
-                      <TableCell className="font-mono text-xs">{msg.frequency}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-xs font-mono">
-                          <Signal className="w-3 h-3 text-muted-foreground" />
-                          {msg.signalLevel}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium text-sm text-foreground/90">{msg.source}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground max-w-md truncate" title={msg.content}>
-                        {msg.content}
-                      </TableCell>
+                    <TableRow 
+                      key={msg.id} 
+                      className="hover:bg-muted/30 cursor-pointer"
+                      onClick={() => setSelectedMessage(msg)}
+                    >
+                      {visibleColumns.timestamp && (
+                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                          {msg.timestamp}
+                        </TableCell>
+                      )}
+                      {visibleColumns.app && (
+                        <TableCell>
+                          <Badge variant="outline" className="font-normal bg-primary/5 border-primary/20 text-primary">
+                            {msg.appName}
+                          </Badge>
+                        </TableCell>
+                      )}
+                      {visibleColumns.mode && (
+                        <TableCell className="font-medium text-sm">{msg.mode}</TableCell>
+                      )}
+                      {visibleColumns.frequency && (
+                        <TableCell className="font-mono text-xs">{msg.frequency}</TableCell>
+                      )}
+                      {visibleColumns.signal && (
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-xs font-mono">
+                            <Signal className="w-3 h-3 text-muted-foreground" />
+                            {msg.signalLevel}
+                          </div>
+                        </TableCell>
+                      )}
+                      {visibleColumns.source && (
+                        <TableCell className="font-medium text-sm text-foreground/90">{msg.source}</TableCell>
+                      )}
+                      {visibleColumns.details && (
+                        <TableCell className="font-mono text-xs text-muted-foreground max-w-md truncate" title={msg.content}>
+                          {msg.content}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length} className="h-24 text-center">
                       No messages found matching filters.
                     </TableCell>
                   </TableRow>
@@ -307,6 +407,76 @@ export default function LiveMessages() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <FileText className="w-5 h-5 text-primary" />
+              Message Details
+            </DialogTitle>
+            <DialogDescription>
+              Detailed view of captured packet data
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedMessage && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" /> Timestamp
+                  </div>
+                  <div className="font-mono text-sm">{selectedMessage.timestamp}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5" /> Application
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="font-normal bg-primary/5 border-primary/20 text-primary">
+                      {selectedMessage.appName}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Radio className="w-3.5 h-3.5" /> Frequency
+                  </div>
+                  <div className="font-mono text-sm">{selectedMessage.frequency}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Signal className="w-3.5 h-3.5" /> Signal Level
+                  </div>
+                  <div className="font-mono text-sm">{selectedMessage.signalLevel} dBFS</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5" /> Mode
+                  </div>
+                  <div className="font-medium text-sm">{selectedMessage.mode}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" /> Source / ID
+                  </div>
+                  <div className="font-mono text-sm">{selectedMessage.source}</div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-muted-foreground">Decoded Content</h4>
+                <div className="bg-muted/50 p-4 rounded-md border border-border/50 font-mono text-sm whitespace-pre-wrap break-all">
+                  {selectedMessage.content}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
