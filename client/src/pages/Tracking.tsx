@@ -175,6 +175,7 @@ export default function Tracking() {
         <MapContainer 
           center={[37.7, -122.4]} 
           zoom={10} 
+          minZoom={3}
           style={{ height: "100%", width: "100%", background: mapBackground }}
           key={currentTheme} // Force re-render on theme change
         >
