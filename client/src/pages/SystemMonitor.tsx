@@ -3,15 +3,58 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Activity, HardDrive, Cpu, Thermometer, Clock, Server, Monitor, AlertCircle, PlayCircle, StopCircle, Laptop } from "lucide-react";
-import { mockApps, systemStats } from "@/lib/mockData";
+import { useNodeStore } from "@/lib/nodeStore";
 import { cn } from "@/lib/utils";
+import { motion, useSpring, useTransform } from "framer-motion";
+import { useEffect, useState } from "react";
+
+const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
+  const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
+  const display = useTransform(spring, (current) => format(current));
+
+  useEffect(() => {
+    spring.set(value);
+  }, [value, spring]);
+
+  return <motion.span>{display}</motion.span>;
+};
+
+// Helper to generate consistent simulated stats for a node
+const getNodeStats = (nodeId: string) => {
+  // Simple deterministic generation based on ID
+  const seed = nodeId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  
+  const random = (min: number, max: number) => {
+    const x = Math.sin(seed) * 10000;
+    return Math.floor((x - Math.floor(x)) * (max - min + 1)) + min;
+  };
+
+  const isMain = nodeId === 'sys-1';
+  
+  return {
+    cpu: isMain ? 45 : random(10, 30),
+    memory: isMain ? 62 : random(30, 50),
+    disk: isMain ? 28 : random(15, 60),
+    diskTotal: isMain ? "256 GB" : "128 GB",
+    diskUsedVal: isMain ? 71.6 : random(20, 80),
+    diskUsed: isMain ? "71.6 GB" : `${random(20, 80).toFixed(1)} GB`,
+    temp: isMain ? 52 : random(40, 60),
+    uptime: isMain ? "4d 12h 30m" : `${random(1, 20)}d ${random(1, 23)}h ${random(1, 59)}m`,
+    os: "Airwaves OS v1.2.0 (Linux 6.1.0)",
+    arch: "aarch64",
+    model: isMain ? "Raspberry Pi 5 Model B" : "Raspberry Pi 4 Model B",
+  };
+};
 
 export default function SystemMonitor() {
-  const runningApps = mockApps.filter(app => app.status === "running");
+  const { activeNode, data } = useNodeStore();
+  const runningApps = data.apps.filter(app => app.status === "running");
   
   // Calculate total resources used by apps
   const totalAppCpu = runningApps.reduce((acc, app) => acc + app.cpuUsage, 0);
-  const totalAppMem = runningApps.reduce((acc, app) => acc + app.memoryUsage, 0);
+  
+  // Get simulated stats for this node
+  const stats = getNodeStats(activeNode.id);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -20,7 +63,9 @@ export default function SystemMonitor() {
           <Monitor className="w-8 h-8 text-primary" />
           System Monitor
         </h1>
-        <p className="text-muted-foreground mt-1">Real-time performance metrics and resource usage.</p>
+        <p className="text-muted-foreground mt-1">
+          Real-time performance metrics for <span className="font-medium text-foreground">{activeNode.name}</span>
+        </p>
       </div>
 
       {/* System Overview Cards */}
@@ -32,8 +77,10 @@ export default function SystemMonitor() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{systemStats.cpu}%</div>
-            <Progress value={systemStats.cpu} className="h-2 mt-3" />
+            <div className="text-2xl font-bold">
+              <AnimatedNumber value={stats.cpu} />%
+            </div>
+            <Progress value={stats.cpu} className="h-2 mt-3" />
             <p className="text-xs text-muted-foreground mt-2">4 cores active</p>
           </CardContent>
         </Card>
@@ -45,8 +92,10 @@ export default function SystemMonitor() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{systemStats.memory}%</div>
-            <Progress value={systemStats.memory} className="h-2 mt-3 bg-secondary" indicatorClassName="bg-purple-500" />
+            <div className="text-2xl font-bold">
+              <AnimatedNumber value={stats.memory} />%
+            </div>
+            <Progress value={stats.memory} className="h-2 mt-3 bg-secondary" indicatorClassName="bg-purple-500" />
             <p className="text-xs text-muted-foreground mt-2">2.4 GB / 4.0 GB used</p>
           </CardContent>
         </Card>
@@ -58,11 +107,13 @@ export default function SystemMonitor() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{systemStats.temp}°C</div>
+            <div className="text-2xl font-bold">
+              <AnimatedNumber value={stats.temp} />°C
+            </div>
             <div className="h-2 mt-3 w-full bg-secondary rounded-full overflow-hidden">
                <div 
-                 className={cn("h-full transition-all", systemStats.temp > 70 ? "bg-red-500" : "bg-emerald-500")} 
-                 style={{ width: `${(systemStats.temp / 90) * 100}%` }}
+                 className={cn("h-full transition-all", stats.temp > 70 ? "bg-red-500" : "bg-emerald-500")} 
+                 style={{ width: `${(stats.temp / 90) * 100}%` }}
                />
             </div>
             <p className="text-xs text-muted-foreground mt-2">Thermal zone 0</p>
@@ -76,9 +127,11 @@ export default function SystemMonitor() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{systemStats.disk}%</div>
-            <Progress value={systemStats.disk} className="h-2 mt-3 bg-secondary" indicatorClassName="bg-blue-500" />
-            <p className="text-xs text-muted-foreground mt-2">{systemStats.diskUsed} / {systemStats.diskTotal}</p>
+            <div className="text-2xl font-bold">
+              <AnimatedNumber value={stats.disk} />%
+            </div>
+            <Progress value={stats.disk} className="h-2 mt-3 bg-secondary" indicatorClassName="bg-blue-500" />
+            <p className="text-xs text-muted-foreground mt-2">{stats.diskUsed} / {stats.diskTotal}</p>
           </CardContent>
         </Card>
       </div>
@@ -97,31 +150,31 @@ export default function SystemMonitor() {
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Laptop className="w-4 h-4" /> Model
               </span>
-              <span className="text-sm font-medium text-right">{systemStats.model}</span>
+              <span className="text-sm font-medium text-right">{stats.model}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Activity className="w-4 h-4" /> Architecture
               </span>
-              <span className="text-sm font-mono">{systemStats.arch}</span>
+              <span className="text-sm font-mono">{stats.arch}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Server className="w-4 h-4" /> OS Version
               </span>
-              <span className="text-sm font-medium text-right max-w-[180px] truncate">{systemStats.os}</span>
+              <span className="text-sm font-medium text-right max-w-[180px] truncate">{stats.os}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Clock className="w-4 h-4" /> Uptime
               </span>
-              <span className="text-sm font-mono">{systemStats.uptime}</span>
+              <span className="text-sm font-mono">{stats.uptime}</span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Activity className="w-4 h-4" /> IP Address
               </span>
-              <span className="text-sm font-mono">{systemStats.ip}</span>
+              <span className="text-sm font-mono">{activeNode.ip}</span>
             </div>
           </CardContent>
         </Card>
@@ -198,13 +251,13 @@ export default function SystemMonitor() {
                     </TableCell>
                     <TableCell></TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {(systemStats.cpu - totalAppCpu).toFixed(1)}%
+                      {(stats.cpu - totalAppCpu > 0 ? stats.cpu - totalAppCpu : 1).toFixed(1)}%
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
                        ~800 MB
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                      {systemStats.uptime}
+                      {stats.uptime}
                     </TableCell>
                 </TableRow>
               </TableBody>
