@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents } from "react-leaflet";
 import { divIcon } from "leaflet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,7 @@ function MapEvents({ setZoom }: { setZoom: (z: number) => void }) {
 }
 
 // Create custom icon function
-const createVehicleIcon = (type: string, heading: number, zoom: number) => {
+const createVehicleIcon = (type: string, heading: number, zoom: number, isSelected: boolean) => {
   const rotationOffset = type === 'aircraft' ? -45 : 0;
   
   // Scale icon size based on zoom
@@ -76,24 +76,25 @@ const createVehicleIcon = (type: string, heading: number, zoom: number) => {
       justifyContent: 'center',
       width: '100%',
       height: '100%',
-      transition: 'all 0.3s ease'
+      transition: 'all 0.3s ease',
+      filter: isSelected ? `drop-shadow(0 0 6px ${type === 'aircraft' ? '#0ea5e9' : '#10b981'})` : 'none'
     }}>
       {zoom < 6 ? (
         // Simple dot for low zoom
-        <div className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : 'bg-emerald-500'}`} />
+        <div className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : 'bg-emerald-500'} ${isSelected ? 'ring-2 ring-white scale-150' : ''}`} />
       ) : (
         type === 'aircraft' ? (
           <Plane 
             size={size} 
-            className="text-sky-500 fill-sky-500/20" 
-            strokeWidth={2}
+            className={`${isSelected ? 'text-sky-400 fill-sky-500/40' : 'text-sky-500 fill-sky-500/20'}`}
+            strokeWidth={isSelected ? 3 : 2}
           />
         ) : (
           <div style={{ transform: 'rotate(-90deg)' }}> 
             <Ship 
               size={size} 
-              className="text-emerald-500 fill-emerald-500/20" 
-              strokeWidth={2}
+              className={`${isSelected ? 'text-emerald-400 fill-emerald-500/40' : 'text-emerald-500 fill-emerald-500/20'}`}
+              strokeWidth={isSelected ? 3 : 2}
             />
           </div>
         )
@@ -256,41 +257,40 @@ export default function Tracking() {
   return (
     <div className="h-full flex flex-col relative">
       <style>{`
-        .leaflet-popup-content-wrapper {
+        .leaflet-tooltip {
           background: transparent !important;
+          border: none !important;
           box-shadow: none !important;
           padding: 0 !important;
-          border: none !important;
         }
-        .leaflet-popup-content {
-          margin: 0 !important;
-          width: auto !important;
-        }
-        .leaflet-popup-tip {
+        .leaflet-tooltip-top:before,
+        .leaflet-tooltip-bottom:before,
+        .leaflet-tooltip-left:before,
+        .leaflet-tooltip-right:before {
           display: none !important;
         }
       `}</style>
-      <div className="absolute top-4 left-4 z-[400] bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-80">
+      <div className="absolute top-4 left-4 z-[400] bg-card/90 backdrop-blur border border-border/50 p-4 rounded-xl shadow-lg w-64">
         <h1 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-primary" />
           Live Tracking
         </h1>
-        <p className="text-sm text-muted-foreground mb-4">
-          Real-time positions from ADS-B and AIS feeds.
+        <p className="text-xs text-muted-foreground mb-3">
+          Real-time positions from feeds.
         </p>
         
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded-lg">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs p-2 bg-muted/50 rounded-lg">
             <span className="flex items-center gap-2">
-              <Plane className="w-4 h-4 text-sky-500" /> Aircraft
+              <Plane className="w-3 h-3 text-sky-500" /> Aircraft
             </span>
-            <Badge variant="secondary" className="font-mono">{vehicles.filter(v => v.type === 'aircraft').length}</Badge>
+            <Badge variant="secondary" className="font-mono text-[10px] h-5">{vehicles.filter(v => v.type === 'aircraft').length}</Badge>
           </div>
-          <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded-lg">
+          <div className="flex items-center justify-between text-xs p-2 bg-muted/50 rounded-lg">
             <span className="flex items-center gap-2">
-              <Ship className="w-4 h-4 text-emerald-500" /> Vessels
+              <Ship className="w-3 h-3 text-emerald-500" /> Vessels
             </span>
-            <Badge variant="secondary" className="font-mono">{vehicles.filter(v => v.type === 'ship').length}</Badge>
+            <Badge variant="secondary" className="font-mono text-[10px] h-5">{vehicles.filter(v => v.type === 'ship').length}</Badge>
           </div>
         </div>
       </div>
@@ -309,18 +309,26 @@ export default function Tracking() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
           />
-          {vehicles.map((v) => (
+          {vehicles.map((v) => {
+            const isSelected = selectedVehicle?.id === v.id;
+            return (
             <Marker 
               key={v.id} 
               position={[v.lat, v.lng]} 
-              icon={createVehicleIcon(v.type, v.heading, zoom)}
+              icon={createVehicleIcon(v.type, v.heading, zoom, isSelected)}
               eventHandlers={{
                 click: () => {
                   setSelectedVehicle(v);
                 },
               }}
             >
-              <Popup className="bg-transparent border-none shadow-none p-0" offset={[0, -10]} closeButton={false}>
+              <Tooltip 
+                permanent={isSelected} 
+                direction="top" 
+                offset={[0, -10]}
+                className="bg-transparent border-none shadow-none p-0"
+                opacity={1}
+              >
                 <div className="bg-popover/90 backdrop-blur-md text-popover-foreground border border-border/50 shadow-xl rounded-lg overflow-hidden min-w-[160px] flex flex-col gap-0.5 p-2 animate-in fade-in zoom-in-95 duration-200">
                   <div className="flex items-center gap-2 mb-1">
                      <span className={cn(
@@ -347,9 +355,9 @@ export default function Tracking() {
                     )}
                   </div>
                 </div>
-              </Popup>
+              </Tooltip>
             </Marker>
-          ))}
+          )})}
         </MapContainer>
       </div>
 
