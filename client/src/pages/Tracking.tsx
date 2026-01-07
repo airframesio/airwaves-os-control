@@ -196,7 +196,14 @@ export default function Tracking() {
           try {
             if (!feed.url) continue;
 
-            const response = await fetch(feed.url);
+            const useProxy = feed.useProxy ?? true;
+            let fetchUrl = feed.url;
+            
+            if (useProxy) {
+              fetchUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`;
+            }
+
+            const response = await fetch(fetchUrl);
             if (!response.ok) {
               console.error(`Failed to fetch feed ${feed.id}: ${response.statusText}`);
               continue;

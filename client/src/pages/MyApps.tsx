@@ -53,13 +53,14 @@ interface ExternalFeed {
   url: string;
   interval: number;
   enabled: boolean;
+  useProxy: boolean;
 }
 
 function ExternalFeedConfig() {
   const [feeds, setFeeds] = useState<ExternalFeed[]>(() => {
     const saved = localStorage.getItem('external_feeds');
     return saved ? JSON.parse(saved) : [
-      { id: '1', url: 'http://adsbexchange.local/tar1090/data/aircraft.json', interval: 5, enabled: true }
+      { id: '1', url: 'http://adsbexchange.local/tar1090/data/aircraft.json', interval: 5, enabled: true, useProxy: false }
     ];
   });
   const { toast } = useToast();
@@ -73,7 +74,7 @@ function ExternalFeedConfig() {
   };
 
   const addFeed = () => {
-    setFeeds([...feeds, { id: Math.random().toString(36).substr(2, 9), url: '', interval: 5, enabled: true }]);
+    setFeeds([...feeds, { id: Math.random().toString(36).substr(2, 9), url: '', interval: 5, enabled: true, useProxy: true }]);
   };
 
   const removeFeed = (id: string) => {
@@ -120,6 +121,18 @@ function ExternalFeedConfig() {
                         className="h-9"
                       />
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id={`proxy-${feed.id}`}
+                      checked={feed.useProxy ?? true}
+                      onChange={(e) => updateFeed(feed.id, 'useProxy', e.target.checked)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <label htmlFor={`proxy-${feed.id}`} className="text-xs text-muted-foreground select-none cursor-pointer">
+                      Use CORS Proxy (Required for public external feeds, disable for local network)
+                    </label>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 pt-6">
