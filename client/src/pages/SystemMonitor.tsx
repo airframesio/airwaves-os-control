@@ -148,6 +148,12 @@ export default function SystemMonitor() {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
+                <Monitor className="w-4 h-4" /> Hostname
+              </span>
+              <span className="text-sm font-mono">{activeNode.hostname}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-border/50">
+              <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Laptop className="w-4 h-4" /> Model
               </span>
               <span className="text-sm font-medium text-right">{stats.model}</span>
