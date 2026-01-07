@@ -336,11 +336,13 @@ export default function Tracking() {
               }}
             >
               <Tooltip 
+                key={`${v.id}-${isSelected}`} // Force remount when selection state changes to prevent sticky tooltips
                 permanent={isSelected} 
                 direction="top" 
                 offset={[0, -10]}
                 className="bg-transparent border-none shadow-none p-0"
                 opacity={1}
+                interactive={false} // Prevent tooltip from capturing mouse events
               >
                 <div className="bg-popover/90 backdrop-blur-md text-popover-foreground border border-border/50 shadow-xl rounded-lg overflow-hidden min-w-[160px] flex flex-col gap-0.5 p-2 animate-in fade-in zoom-in-95 duration-200">
                   <div className="flex items-center gap-2 mb-1">
