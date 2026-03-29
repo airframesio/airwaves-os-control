@@ -13,6 +13,8 @@ import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useNodeStore } from "@/lib/nodeStore";
+import { useTracking } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 // Helper to generate simulated path
 const generateSimulatedPath = (vehicle: { lat: number, lng: number, heading: number }) => {
@@ -158,10 +160,12 @@ export default function Tracking() {
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   
-  // Connect to Node Store
+  // Connect to Node Store and real API
   const { activeNode, data } = useNodeStore();
-  
-  const [vehicles, setVehicles] = useState<any[]>([]); // Will sync with node data
+  const apiAvailable = useApiStatus();
+  const { data: trackingData } = useTracking();
+
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [externalVehicles, setExternalVehicles] = useState<any[]>([]);
   const [zoom, setZoom] = useState(10);
   const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
@@ -180,10 +184,24 @@ export default function Tracking() {
     // Internal vehicles will be updated by the polling effect below
   }, [activeNode.id]);
 
-  // Sync internal vehicles from store
+  // Sync vehicles: prefer real tracking API, fall back to mock from nodeStore
   useEffect(() => {
-    setVehicles(data.vehicles || []);
-  }, [data.vehicles]);
+    if (apiAvailable && trackingData?.vehicles?.length) {
+      setVehicles(trackingData.vehicles.map(v => ({
+        id: v.id,
+        callsign: v.callsign,
+        type: v.vehicle_type,
+        lat: v.lat,
+        lng: v.lng,
+        altitude: v.altitude,
+        speed: v.speed,
+        heading: v.heading,
+        source: v.source,
+      })));
+    } else {
+      setVehicles(data.vehicles || []);
+    }
+  }, [apiAvailable, trackingData, data.vehicles]);
 
   // Keep ref synced with state
   useEffect(() => {

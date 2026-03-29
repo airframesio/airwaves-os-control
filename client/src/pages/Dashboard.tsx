@@ -7,6 +7,9 @@ import { mockApps, mockDevices, mockFeeds, mockSystems, systemStats } from "@/li
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { useSystemStats, useContainers } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
+import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 // Simulate consolidated data
 const aggregateData = [
@@ -20,14 +23,23 @@ const aggregateData = [
 ];
 
 export default function Dashboard() {
+  const apiAvailable = useApiStatus();
+  const { data: liveStats } = useSystemStats();
+  const { data: liveContainers } = useContainers();
+  const { liveStats: wsStats, connected: wsConnected } = useManagerEvents();
+
   const activeApps = mockApps.filter(app => app.status === "running");
   const activeDevices = mockDevices.filter(dev => dev.status === "active");
   const connectedFeeds = mockFeeds.filter(feed => feed.status === "connected");
-  
-  // Aggregate stats across "fleet" (simulated)
-  const totalApps = activeApps.length * 2 + 1; // Simulated extra apps on other nodes
-  const totalDevices = activeDevices.length + 3; // Simulated devices on other nodes
+
+  // Use live data when available, fall back to mock
+  const runningContainers = liveContainers?.filter(c => c.state === "running").length ?? activeApps.length;
+  const totalApps = apiAvailable ? runningContainers : activeApps.length * 2 + 1;
+  const totalDevices = activeDevices.length + (apiAvailable ? 0 : 3);
   const onlineNodes = mockSystems.filter(s => s.status === "online");
+  // Prefer WebSocket stats (real-time), fall back to REST poll, then mock
+  const cpuLoad = wsStats?.cpu_usage ?? liveStats?.cpu_usage ?? 32;
+  const memLoad = wsStats?.memory_percent ?? liveStats?.memory_percent ?? 0;
   
   // Live chart data
   const [chartData, setChartData] = React.useState(aggregateData);
@@ -156,7 +168,7 @@ export default function Dashboard() {
               <Cpu className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">32%</div>
+              <div className="text-2xl font-bold">{Math.round(cpuLoad)}%</div>
               <p className="text-xs text-muted-foreground">
                 Fleet average
               </p>

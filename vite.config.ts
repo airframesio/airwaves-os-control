@@ -47,5 +47,17 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    proxy: {
+      // Proxy API and WebSocket requests to the airwaves-manager container
+      // Run: docker compose -f docker-compose.dev.yml up -d  (in airwaves-os repo)
+      '/api/v1': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+      },
+    },
   },
 });

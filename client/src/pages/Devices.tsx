@@ -1,13 +1,27 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Radio, RefreshCw, Settings2, Usb } from "lucide-react";
+import { Radio, RefreshCw, Settings2, Usb, Loader2 } from "lucide-react";
 import { mockDevices } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { useSdrDevices } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function Devices() {
   const [_, setLocation] = useLocation();
+  const apiAvailable = useApiStatus();
+  const { data: liveDevices, isLoading: devicesLoading, refetch: refetchDevices } = useSdrDevices();
+
+  // Map live SDR devices to the format the UI expects
+  const devices = apiAvailable && liveDevices ? liveDevices.map(d => ({
+    id: d.id,
+    name: d.name,
+    type: d.device_type.replace('_', '-').replace(/\b\w/g, c => c.toUpperCase()),
+    serial: d.serial ?? 'N/A',
+    status: d.status === 'available' ? 'active' as const : 'idle' as const,
+    assignedApp: d.assigned_to ?? undefined,
+  })) : mockDevices;
 
   return (
     <div className="space-y-6">
@@ -16,13 +30,13 @@ export default function Devices() {
           <h1 className="text-3xl font-bold tracking-tight">Radio Devices</h1>
           <p className="text-muted-foreground mt-1">Manage connected SDR hardware and assignments.</p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <RefreshCw className="w-4 h-4" /> Scan Devices
+        <Button variant="outline" className="gap-2" onClick={() => refetchDevices()}>
+          {devicesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Scan Devices
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockDevices.map(device => (
+        {devices.map(device => (
           <Card key={device.id} className="relative overflow-hidden group border-border/50 bg-card/50 backdrop-blur-sm">
             <div className={cn(
               "absolute top-0 left-0 w-1 h-full",

@@ -13,14 +13,24 @@ import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import DeviceMetrics from "@/components/DeviceMetrics";
+import { useSdrDevices } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function DeviceConfig() {
   const [, params] = useRoute("/devices/:id/config");
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  
+  const apiAvailable = useApiStatus();
+  const { data: liveSdrDevices } = useSdrDevices();
+
   const deviceId = params?.id;
-  const device = mockDevices.find(d => d.id === deviceId);
+
+  // Find device from live SDR data or mock
+  const liveDevice = liveSdrDevices?.find(d => d.id === deviceId);
+  const mockDevice = mockDevices.find(d => d.id === deviceId);
+  const device = apiAvailable && liveDevice
+    ? { id: liveDevice.id, name: liveDevice.name, type: liveDevice.device_type, serial: liveDevice.serial ?? 'N/A', status: 'active' as const, assignedApp: liveDevice.assigned_to }
+    : mockDevice;
 
   // Mock configuration state
   const [config, setConfig] = useState({
