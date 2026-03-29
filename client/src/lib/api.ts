@@ -300,6 +300,47 @@ export const trackingApi = {
   getVehicles: () => apiFetch<TrackingResponse>('/tracking/vehicles'),
 };
 
+// ---------- Message Forwarding ----------
+
+export interface DecodedMessage {
+  id: string;
+  timestamp: string;
+  source_node: string;
+  decoder: string;
+  message_type: string;
+  frequency: string | null;
+  signal_level: number | null;
+  raw: string;
+  metadata: unknown;
+}
+
+export interface ForwardingConfig {
+  enabled: boolean;
+  target_ip: string;
+  target_port: number;
+  mode: 'all' | 'selective' | 'disabled';
+  decoders: string[];
+}
+
+export interface ForwardingStats {
+  messages_forwarded: number;
+  messages_received: number;
+  messages_failed: number;
+  last_forwarded: string | null;
+  last_received: string | null;
+  connected_peers: number;
+}
+
+export const forwardingApi = {
+  getMessages: () => apiFetch<DecodedMessage[]>('/messages'),
+  getConfig: () => apiFetch<ForwardingConfig>('/forwarding/config'),
+  setConfig: (config: ForwardingConfig) => apiFetch<{ status: string }>('/forwarding/config', {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  }),
+  getStats: () => apiFetch<ForwardingStats>('/forwarding/stats'),
+};
+
 // ---------- Fleet ----------
 
 export interface FleetNode {
