@@ -48,6 +48,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppMetrics from "@/components/AppMetrics";
 import { motion, useSpring, useTransform } from "framer-motion";
+import { useContainers, useContainerStart, useContainerStop, useUninstallApp } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
@@ -182,7 +184,43 @@ function ExternalFeedConfig() {
 }
 
 export default function MyApps() {
+  const apiAvailable = useApiStatus();
+  const { data: liveContainers } = useContainers();
+  const startMutation = useContainerStart();
+  const stopMutation = useContainerStop();
+  const uninstallMutation = useUninstallApp();
+
+  // Map live containers to app-like objects when API is available
+  const containerApps = apiAvailable && liveContainers
+    ? liveContainers
+        .filter(c => c.name.startsWith('airwaves-') && c.name !== 'airwaves-gateway' && c.name !== 'airwaves-manager')
+        .map(c => {
+          const appId = c.name.replace(/^airwaves-/, '');
+          const mockApp = mockApps.find(a => a.id === appId);
+          return {
+            ...mockApp,
+            id: appId,
+            name: mockApp?.name ?? appId,
+            description: mockApp?.description ?? c.image,
+            status: c.state === 'running' ? 'running' as const : 'stopped' as const,
+            installed: true,
+            cpuUsage: mockApp?.cpuUsage ?? 0,
+            memoryUsage: mockApp?.memoryUsage ?? 0,
+            icon: mockApp?.icon ?? Radio,
+            category: mockApp?.category ?? 'system',
+            containerId: c.id,
+          };
+        })
+    : null;
+
   const [apps, setApps] = useState(mockApps.filter(app => app.installed));
+  // Sync with live data when available
+  useEffect(() => {
+    if (containerApps && containerApps.length > 0) {
+      setApps(containerApps as any);
+    }
+  }, [liveContainers]);
+
   const [selectedAppId, setSelectedAppId] = useState<string>(apps[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
@@ -234,36 +272,52 @@ export default function MyApps() {
   };
 
   const handleUninstall = (appId: string) => {
-    // In a real app, this would make an API call
-    toast({
-      title: "App Uninstalled",
-      description: "The application has been removed from your system.",
-    });
+    if (apiAvailable) {
+      uninstallMutation.mutate(appId, {
+        onSuccess: () => {
+          toast({ title: "App Uninstalled", description: "The application has been removed." });
+        },
+        onError: (err) => {
+          toast({ title: "Uninstall Failed", description: String(err), variant: "destructive" });
+        },
+      });
+    }
+    // Optimistic update for UI
     const newApps = apps.filter(a => a.id !== appId);
     setApps(newApps);
-    
+
     if (newApps.length === 0) {
       setSelectedAppId("");
       setShowDetail(false);
     } else if (selectedAppId === appId) {
-      // Select next available
       setSelectedAppId(newApps[0].id);
-      if (isCompact) setShowDetail(false); // Go back to list on mobile after uninstall
+      if (isCompact) setShowDetail(false);
     }
   };
 
   const toggleAppStatus = (appId: string) => {
-    setApps(apps.map(app => {
-      if (app.id === appId) {
-        const newStatus = app.status === "running" ? "stopped" : "running";
-        toast({
-          title: `App ${newStatus === "running" ? "Started" : "Stopped"}`,
-          description: `${app.name} is now ${newStatus}.`,
-        });
-        return { ...app, status: newStatus };
-      }
-      return app;
-    }));
+    const app = apps.find(a => a.id === appId);
+    if (!app) return;
+
+    const containerName = `airwaves-${appId}`;
+    const isRunning = app.status === "running";
+
+    if (apiAvailable) {
+      const mutation = isRunning ? stopMutation : startMutation;
+      mutation.mutate(containerName, {
+        onError: (err) => {
+          toast({ title: "Action Failed", description: String(err), variant: "destructive" });
+        },
+      });
+    }
+
+    // Optimistic update
+    const newStatus = isRunning ? "stopped" : "running";
+    toast({
+      title: `App ${newStatus === "running" ? "Started" : "Stopped"}`,
+      description: `${app.name} is now ${newStatus}.`,
+    });
+    setApps(apps.map(a => a.id === appId ? { ...a, status: newStatus } : a));
   };
 
   if (apps.length === 0) {
