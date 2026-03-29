@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Clock, Radio, User, FileText, Cpu } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
-import { useContainers, useContainerLogs } from "@/hooks/useAirwavesApi";
+import { useContainers, useContainerLogs, useDecodedMessages } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import {
   Dialog,
@@ -65,6 +65,7 @@ export default function LiveMessages() {
   const { activeNode, data } = useNodeStore();
   const apiAvailable = useApiStatus();
   const { data: liveContainers } = useContainers();
+  const { data: decodedMessages } = useDecodedMessages();
   const runningAppIds = data.apps.filter(a => a.status === 'running').map(a => a.id);
 
   // Decoder container names for log fetching
@@ -127,7 +128,29 @@ export default function LiveMessages() {
     };
   }, []);
 
-  // Fetch real container logs when API is available
+  // Use decoded message buffer as primary source (includes forwarded messages)
+  useEffect(() => {
+    if (!apiAvailable || !decodedMessages?.length || isPaused) return;
+    const newMsgs: Message[] = decodedMessages.map((dm, i) => ({
+      id: dm.id || `dm-${i}`,
+      timestamp: dm.timestamp?.replace('T', ' ').substring(0, 19) ?? '',
+      appId: dm.decoder,
+      appName: dm.decoder,
+      frequency: dm.frequency ?? '',
+      mode: dm.message_type.toUpperCase(),
+      signalLevel: dm.signal_level ?? 0,
+      source: dm.source_node,
+      content: dm.raw,
+    }));
+    setMessages(prev => {
+      // Merge new messages, dedup by ID
+      const ids = new Set(prev.map(m => m.id));
+      const fresh = newMsgs.filter(m => !ids.has(m.id));
+      return [...fresh, ...prev].slice(0, 200);
+    });
+  }, [decodedMessages, apiAvailable, isPaused]);
+
+  // Fetch real container logs when API is available (fallback to direct log polling)
   useEffect(() => {
     if (!apiAvailable || isPaused || decoderContainers.length === 0) return;
 

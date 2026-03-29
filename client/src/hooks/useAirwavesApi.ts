@@ -16,6 +16,7 @@ import {
   feedsApi,
   trackingApi,
   fleetApi,
+  forwardingApi,
   type SystemInfo,
   type SystemStats,
   type SystemOverview,
@@ -29,6 +30,9 @@ import {
   type FleetStatus,
   type FleetNode,
   type DiscoveredNode,
+  type DecodedMessage,
+  type ForwardingConfig,
+  type ForwardingStats,
 } from '@/lib/api';
 
 // ---------- System ----------
@@ -247,7 +251,44 @@ export function useDiscoverNodes() {
   return useQuery<DiscoveredNode[]>({
     queryKey: ['fleet', 'discover'],
     queryFn: fleetApi.discover,
-    enabled: false, // Only fetch when manually triggered
+    enabled: false,
+    retry: 1,
+  });
+}
+
+// ---------- Forwarding ----------
+
+export function useDecodedMessages() {
+  return useQuery<DecodedMessage[]>({
+    queryKey: ['messages'],
+    queryFn: forwardingApi.getMessages,
+    refetchInterval: 5_000,
+    retry: 1,
+  });
+}
+
+export function useForwardingConfig() {
+  return useQuery<ForwardingConfig>({
+    queryKey: ['forwarding', 'config'],
+    queryFn: forwardingApi.getConfig,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function useUpdateForwardingConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (config: ForwardingConfig) => forwardingApi.setConfig(config),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['forwarding'] }),
+  });
+}
+
+export function useForwardingStats() {
+  return useQuery<ForwardingStats>({
+    queryKey: ['forwarding', 'stats'],
+    queryFn: forwardingApi.getStats,
+    refetchInterval: 10_000,
     retry: 1,
   });
 }

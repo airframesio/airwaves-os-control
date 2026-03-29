@@ -13,8 +13,9 @@ import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { useFleetStatus, usePairNode, useUnpairNode, useDiscoverNodes } from "@/hooks/useAirwavesApi";
+import { useFleetStatus, usePairNode, useUnpairNode, useDiscoverNodes, useForwardingConfig, useUpdateForwardingConfig, useForwardingStats } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { Progress } from "@/components/ui/progress";
 
 export default function Systems() {
   const apiAvailable = useApiStatus();
@@ -22,6 +23,9 @@ export default function Systems() {
   const pairMutation = usePairNode();
   const unpairMutation = useUnpairNode();
   const { data: discoveredNodes, refetch: runDiscovery, isFetching: isDiscovering } = useDiscoverNodes();
+  const { data: fwdConfig } = useForwardingConfig();
+  const updateFwdConfig = useUpdateForwardingConfig();
+  const { data: fwdStats } = useForwardingStats();
 
   // Map live fleet data to System[] format when available
   const liveSystems: System[] | null = apiAvailable && fleetData
@@ -396,6 +400,96 @@ export default function Systems() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Data Forwarding Configuration */}
+      {apiAvailable && (
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowRight className="w-5 h-5 text-primary" /> Data Forwarding
+            </CardTitle>
+            <CardDescription>
+              Configure how decoded messages are shared between fleet nodes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base">Forwarding Mode</Label>
+                <p className="text-sm text-muted-foreground">
+                  {fwdConfig?.mode === 'all' ? 'Forwarding all decoded messages' :
+                   fwdConfig?.mode === 'selective' ? 'Forwarding selected decoders' :
+                   'Standalone mode (not forwarding)'}
+                </p>
+              </div>
+              <Select
+                value={fwdConfig?.mode ?? 'disabled'}
+                onValueChange={(mode) => {
+                  if (fwdConfig) {
+                    updateFwdConfig.mutate({ ...fwdConfig, enabled: mode !== 'disabled', mode: mode as any });
+                  }
+                }}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disabled">Standalone</SelectItem>
+                  <SelectItem value="all">Forward All</SelectItem>
+                  <SelectItem value="selective">Selective</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {fwdConfig?.mode !== 'disabled' && (
+              <>
+                <Separator />
+                <div className="grid gap-2">
+                  <Label>Target Node IP</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="192.168.1.x"
+                      defaultValue={fwdConfig?.target_ip}
+                      key={fwdConfig?.target_ip}
+                      onChange={(e) => {
+                        if (fwdConfig) {
+                          // Debounced save on blur
+                          e.target.dataset.value = e.target.value;
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (fwdConfig && e.target.value !== fwdConfig.target_ip) {
+                          updateFwdConfig.mutate({ ...fwdConfig, target_ip: e.target.value });
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {fwdStats && (fwdStats.messages_forwarded > 0 || fwdStats.messages_received > 0) && (
+              <>
+                <Separator />
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-emerald-500">{fwdStats.messages_forwarded}</div>
+                    <div className="text-xs text-muted-foreground">Forwarded</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{fwdStats.messages_received}</div>
+                    <div className="text-xs text-muted-foreground">Received</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-destructive">{fwdStats.messages_failed}</div>
+                    <div className="text-xs text-muted-foreground">Failed</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
