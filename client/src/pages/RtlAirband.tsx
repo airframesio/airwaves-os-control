@@ -11,8 +11,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Radio as RadioIcon, Play, Pause, Download, Settings, Music, Mic2, Save, Trash2, Volume2, Cast, Activity } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useContainers } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function RtlAirband() {
+  const apiAvailable = useApiStatus();
+  const { data: containers } = useContainers();
+
+  // Check if rtl_airband container is running
+  const airbandContainer = containers?.find(c => c.name.includes('airband'));
+  const isAirbandRunning = airbandContainer?.state === 'running';
+  const airbandPort = airbandContainer?.ports?.find(p => p.host_port)?.host_port ?? 8000;
   const [channels, setChannels] = useState([
     { id: 1, name: "Tower (Primary)", freq: "118.700", squelch: 28, gain: 42, status: "active", scanning: false },
     { id: 2, name: "Ground", freq: "121.900", squelch: 25, gain: 40, status: "active", scanning: false },
@@ -26,9 +35,13 @@ export default function RtlAirband() {
     { id: 3, name: "APP_124.500_2026-01-07_13-55.mp3", duration: "24:10", size: "27.8 MB", date: "2026-01-07 13:55" },
   ]);
 
+  const streamBaseUrl = apiAvailable && isAirbandRunning
+    ? `http://${window.location.hostname}:${airbandPort}`
+    : "http://stream.airwaves.local:8000";
+
   const [streams, setStreams] = useState([
-    { id: 1, name: "Tower Feed", mount: "/tower", listeners: 45, status: "live", url: "http://stream.airwaves.local:8000/tower" },
-    { id: 2, name: "Ground Feed", mount: "/ground", listeners: 12, status: "live", url: "http://stream.airwaves.local:8000/ground" },
+    { id: 1, name: "Tower Feed", mount: "/tower", listeners: 45, status: "live", url: `${streamBaseUrl}/tower` },
+    { id: 2, name: "Ground Feed", mount: "/ground", listeners: 12, status: "live", url: `${streamBaseUrl}/ground` },
   ]);
 
   const [activeTab, setActiveTab] = useState("monitor");
