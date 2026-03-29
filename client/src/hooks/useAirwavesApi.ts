@@ -18,6 +18,7 @@ import {
   fleetApi,
   type SystemInfo,
   type SystemStats,
+  type SystemOverview,
   type ContainerInfo,
   type SdrDevice,
   type NetworkInterface,
@@ -45,6 +46,15 @@ export function useSystemStats() {
     queryKey: ['system', 'stats'],
     queryFn: systemApi.getStats,
     refetchInterval: 5_000,
+    retry: 1,
+  });
+}
+
+export function useSystemOverview() {
+  return useQuery<SystemOverview>({
+    queryKey: ['system', 'overview'],
+    queryFn: systemApi.getOverview,
+    refetchInterval: 10_000,
     retry: 1,
   });
 }

@@ -53,9 +53,17 @@ export interface ExecResponse {
   stderr: string;
 }
 
+export interface SystemOverview {
+  info: SystemInfo;
+  stats: SystemStats;
+  containers: { total: number; running: number; stopped: number; airwaves_apps: number };
+  hardware: { sdr_devices: number; usb_devices: number };
+}
+
 export const systemApi = {
   getInfo: () => apiFetch<SystemInfo>('/system/info'),
   getStats: () => apiFetch<SystemStats>('/system/stats'),
+  getOverview: () => apiFetch<SystemOverview>('/system/overview'),
   exec: (command: string) => apiFetch<ExecResponse>('/system/exec', {
     method: 'POST',
     body: JSON.stringify({ command }),
