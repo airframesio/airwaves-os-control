@@ -23,10 +23,12 @@ import LiveMessages from "./pages/LiveMessages";
 import RtlAirband from "./pages/RtlAirband";
 import SetupWizard from "./pages/SetupWizard";
 import AppLayout from "./components/layout/AppLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function Router() {
   return (
     <AppLayout>
+      <ErrorBoundary>
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/map" component={Tracking} />
@@ -44,6 +46,7 @@ function Router() {
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
+      </ErrorBoundary>
     </AppLayout>
   );
 }
