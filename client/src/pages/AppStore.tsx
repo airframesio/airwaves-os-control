@@ -3,21 +3,63 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Download, Check, ExternalLink, ArrowRight, LayoutGrid, List, Loader2 } from "lucide-react";
+import { Search, Download, Check, ExternalLink, ArrowRight, LayoutGrid, List, Loader2, Radio, Plane, Ship, Satellite, Waves, BarChart3, Map, Box } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useAppCatalog, useContainers, useInstallApp } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
+
+// Map app IDs to icons for catalog apps
+const appIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  readsb: Plane,
+  acarsdec: Radio,
+  dumpvdl2: Waves,
+  dumphfdl: Satellite,
+  vdlm2dec: Waves,
+  "ais-catcher": Ship,
+  "rtl-airband": Radio,
+  "rtl-433": Waves,
+  satdump: Satellite,
+  acarshub: BarChart3,
+  tar1090: Map,
+  graphs1090: BarChart3,
+};
 
 export default function AppStore() {
   const [search, setSearch] = useState("");
-  const categories = ["All", "Aviation", "Maritime", "Satcom", "Utility"];
+  const categories = ["All", "Decoder", "Visualization"];
   const [activeCategory, setActiveCategory] = useState("All");
   const [, setLocation] = useLocation();
   const { data, installApp, activeNode } = useNodeStore();
 
-  const filteredApps = data.apps.filter(app => {
-    const matchesSearch = app.name.toLowerCase().includes(search.toLowerCase()) || 
+  // Real API data
+  const apiAvailable = useApiStatus();
+  const { data: catalogApps } = useAppCatalog();
+  const { data: containers } = useContainers();
+  const installMutation = useInstallApp();
+
+  // Determine installed container names
+  const installedNames = new Set(
+    (containers ?? []).map(c => c.name.replace(/^airwaves-/, ''))
+  );
+
+  // Build the app list: use catalog API when available, fall back to nodeStore
+  const apps = apiAvailable && catalogApps
+    ? catalogApps.map(app => ({
+        id: app.id,
+        name: app.name,
+        description: app.description,
+        category: app.category,
+        installed: installedNames.has(app.id),
+        status: installMutation.isPending && installMutation.variables === app.id ? 'installing' as const : 'running' as const,
+        icon: appIcons[app.id] ?? Box,
+      }))
+    : data.apps;
+
+  const filteredApps = apps.filter(app => {
+    const matchesSearch = app.name.toLowerCase().includes(search.toLowerCase()) ||
                           app.description.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = activeCategory === "All" || app.category.toLowerCase() === activeCategory.toLowerCase();
     return matchesSearch && matchesCategory;
