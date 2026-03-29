@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { useSystemStats, useContainers } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 // Simulate consolidated data
 const aggregateData = [
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const apiAvailable = useApiStatus();
   const { data: liveStats } = useSystemStats();
   const { data: liveContainers } = useContainers();
+  const { liveStats: wsStats, connected: wsConnected } = useManagerEvents();
 
   const activeApps = mockApps.filter(app => app.status === "running");
   const activeDevices = mockDevices.filter(dev => dev.status === "active");
@@ -35,7 +37,9 @@ export default function Dashboard() {
   const totalApps = apiAvailable ? runningContainers : activeApps.length * 2 + 1;
   const totalDevices = activeDevices.length + (apiAvailable ? 0 : 3);
   const onlineNodes = mockSystems.filter(s => s.status === "online");
-  const cpuLoad = liveStats?.cpu_usage ?? 32;
+  // Prefer WebSocket stats (real-time), fall back to REST poll, then mock
+  const cpuLoad = wsStats?.cpu_usage ?? liveStats?.cpu_usage ?? 32;
+  const memLoad = wsStats?.memory_percent ?? liveStats?.memory_percent ?? 0;
   
   // Live chart data
   const [chartData, setChartData] = React.useState(aggregateData);

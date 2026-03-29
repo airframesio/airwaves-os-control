@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSystemInfo, useSystemStats } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
@@ -142,21 +143,24 @@ export default function SystemMonitor() {
   const apiAvailable = useApiStatus();
   const { data: liveStats } = useSystemStats();
   const { data: liveInfo } = useSystemInfo();
+  const { liveStats: wsStats } = useManagerEvents();
   const runningApps = data.apps.filter(app => app.status === "running");
 
   // Calculate total resources used by apps
   const totalAppCpu = runningApps.reduce((acc, app) => acc + app.cpuUsage, 0);
 
   // Get simulated stats for this node, override with live data when available
+  // Prefer WebSocket stats (real-time every 5s) over REST poll
   const mockStats = getNodeStats(activeNode.id);
-  const stats = apiAvailable && liveStats ? {
-    cpu: Math.round(liveStats.cpu_usage),
-    memory: Math.round(liveStats.memory_percent),
-    disk: Math.round(liveStats.disk_percent),
-    diskTotal: `${(liveStats.disk_total / (1024 * 1024 * 1024)).toFixed(0)} GB`,
-    diskUsedVal: liveStats.disk_used / (1024 * 1024 * 1024),
-    diskUsed: `${(liveStats.disk_used / (1024 * 1024 * 1024)).toFixed(1)} GB`,
-    temp: liveStats.temperature ?? mockStats.temp,
+  const realStats = wsStats ?? liveStats;
+  const stats = apiAvailable && realStats ? {
+    cpu: Math.round(realStats.cpu_usage),
+    memory: Math.round(realStats.memory_percent),
+    disk: Math.round(realStats.disk_percent),
+    diskTotal: liveStats ? `${(liveStats.disk_total / (1024 * 1024 * 1024)).toFixed(0)} GB` : mockStats.diskTotal,
+    diskUsedVal: liveStats ? liveStats.disk_used / (1024 * 1024 * 1024) : mockStats.diskUsedVal,
+    diskUsed: liveStats ? `${(liveStats.disk_used / (1024 * 1024 * 1024)).toFixed(1)} GB` : mockStats.diskUsed,
+    temp: realStats.temperature ?? mockStats.temp,
     uptime: liveInfo ? formatUptime(liveInfo.uptime) : mockStats.uptime,
     os: liveInfo ? `Airwaves OS ${liveInfo.airwaves_version} (${liveInfo.kernel})` : mockStats.os,
     arch: liveInfo?.architecture ?? mockStats.arch,
