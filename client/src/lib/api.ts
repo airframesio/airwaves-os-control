@@ -47,9 +47,19 @@ export interface SystemStats {
   load_average: [number, number, number];
 }
 
+export interface ExecResponse {
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+}
+
 export const systemApi = {
   getInfo: () => apiFetch<SystemInfo>('/system/info'),
   getStats: () => apiFetch<SystemStats>('/system/stats'),
+  exec: (command: string) => apiFetch<ExecResponse>('/system/exec', {
+    method: 'POST',
+    body: JSON.stringify({ command }),
+  }),
 };
 
 // ---------- Containers ----------

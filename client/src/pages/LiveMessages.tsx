@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { mockMessages, Message } from "@/lib/mockData";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Clock, Radio, User, FileText, Cpu } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
+import { useContainers, useContainerLogs } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 import {
   Dialog,
   DialogContent,
@@ -61,8 +63,16 @@ interface VisibleColumns {
 
 export default function LiveMessages() {
   const { activeNode, data } = useNodeStore();
+  const apiAvailable = useApiStatus();
+  const { data: liveContainers } = useContainers();
   const runningAppIds = data.apps.filter(a => a.status === 'running').map(a => a.id);
-  
+
+  // Decoder container names for log fetching
+  const decoderContainers = (liveContainers ?? [])
+    .filter(c => c.state === 'running' && c.name.startsWith('airwaves-') &&
+      !['airwaves-gateway', 'airwaves-manager'].includes(c.name))
+    .map(c => c.name);
+
   // Initialize messages filtered by the current node's running apps
   const [messages, setMessages] = useState<Message[]>([]);
   const [filterApp, setFilterApp] = useState("all");
@@ -99,24 +109,74 @@ export default function LiveMessages() {
     localStorage.setItem('liveMessagesColumns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
+  // Parse a log line from a container into a Message object
+  const parseLogLine = useCallback((containerName: string, line: string, index: number): Message | null => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length < 5) return null;
+    const appId = containerName.replace(/^airwaves-/, '');
+    return {
+      id: `log-${appId}-${Date.now()}-${index}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
+      appId,
+      appName: appId,
+      frequency: "",
+      mode: appId.toUpperCase(),
+      signalLevel: 0,
+      source: containerName,
+      content: trimmed,
+    };
+  }, []);
+
+  // Fetch real container logs when API is available
+  useEffect(() => {
+    if (!apiAvailable || isPaused || decoderContainers.length === 0) return;
+
+    let cancelled = false;
+    const fetchLogs = async () => {
+      const { containersApi } = await import("@/lib/api");
+      for (const name of decoderContainers) {
+        if (cancelled) break;
+        try {
+          const result = await containersApi.logs(name, 20);
+          const lines = result.logs.split('\n').filter(Boolean);
+          const newMsgs = lines
+            .map((line, i) => parseLogLine(name, line, i))
+            .filter((m): m is Message => m !== null);
+          if (newMsgs.length > 0) {
+            setMessages(prev => [...newMsgs, ...prev].slice(0, 200));
+          }
+        } catch {
+          // Container may not have logs yet
+        }
+      }
+    };
+
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [apiAvailable, isPaused, decoderContainers.join(','), parseLogLine]);
+
   // Reset messages when active node changes
   useEffect(() => {
-    setMessages(mockMessages.filter(m => runningAppIds.includes(m.appId)));
-    setCurrentPage(1); // Reset to first page on node change
-  }, [activeNode.id]);
+    if (!apiAvailable) {
+      setMessages(mockMessages.filter(m => runningAppIds.includes(m.appId)));
+    } else {
+      setMessages([]);
+    }
+    setCurrentPage(1);
+  }, [activeNode.id, apiAvailable]);
 
+  // Simulated messages for offline/dev mode
   useEffect(() => {
-    if (isPaused) return;
+    if (apiAvailable || isPaused) return;
 
-    // Filter templates to only include running apps on this node
     const validTemplates = SAMPLE_MESSAGES.filter(t => runningAppIds.includes(t.appId));
-
     if (validTemplates.length === 0) return;
 
     const interval = setInterval(() => {
       const template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
       const id = Math.random().toString(36).substr(2, 9);
-      
+
       const newMessage: Message = {
         id: `msg-${id}`,
         timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
@@ -129,11 +189,11 @@ export default function LiveMessages() {
         content: typeof template.content === 'function' ? template.content('TEST') : template.content
       };
 
-      setMessages(prev => [newMessage, ...prev].slice(0, 100)); // Keep last 100 messages
+      setMessages(prev => [newMessage, ...prev].slice(0, 100));
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [isPaused, activeNode.id]); // Re-run if node or pause state changes
+  }, [apiAvailable, isPaused, activeNode.id]);
 
   const filteredMessages = messages.filter(msg => {
     const matchesApp = filterApp === "all" || msg.appId === filterApp;

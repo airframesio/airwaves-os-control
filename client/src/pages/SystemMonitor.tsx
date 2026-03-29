@@ -58,14 +58,14 @@ const formatUptime = (seconds: number): string => {
   return `${days}d ${hours}h ${minutes}m`;
 };
 
-const WebTerminal = ({ hostname }: { hostname: string }) => {
+const WebTerminal = ({ hostname, apiAvailable }: { hostname: string; apiAvailable: boolean }) => {
   const [history, setHistory] = useState<string[]>([
     `Connecting to ${hostname}...`,
-    "Authentication successful.",
-    `Welcome to Airwaves OS v1.2.0 (${hostname})`,
+    apiAvailable ? "Connected to Airwaves OS Manager." : "Manager offline - using simulated mode.",
     "Type 'help' for a list of commands."
   ]);
   const [input, setInput] = useState("");
+  const [running, setRunning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,46 +74,52 @@ const WebTerminal = ({ hostname }: { hostname: string }) => {
     }
   }, [history]);
 
-  const handleCommand = (e: React.FormEvent) => {
+  const runRealCommand = async (cmd: string): Promise<string[]> => {
+    const { systemApi } = await import("@/lib/api");
+    const result = await systemApi.exec(cmd);
+    const lines: string[] = [];
+    if (result.stdout) lines.push(result.stdout.trimEnd());
+    if (result.stderr) lines.push(result.stderr.trimEnd());
+    return lines;
+  };
+
+  const handleCommand = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || running) return;
 
-    const cmd = input.trim().toLowerCase();
-    const newHistory = [...history, `user@${hostname}:~$ ${input}`];
+    const cmd = input.trim();
 
-    switch (cmd) {
-      case "help":
-        newHistory.push("Available commands: help, clear, status, uname, date, top, ls");
-        break;
-      case "clear":
-        setHistory([]);
-        setInput("");
-        return;
-      case "status":
-        newHistory.push("System Status: OPERATIONAL");
-        newHistory.push("Services: 4 running, 0 failed");
-        break;
-      case "uname":
-        newHistory.push("Linux airwaves-os 6.1.0-rpi7-rpi-v8 #1 SMP PREEMPT aarch64 GNU/Linux");
-        break;
-      case "date":
-        newHistory.push(new Date().toString());
-        break;
-      case "top":
-        newHistory.push("top - 14:32:05 up 4 days, 12:30,  1 user,  load average: 0.45, 0.52, 0.48");
-        newHistory.push("Tasks: 118 total,   1 running, 117 sleeping,   0 stopped,   0 zombie");
-        newHistory.push("%Cpu(s): 12.5 us,  3.2 sy,  0.0 ni, 84.1 id,  0.0 wa,  0.0 hi,  0.2 si,  0.0 st");
-        break;
-      case "ls":
-        newHistory.push("Desktop  Downloads  Music     Public     Videos");
-        newHistory.push("Documents  logs       Pictures  Templates");
-        break;
-      default:
-        newHistory.push(`bash: ${cmd}: command not found`);
+    if (cmd.toLowerCase() === "clear") {
+      setHistory([]);
+      setInput("");
+      return;
     }
 
-    setHistory(newHistory);
+    setHistory(prev => [...prev, `user@${hostname}:~$ ${cmd}`]);
     setInput("");
+
+    if (apiAvailable) {
+      setRunning(true);
+      try {
+        const lines = await runRealCommand(cmd);
+        setHistory(prev => [...prev, ...lines]);
+      } catch (err) {
+        setHistory(prev => [...prev, `Error: ${err}`]);
+      } finally {
+        setRunning(false);
+      }
+    } else {
+      // Fallback: simulated
+      const simulated: Record<string, string[]> = {
+        help: ["Available commands: help, clear, uname, date, uptime, hostname, docker ps, lsusb, df, free"],
+        uname: ["Linux airwaves-os 6.1.0-rpi7-rpi-v8 #1 SMP PREEMPT aarch64 GNU/Linux"],
+        date: [new Date().toString()],
+        uptime: [" 14:32:05 up 4 days, 12:30,  1 user,  load average: 0.45, 0.52, 0.48"],
+        hostname: [hostname],
+      };
+      const output = simulated[cmd.toLowerCase()];
+      setHistory(prev => [...prev, ...(output ?? [`bash: ${cmd}: command not found (offline mode)`])]);
+    }
   };
 
   return (
@@ -400,7 +406,7 @@ export default function SystemMonitor() {
           </div>
         </CardHeader>
         <CardContent>
-          <WebTerminal hostname={activeNode.hostname} />
+          <WebTerminal hostname={activeNode.hostname} apiAvailable={apiAvailable} />
         </CardContent>
       </Card>
     </div>
