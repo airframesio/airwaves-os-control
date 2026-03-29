@@ -214,6 +214,60 @@ export const appsApi = {
   }),
 };
 
+// ---------- Tracking ----------
+
+export interface Vehicle {
+  id: string;
+  callsign: string;
+  vehicle_type: string;
+  lat: number;
+  lng: number;
+  altitude: number;
+  speed: number;
+  heading: number;
+  source: string;
+}
+
+export interface TrackingResponse {
+  vehicles: Vehicle[];
+  station: { lat: number; lng: number };
+  sources: Array<{ name: string; source_type: string; vehicle_count: number; available: boolean }>;
+}
+
+export const trackingApi = {
+  getVehicles: () => apiFetch<TrackingResponse>('/tracking/vehicles'),
+};
+
+// ---------- Fleet ----------
+
+export interface FleetNode {
+  id: string;
+  name: string;
+  hostname: string;
+  ip: string;
+  status: string;
+  role: string;
+  mode: string;
+  forwarding_target?: string;
+  last_seen: string;
+}
+
+export interface FleetStatus {
+  local_node: FleetNode;
+  peers: FleetNode[];
+}
+
+export const fleetApi = {
+  getStatus: () => apiFetch<FleetStatus>('/fleet'),
+  pair: (ip: string, name?: string) => apiFetch<FleetNode>('/fleet/pair', {
+    method: 'POST',
+    body: JSON.stringify({ ip, name }),
+  }),
+  unpair: (id: string) => apiFetch<{ status: string }>(`/fleet/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }),
+};
+
 // ---------- WebSocket ----------
 
 export type WsEvent =

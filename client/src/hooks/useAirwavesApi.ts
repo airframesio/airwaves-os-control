@@ -14,6 +14,8 @@ import {
   configApi,
   appsApi,
   feedsApi,
+  trackingApi,
+  fleetApi,
   type SystemInfo,
   type SystemStats,
   type ContainerInfo,
@@ -22,6 +24,9 @@ import {
   type AirwavesConfig,
   type CatalogApp,
   type FeedConfig,
+  type TrackingResponse,
+  type FleetStatus,
+  type FleetNode,
 } from '@/lib/api';
 
 // ---------- System ----------
@@ -186,5 +191,43 @@ export function useDeleteFeed() {
   return useMutation({
     mutationFn: (id: string) => feedsApi.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feeds'] }),
+  });
+}
+
+// ---------- Tracking ----------
+
+export function useTracking() {
+  return useQuery<TrackingResponse>({
+    queryKey: ['tracking', 'vehicles'],
+    queryFn: trackingApi.getVehicles,
+    refetchInterval: 3_000,
+    retry: 1,
+  });
+}
+
+// ---------- Fleet ----------
+
+export function useFleetStatus() {
+  return useQuery<FleetStatus>({
+    queryKey: ['fleet'],
+    queryFn: fleetApi.getStatus,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function usePairNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ip, name }: { ip: string; name?: string }) => fleetApi.pair(ip, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fleet'] }),
+  });
+}
+
+export function useUnpairNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => fleetApi.unpair(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fleet'] }),
   });
 }

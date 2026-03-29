@@ -7,17 +7,56 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockSystems, System } from "@/lib/mockData";
-import { Activity, Circle, MoreVertical, Plus, Server, Trash2, Wifi, WifiOff, Settings, Check, ArrowRight, Cog } from "lucide-react";
-import { useState } from "react";
+import { Activity, Circle, MoreVertical, Plus, Server, Trash2, Wifi, WifiOff, Settings, Check, ArrowRight, Cog, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useFleetStatus, usePairNode, useUnpairNode } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function Systems() {
+  const apiAvailable = useApiStatus();
+  const { data: fleetData } = useFleetStatus();
+  const pairMutation = usePairNode();
+  const unpairMutation = useUnpairNode();
+
+  // Map live fleet data to System[] format when available
+  const liveSystems: System[] | null = apiAvailable && fleetData
+    ? [
+        {
+          id: fleetData.local_node.id || 'local',
+          name: fleetData.local_node.name || fleetData.local_node.hostname,
+          hostname: fleetData.local_node.hostname,
+          ip: fleetData.local_node.ip,
+          status: fleetData.local_node.status as any,
+          role: fleetData.local_node.role as any,
+          mode: fleetData.local_node.mode as any,
+          lastSeen: fleetData.local_node.last_seen,
+        },
+        ...fleetData.peers.map(p => ({
+          id: p.id,
+          name: p.name,
+          hostname: p.hostname,
+          ip: p.ip,
+          status: p.status as any,
+          role: p.role as any,
+          mode: p.mode as any,
+          forwardingTarget: p.forwarding_target,
+          lastSeen: p.last_seen,
+        })),
+      ]
+    : null;
+
   const [systems, setSystems] = useState<System[]>(mockSystems);
   const [isPairing, setIsPairing] = useState(false);
   const [newSystemIp, setNewSystemIp] = useState("");
   const { toast } = useToast();
+
+  // Sync with live data
+  useEffect(() => {
+    if (liveSystems) setSystems(liveSystems);
+  }, [fleetData]);
 
   // Configuration Dialog State
   const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
@@ -26,37 +65,44 @@ export default function Systems() {
   const [forwardingTarget, setForwardingTarget] = useState("");
 
   const handlePair = () => {
-    setIsPairing(true);
-    // Simulate pairing process
-    setTimeout(() => {
-      setSystems([
-        ...systems,
-        {
-          id: `sys-${Date.now()}`,
-          name: "New System",
-          hostname: "airwaves-node-new",
-          ip: newSystemIp,
-          status: "online",
-          role: "secondary",
-          mode: "standalone",
-          lastSeen: "Just now"
-        }
-      ]);
-      setIsPairing(false);
-      setNewSystemIp("");
-      toast({
-        title: "System Paired",
-        description: `Successfully paired with device at ${newSystemIp}`,
+    if (apiAvailable) {
+      setIsPairing(true);
+      pairMutation.mutate({ ip: newSystemIp }, {
+        onSuccess: (node) => {
+          setIsPairing(false);
+          setNewSystemIp("");
+          toast({ title: "System Paired", description: `Paired with ${node.hostname} at ${newSystemIp}` });
+        },
+        onError: (err) => {
+          setIsPairing(false);
+          toast({ title: "Pairing Failed", description: String(err), variant: "destructive" });
+        },
       });
-    }, 2000);
+    } else {
+      // Mock fallback
+      setIsPairing(true);
+      setTimeout(() => {
+        setSystems([...systems, {
+          id: `sys-${Date.now()}`, name: "New System", hostname: "airwaves-node-new",
+          ip: newSystemIp, status: "online", role: "secondary", mode: "standalone", lastSeen: "Just now"
+        }]);
+        setIsPairing(false);
+        setNewSystemIp("");
+        toast({ title: "System Paired", description: `Paired with ${newSystemIp}` });
+      }, 2000);
+    }
   };
 
   const handleRemove = (id: string) => {
+    if (apiAvailable) {
+      unpairMutation.mutate(id, {
+        onSuccess: () => toast({ title: "System Removed", description: "Node removed from fleet." }),
+        onError: (err) => toast({ title: "Remove Failed", description: String(err), variant: "destructive" }),
+      });
+    }
+    // Optimistic update
     setSystems(systems.filter(s => s.id !== id));
-    toast({
-      title: "System Removed",
-      description: "The node has been removed from your fleet.",
-    });
+    toast({ title: "System Removed", description: "Node removed from fleet." });
   };
 
   const openConfigureDialog = (system: System) => {
