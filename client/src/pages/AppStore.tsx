@@ -13,17 +13,20 @@ import { useApiStatus } from "@/hooks/useApiStatus";
 
 // Map app IDs to icons for catalog apps
 const appIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  ultrafeeder: Plane,
   readsb: Plane,
   acarsdec: Radio,
   dumpvdl2: Waves,
   dumphfdl: Satellite,
-  vdlm2dec: Waves,
+  "acars-router": Waves,
   "ais-catcher": Ship,
   "rtl-airband": Radio,
   "rtl-433": Waves,
   satdump: Satellite,
+  dump978: Plane,
   acarshub: BarChart3,
   tar1090: Map,
+  shipfeeder: Ship,
   graphs1090: BarChart3,
 };
 
