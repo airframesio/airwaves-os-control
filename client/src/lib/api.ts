@@ -136,6 +136,48 @@ export const networkApi = {
   listInterfaces: () => apiFetch<NetworkInterface[]>('/network/interfaces'),
 };
 
+// ---------- WiFi ----------
+
+export interface WifiNetwork {
+  ssid: string;
+  signal: number;
+  security: string;
+  frequency: string;
+  connected: boolean;
+}
+
+export interface WifiStatus {
+  enabled: boolean;
+  connected: boolean;
+  ssid: string | null;
+  ip: string | null;
+  interface: string;
+}
+
+export const wifiApi = {
+  getStatus: () => apiFetch<WifiStatus>('/wifi/status'),
+  scan: () => apiFetch<WifiNetwork[]>('/wifi/scan'),
+  connect: (ssid: string, password?: string) => apiFetch<{ status: string }>('/wifi/connect', {
+    method: 'POST',
+    body: JSON.stringify({ ssid, password }),
+  }),
+};
+
+// ---------- App Proxy ----------
+
+export interface AppProxy {
+  app_id: string;
+  name: string;
+  path: string;
+  target: string;
+  running: boolean;
+}
+
+export const proxyApi = {
+  list: () => apiFetch<AppProxy[]>('/proxy/list'),
+  generate: () => apiFetch<{ status: string; app_count: number }>('/proxy/generate', { method: 'POST' }),
+};
+
 // ---------- Config ----------
 
 export interface AirwavesConfig {
@@ -159,11 +201,23 @@ export interface AirwavesConfig {
   apps: Record<string, unknown>;
 }
 
+export interface SystemBackup {
+  version: string;
+  timestamp: string;
+  config: AirwavesConfig;
+  catalog: unknown;
+}
+
 export const configApi = {
   get: () => apiFetch<AirwavesConfig>('/config'),
   update: (config: AirwavesConfig) => apiFetch<{ status: string }>('/config', {
     method: 'PUT',
     body: JSON.stringify(config),
+  }),
+  backup: () => apiFetch<SystemBackup>('/config/backup'),
+  restore: (backup: SystemBackup) => apiFetch<{ status: string }>('/config/restore', {
+    method: 'POST',
+    body: JSON.stringify(backup),
   }),
 };
 
