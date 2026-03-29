@@ -159,6 +159,31 @@ export const configApi = {
   }),
 };
 
+// ---------- Feeds ----------
+
+export interface FeedConfig {
+  id: string;
+  name: string;
+  feed_type: string;
+  protocol: string;
+  host: string;
+  port: number;
+  enabled: boolean;
+  api_key?: string;
+  app_id?: string;
+}
+
+export const feedsApi = {
+  list: () => apiFetch<FeedConfig[]>('/feeds'),
+  upsert: (feed: FeedConfig) => apiFetch<{ status: string }>('/feeds', {
+    method: 'POST',
+    body: JSON.stringify(feed),
+  }),
+  delete: (id: string) => apiFetch<{ status: string }>(`/feeds/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }),
+};
+
 // ---------- App Catalog ----------
 
 export interface CatalogApp {

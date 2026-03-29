@@ -13,6 +13,7 @@ import {
   networkApi,
   configApi,
   appsApi,
+  feedsApi,
   type SystemInfo,
   type SystemStats,
   type ContainerInfo,
@@ -20,6 +21,7 @@ import {
   type NetworkInterface,
   type AirwavesConfig,
   type CatalogApp,
+  type FeedConfig,
 } from '@/lib/api';
 
 // ---------- System ----------
@@ -157,5 +159,32 @@ export function useUninstallApp() {
       queryClient.invalidateQueries({ queryKey: ['containers'] });
       queryClient.invalidateQueries({ queryKey: ['apps', 'catalog'] });
     },
+  });
+}
+
+// ---------- Feeds ----------
+
+export function useFeeds() {
+  return useQuery<FeedConfig[]>({
+    queryKey: ['feeds'],
+    queryFn: feedsApi.list,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function useUpsertFeed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (feed: FeedConfig) => feedsApi.upsert(feed),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feeds'] }),
+  });
+}
+
+export function useDeleteFeed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => feedsApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feeds'] }),
   });
 }

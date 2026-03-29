@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Download, Check, ExternalLink, Globe, HardDrive, Calendar, Server, Radio, Loader2, Github } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useAppCatalog, useContainers, useInstallApp, useSdrDevices } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function AppDetails() {
   const [match, params] = useRoute("/store/:id");
@@ -19,8 +21,31 @@ export default function AppDetails() {
   const [installStep, setInstallStep] = useState(0);
   const [selectedDevice, setSelectedDevice] = useState<string>("");
 
-  const app = mockApps.find(a => a.id === params?.id);
-  const availableDevices = mockDevices.filter(d => d.status === "idle");
+  const apiAvailable = useApiStatus();
+  const { data: catalogApps } = useAppCatalog();
+  const { data: liveContainers } = useContainers();
+  const { data: liveSdrDevices } = useSdrDevices();
+  const installMutation = useInstallApp();
+
+  // Find app from catalog or mock data
+  const catalogApp = catalogApps?.find(a => a.id === params?.id);
+  const mockApp = mockApps.find(a => a.id === params?.id);
+  const app = mockApp ?? (catalogApp ? {
+    ...catalogApp,
+    installed: liveContainers?.some(c => c.name === `airwaves-${catalogApp.id}`) ?? false,
+    status: "stopped" as const,
+    icon: Radio,
+    cpuUsage: 0,
+    memoryUsage: 0,
+  } : undefined);
+
+  // Use live SDR devices when available
+  const availableDevices = apiAvailable && liveSdrDevices
+    ? liveSdrDevices.filter(d => d.status === "available").map(d => ({
+        id: d.id, name: d.name, type: d.device_type, serial: d.serial ?? "N/A",
+        status: "idle" as const, assignedApp: d.assigned_to ?? undefined,
+      }))
+    : mockDevices.filter(d => d.status === "idle");
 
   if (!app) {
     return (

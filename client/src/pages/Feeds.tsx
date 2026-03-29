@@ -11,6 +11,8 @@ import { ArrowUpRight, Globe, Plus, Trash2, Server, Radio, Network, Settings, Ed
 import { mockFeeds, mockApps } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { useFeeds, useUpsertFeed, useDeleteFeed } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 const getFeedTypeDetails = (type: string) => {
   switch (type) {
@@ -36,6 +38,11 @@ const aggregators = [
 ];
 
 export default function Feeds() {
+  const apiAvailable = useApiStatus();
+  const { data: liveFeeds } = useFeeds();
+  const upsertFeed = useUpsertFeed();
+  const deleteFeedMutation = useDeleteFeed();
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedAggregator, setSelectedAggregator] = useState<string>("custom");
   const [selectedSource, setSelectedSource] = useState<string>("");
@@ -45,6 +52,22 @@ export default function Feeds() {
   const selectedApp = mockApps.find(app => app.id === selectedSource);
   const activeAggregator = aggregators.find(a => a.id === selectedAggregator);
   const sourceApps = mockApps.filter(app => app.hasOutput);
+
+  // Map live feeds into the format the UI expects, fall back to mock
+  const feeds = apiAvailable && liveFeeds
+    ? liveFeeds.map(f => ({
+        id: f.id,
+        name: f.name,
+        type: f.feed_type as any,
+        protocol: f.protocol as any,
+        host: f.host,
+        port: f.port,
+        status: f.enabled ? "connected" as const : "disconnected" as const,
+        messageRate: 0,
+        bandwidth: "0 KB/s",
+        appId: f.app_id ?? "",
+      }))
+    : mockFeeds;
   
   // Filter aggregators based on selected app category
   const availableAggregators = selectedApp 
@@ -84,10 +107,10 @@ export default function Feeds() {
   };
 
   // Stats calculation
-  const totalFeeds = mockFeeds.length;
-  const activeFeeds = mockFeeds.filter(f => f.status === 'connected').length;
-  const totalRate = mockFeeds.reduce((acc, f) => acc + (f.messageRate || 0), 0);
-  const totalBandwidth = mockFeeds.reduce((acc, f) => acc + (f.bandwidth || 0), 0);
+  const totalFeeds = feeds.length;
+  const activeFeeds = feeds.filter(f => f.status === 'connected').length;
+  const totalRate = feeds.reduce((acc, f) => acc + (f.messageRate || 0), 0);
+  const totalBandwidth = feeds.reduce((acc, f) => acc + ((f as any).bandwidth || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -289,7 +312,7 @@ export default function Feeds() {
           </Button>
         </div>
 
-        {mockFeeds.map(feed => {
+        {feeds.map(feed => {
           const typeDetails = getFeedTypeDetails(feed.type);
           const Icon = typeDetails.icon;
           
