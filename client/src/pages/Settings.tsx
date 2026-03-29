@@ -6,9 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Moon, Sun, Monitor, Shield, Network } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
+import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function Settings() {
   const [theme, setTheme] = useState("dark");
+  const apiAvailable = useApiStatus();
+  const { data: config } = useConfig();
+  const { data: sysInfo } = useSystemInfo();
+  const hostname = config?.device?.hostname ?? "airwaves-station-1";
+  const osVersion = sysInfo?.airwaves_version ?? "1.0.0";
 
   useEffect(() => {
     // Sync with HTML class
@@ -71,7 +78,7 @@ export default function Settings() {
             <div className="grid gap-2">
               <Label htmlFor="hostname">Device Hostname</Label>
               <div className="flex gap-2">
-                <Input id="hostname" defaultValue="airwaves-station-1" />
+                <Input id="hostname" defaultValue={hostname} />
                 <Button>Save</Button>
               </div>
             </div>
@@ -97,7 +104,7 @@ export default function Settings() {
              <div className="flex items-center justify-between">
                <div>
                  <div className="font-medium">Airwaves OS Core</div>
-                 <div className="text-sm text-muted-foreground">Current: v1.0.0</div>
+                 <div className="text-sm text-muted-foreground">Current: v{osVersion}</div>
                </div>
                <Button variant="outline" disabled>Up to date</Button>
              </div>
