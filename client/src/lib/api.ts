@@ -265,8 +265,16 @@ export interface FleetStatus {
   peers: FleetNode[];
 }
 
+export interface DiscoveredNode {
+  hostname: string;
+  ip: string;
+  port: number;
+  already_paired: boolean;
+}
+
 export const fleetApi = {
   getStatus: () => apiFetch<FleetStatus>('/fleet'),
+  discover: () => apiFetch<DiscoveredNode[]>('/fleet/discover'),
   pair: (ip: string, name?: string) => apiFetch<FleetNode>('/fleet/pair', {
     method: 'POST',
     body: JSON.stringify({ ip, name }),

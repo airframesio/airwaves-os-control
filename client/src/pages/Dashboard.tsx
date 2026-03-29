@@ -7,7 +7,7 @@ import { mockApps, mockDevices, mockFeeds, mockSystems, systemStats } from "@/li
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
-import { useSystemStats, useContainers } from "@/hooks/useAirwavesApi";
+import { useSystemStats, useContainers, useSystemOverview } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 
@@ -24,6 +24,7 @@ const aggregateData = [
 
 export default function Dashboard() {
   const apiAvailable = useApiStatus();
+  const { data: overview } = useSystemOverview();
   const { data: liveStats } = useSystemStats();
   const { data: liveContainers } = useContainers();
   const { liveStats: wsStats, connected: wsConnected } = useManagerEvents();
@@ -32,14 +33,14 @@ export default function Dashboard() {
   const activeDevices = mockDevices.filter(dev => dev.status === "active");
   const connectedFeeds = mockFeeds.filter(feed => feed.status === "connected");
 
-  // Use live data when available, fall back to mock
-  const runningContainers = liveContainers?.filter(c => c.state === "running").length ?? activeApps.length;
-  const totalApps = apiAvailable ? runningContainers : activeApps.length * 2 + 1;
-  const totalDevices = activeDevices.length + (apiAvailable ? 0 : 3);
+  // Use overview for one-shot dashboard data, fall back to individual calls, then mock
+  const totalApps = overview?.containers.airwaves_apps ?? liveContainers?.filter(c => c.state === "running").length ?? activeApps.length * 2 + 1;
+  const totalDevices = overview?.hardware.sdr_devices ?? activeDevices.length + (apiAvailable ? 0 : 3);
+  const totalContainers = overview?.containers.running ?? liveContainers?.filter(c => c.state === "running").length ?? 0;
   const onlineNodes = mockSystems.filter(s => s.status === "online");
-  // Prefer WebSocket stats (real-time), fall back to REST poll, then mock
-  const cpuLoad = wsStats?.cpu_usage ?? liveStats?.cpu_usage ?? 32;
-  const memLoad = wsStats?.memory_percent ?? liveStats?.memory_percent ?? 0;
+  // Prefer WebSocket stats (real-time) > overview > REST poll > mock
+  const cpuLoad = wsStats?.cpu_usage ?? overview?.stats.cpu_usage ?? liveStats?.cpu_usage ?? 32;
+  const memLoad = wsStats?.memory_percent ?? overview?.stats.memory_percent ?? liveStats?.memory_percent ?? 0;
   
   // Live chart data
   const [chartData, setChartData] = React.useState(aggregateData);

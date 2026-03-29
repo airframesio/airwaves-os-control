@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { mockSystems, System } from "@/lib/mockData";
-import { Activity, Circle, MoreVertical, Plus, Server, Trash2, Wifi, WifiOff, Settings, Check, ArrowRight, Cog, Loader2 } from "lucide-react";
+import { Activity, Circle, MoreVertical, Plus, Server, Trash2, Wifi, WifiOff, Settings, Check, ArrowRight, Cog, Loader2, Search, Radio } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useFleetStatus, usePairNode, useUnpairNode } from "@/hooks/useAirwavesApi";
+import { Separator } from "@/components/ui/separator";
+import { useFleetStatus, usePairNode, useUnpairNode, useDiscoverNodes } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 
 export default function Systems() {
@@ -20,6 +21,7 @@ export default function Systems() {
   const { data: fleetData } = useFleetStatus();
   const pairMutation = usePairNode();
   const unpairMutation = useUnpairNode();
+  const { data: discoveredNodes, refetch: runDiscovery, isFetching: isDiscovering } = useDiscoverNodes();
 
   // Map live fleet data to System[] format when available
   const liveSystems: System[] | null = apiAvailable && fleetData
@@ -155,10 +157,49 @@ export default function Systems() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {/* Auto-discovery */}
+              {apiAvailable && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Discovered on Network</Label>
+                    <Button variant="ghost" size="sm" onClick={() => runDiscovery()} disabled={isDiscovering}>
+                      {isDiscovering ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Search className="w-3 h-3 mr-1" />}
+                      Scan
+                    </Button>
+                  </div>
+                  {discoveredNodes && discoveredNodes.length > 0 ? (
+                    <div className="space-y-2">
+                      {discoveredNodes.map(node => (
+                        <div key={node.ip} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                          <div className="flex items-center gap-2">
+                            <Radio className="w-4 h-4 text-primary" />
+                            <div>
+                              <div className="text-sm font-medium">{node.hostname}</div>
+                              <div className="text-xs text-muted-foreground font-mono">{node.ip}</div>
+                            </div>
+                          </div>
+                          {node.already_paired ? (
+                            <Badge variant="secondary" className="text-xs">Paired</Badge>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => { setNewSystemIp(node.ip); }}>
+                              Select
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : discoveredNodes ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">No nodes found on the local network</p>
+                  ) : null}
+                  <Separator className="my-2" />
+                </div>
+              )}
+
+              {/* Manual IP entry */}
               <div className="space-y-2">
                 <Label>IP Address / Hostname</Label>
-                <Input 
-                  placeholder="192.168.1.x" 
+                <Input
+                  placeholder="192.168.1.x"
                   value={newSystemIp}
                   onChange={(e) => setNewSystemIp(e.target.value)}
                 />
@@ -166,7 +207,7 @@ export default function Systems() {
             </div>
             <DialogFooter>
               <Button onClick={handlePair} disabled={!newSystemIp || isPairing}>
-                {isPairing ? "Pairing..." : "Pair Device"}
+                {isPairing ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Pairing...</> : "Pair Device"}
               </Button>
             </DialogFooter>
           </DialogContent>

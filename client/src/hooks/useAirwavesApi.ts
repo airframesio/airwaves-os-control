@@ -28,6 +28,7 @@ import {
   type TrackingResponse,
   type FleetStatus,
   type FleetNode,
+  type DiscoveredNode,
 } from '@/lib/api';
 
 // ---------- System ----------
@@ -239,5 +240,14 @@ export function useUnpairNode() {
   return useMutation({
     mutationFn: (id: string) => fleetApi.unpair(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fleet'] }),
+  });
+}
+
+export function useDiscoverNodes() {
+  return useQuery<DiscoveredNode[]>({
+    queryKey: ['fleet', 'discover'],
+    queryFn: fleetApi.discover,
+    enabled: false, // Only fetch when manually triggered
+    retry: 1,
   });
 }
