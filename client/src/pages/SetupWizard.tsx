@@ -49,14 +49,22 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
   const progress = ((step + 1) / STEPS.length) * 100;
 
   const scanWifi = async () => {
-    if (!apiAvailable) return;
     setScanning(true);
     try {
-      const networks = await wifiApi.scan();
-      setWifiNetworks(networks);
-      // Check if already connected
-      const status = await wifiApi.getStatus();
-      setNetworkConnected(status.connected);
+      if (apiAvailable) {
+        const networks = await wifiApi.scan();
+        setWifiNetworks(networks);
+        const status = await wifiApi.getStatus();
+        setNetworkConnected(status.connected);
+      } else {
+        // Demo mode: simulated WiFi networks
+        await new Promise(r => setTimeout(r, 1500));
+        setWifiNetworks([
+          { ssid: "AirwavesNet", signal: -35, security: "WPA2", frequency: "2.4 GHz", connected: false },
+          { ssid: "HomeWiFi-5G", signal: -52, security: "WPA2", frequency: "5 GHz", connected: false },
+          { ssid: "Neighbor_Guest", signal: -68, security: "WPA2", frequency: "2.4 GHz", connected: false },
+        ]);
+      }
     } catch {
       // Offline or no WiFi
     } finally {
@@ -65,14 +73,19 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
   };
 
   const connectWifi = async () => {
-    if (!apiAvailable || !selectedSsid) return;
+    if (!selectedSsid) return;
     setLoading(true);
     try {
-      await wifiApi.connect(selectedSsid, wifiPassword || undefined);
-      // Wait for connection
-      await new Promise(r => setTimeout(r, 5000));
-      const status = await wifiApi.getStatus();
-      setNetworkConnected(status.connected);
+      if (apiAvailable) {
+        await wifiApi.connect(selectedSsid, wifiPassword || undefined);
+        await new Promise(r => setTimeout(r, 5000));
+        const status = await wifiApi.getStatus();
+        setNetworkConnected(status.connected);
+      } else {
+        // Demo mode: simulate connection
+        await new Promise(r => setTimeout(r, 2000));
+        setNetworkConnected(true);
+      }
     } catch {
       // Connection failed
     } finally {
@@ -81,11 +94,19 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
   };
 
   const detectHardware = async () => {
-    if (!apiAvailable) return;
     setDetectingHardware(true);
     try {
-      const devices = await hardwareApi.listSdr();
-      setSdrDevices(devices);
+      if (apiAvailable) {
+        const devices = await hardwareApi.listSdr();
+        setSdrDevices(devices);
+      } else {
+        // Demo mode: simulated SDR devices
+        await new Promise(r => setTimeout(r, 2000));
+        setSdrDevices([
+          { id: "0bda:2838-00000101", name: "RTL-SDR Blog V4", device_type: "rtl_sdr", vendor_id: 0x0bda, product_id: 0x2838, serial: "00000101", status: "available", assigned_to: null },
+          { id: "1d50:60a1-AIRSPY", name: "Airspy Mini", device_type: "airspy", vendor_id: 0x1d50, product_id: 0x60a1, serial: "AIRSPY-MINI", status: "available", assigned_to: null },
+        ]);
+      }
     } catch {
       // No devices
     } finally {
