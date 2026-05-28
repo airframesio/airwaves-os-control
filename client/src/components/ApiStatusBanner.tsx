@@ -1,21 +1,33 @@
-import { useApiStatus } from "@/hooks/useApiStatus";
-import { useManagerEvents } from "@/hooks/useManagerEvents";
-import { Wifi, WifiOff, Radio } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { FlaskConical } from "lucide-react";
+import { isApiAvailable } from "@/lib/api";
 
 /**
- * Compact connection status indicator for the app layout.
- * Shows whether the manager API and WebSocket are connected.
+ * Full-width banner shown when the manager API is unreachable, making it
+ * obvious that the UI is showing demo (mock) data rather than a live device.
+ *
+ * Shares the ['api-status'] query cache with useApiStatus() so it neither
+ * issues a duplicate request nor flashes before the first probe resolves.
  */
 export default function ApiStatusBanner() {
-  const apiAvailable = useApiStatus();
-  const { connected: wsConnected } = useManagerEvents();
+  const { data: available, isFetched } = useQuery({
+    queryKey: ["api-status"],
+    queryFn: isApiAvailable,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: false,
+  });
 
-  if (!apiAvailable) return null; // Don't show in dev/offline mode
+  // Don't show until the first probe completes (avoids a flash on a live
+  // device), and only when the API is actually unreachable.
+  if (!isFetched || available) return null;
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1 rounded-md bg-muted/50">
-      <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-      <span>{wsConnected ? 'Connected' : 'API only'}</span>
+    <div className="bg-amber-500/10 border-b border-amber-500/30 text-amber-600 text-sm px-4 py-2 flex items-center justify-center gap-2">
+      <FlaskConical className="w-4 h-4 shrink-0" />
+      <span>
+        Showing <span className="font-medium">demo data</span> — not connected to an Airwaves OS device.
+      </span>
     </div>
   );
 }

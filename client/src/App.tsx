@@ -25,6 +25,7 @@ import RtlAirband from "./pages/RtlAirband";
 import SetupWizard from "./pages/SetupWizard";
 import AppLayout from "./components/layout/AppLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ApiStatusBanner from "./components/ApiStatusBanner";
 
 function UpdateBanner() {
   const apiAvailable = useApiStatus();
@@ -60,6 +61,7 @@ function Router() {
   return (
     <AppLayout>
       <ErrorBoundary>
+      <ApiStatusBanner />
       <UpdateBanner />
       <Switch>
         <Route path="/" component={Dashboard} />
