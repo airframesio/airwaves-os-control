@@ -159,19 +159,29 @@ export default function SystemMonitor() {
   // Prefer WebSocket stats (real-time every 5s) over REST poll
   const mockStats = getNodeStats(activeNode.id);
   const realStats = wsStats ?? liveStats;
+  const gb = (bytes: number) => bytes / (1024 * 1024 * 1024);
   const stats = apiAvailable && realStats ? {
     cpu: Math.round(realStats.cpu_usage),
     memory: Math.round(realStats.memory_percent),
+    memText: liveStats
+      ? `${gb(liveStats.memory_used).toFixed(1)} GB / ${gb(liveStats.memory_total).toFixed(1)} GB used`
+      : `${Math.round(realStats.memory_percent)}% used`,
     disk: Math.round(realStats.disk_percent),
-    diskTotal: liveStats ? `${(liveStats.disk_total / (1024 * 1024 * 1024)).toFixed(0)} GB` : mockStats.diskTotal,
-    diskUsedVal: liveStats ? liveStats.disk_used / (1024 * 1024 * 1024) : mockStats.diskUsedVal,
-    diskUsed: liveStats ? `${(liveStats.disk_used / (1024 * 1024 * 1024)).toFixed(1)} GB` : mockStats.diskUsed,
+    diskTotal: liveStats ? `${gb(liveStats.disk_total).toFixed(0)} GB` : mockStats.diskTotal,
+    diskUsedVal: liveStats ? gb(liveStats.disk_used) : mockStats.diskUsedVal,
+    diskUsed: liveStats ? `${gb(liveStats.disk_used).toFixed(1)} GB` : mockStats.diskUsed,
     temp: realStats.temperature ?? mockStats.temp,
+    hasTemp: realStats.temperature != null,
     uptime: liveInfo ? formatUptime(liveInfo.uptime) : mockStats.uptime,
-    os: liveInfo ? `Airwaves OS ${liveInfo.airwaves_version} (${liveInfo.kernel})` : mockStats.os,
+    os: liveInfo ? (liveInfo.os || mockStats.os) : mockStats.os,
+    kernel: liveInfo?.kernel,
     arch: liveInfo?.architecture ?? mockStats.arch,
-    model: mockStats.model,
-  } : mockStats;
+    model: liveInfo?.model || mockStats.model,
+    cpuModel: liveInfo?.cpu_model,
+    cpuCores: liveInfo?.cpu_cores,
+    hostname: liveInfo?.hostname || activeNode.hostname,
+    airwavesVersion: liveInfo?.airwaves_version,
+  } : { ...mockStats, memText: "2.4 GB / 4.0 GB used", hasTemp: true, hostname: activeNode.hostname };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -181,7 +191,7 @@ export default function SystemMonitor() {
           System Monitor
         </h1>
         <p className="text-muted-foreground mt-1">
-          Real-time performance metrics for <span className="font-medium text-foreground">{activeNode.name}</span> <span className="text-muted-foreground/50 mx-1">•</span> <span className="font-mono text-sm">{activeNode.hostname}</span>
+          Real-time performance metrics for <span className="font-medium text-foreground">{activeNode.name}</span> <span className="text-muted-foreground/50 mx-1">•</span> <span className="font-mono text-sm">{stats.hostname}</span>
         </p>
       </div>
 
@@ -198,7 +208,9 @@ export default function SystemMonitor() {
               <AnimatedNumber value={stats.cpu} />%
             </div>
             <Progress value={stats.cpu} className="h-2 mt-3" />
-            <p className="text-xs text-muted-foreground mt-2">4 cores active</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {stats.cpuCores ? `${stats.cpuCores} cores active` : "Processor load"}
+            </p>
           </CardContent>
         </Card>
 
@@ -213,7 +225,7 @@ export default function SystemMonitor() {
               <AnimatedNumber value={stats.memory} />%
             </div>
             <Progress value={stats.memory} className="h-2 mt-3 bg-secondary" indicatorClassName="bg-purple-500" />
-            <p className="text-xs text-muted-foreground mt-2">2.4 GB / 4.0 GB used</p>
+            <p className="text-xs text-muted-foreground mt-2">{stats.memText}</p>
           </CardContent>
         </Card>
 
@@ -224,16 +236,26 @@ export default function SystemMonitor() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              <AnimatedNumber value={stats.temp} />°C
-            </div>
-            <div className="h-2 mt-3 w-full bg-secondary rounded-full overflow-hidden">
-               <div 
-                 className={cn("h-full transition-all", stats.temp > 70 ? "bg-red-500" : "bg-emerald-500")} 
-                 style={{ width: `${(stats.temp / 90) * 100}%` }}
-               />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Thermal zone 0</p>
+            {stats.hasTemp ? (
+              <>
+                <div className="text-2xl font-bold">
+                  <AnimatedNumber value={stats.temp} />°C
+                </div>
+                <div className="h-2 mt-3 w-full bg-secondary rounded-full overflow-hidden">
+                   <div
+                     className={cn("h-full transition-all", stats.temp > 70 ? "bg-red-500" : "bg-emerald-500")}
+                     style={{ width: `${(stats.temp / 90) * 100}%` }}
+                   />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Thermal zone 0</p>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-muted-foreground">N/A</div>
+                <div className="h-2 mt-3 w-full bg-secondary rounded-full overflow-hidden" />
+                <p className="text-xs text-muted-foreground mt-2">No thermal sensor</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -267,13 +289,21 @@ export default function SystemMonitor() {
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Monitor className="w-4 h-4" /> Hostname
               </span>
-              <span className="text-sm font-mono">{activeNode.hostname}</span>
+              <span className="text-sm font-mono">{stats.hostname}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Laptop className="w-4 h-4" /> Model
               </span>
-              <span className="text-sm font-medium text-right">{stats.model}</span>
+              <span className="text-sm font-medium text-right max-w-[180px] truncate" title={stats.model}>{stats.model}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-border/50">
+              <span className="text-sm text-muted-foreground flex items-center gap-2">
+                <Cpu className="w-4 h-4" /> Processor
+              </span>
+              <span className="text-sm font-medium text-right max-w-[180px] truncate" title={stats.cpuModel}>
+                {stats.cpuModel ? `${stats.cpuModel}${stats.cpuCores ? ` ×${stats.cpuCores}` : ""}` : stats.arch}
+              </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
@@ -283,9 +313,9 @@ export default function SystemMonitor() {
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
-                <Server className="w-4 h-4" /> OS Version
+                <Server className="w-4 h-4" /> OS
               </span>
-              <span className="text-sm font-medium text-right max-w-[180px] truncate">{stats.os}</span>
+              <span className="text-sm font-medium text-right max-w-[180px] truncate" title={stats.kernel ? `${stats.os} • ${stats.kernel}` : stats.os}>{stats.os}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
@@ -406,7 +436,7 @@ export default function SystemMonitor() {
           </div>
         </CardHeader>
         <CardContent>
-          <WebTerminal hostname={activeNode.hostname} apiAvailable={apiAvailable} />
+          <WebTerminal hostname={stats.hostname} apiAvailable={apiAvailable} />
         </CardContent>
       </Card>
     </div>

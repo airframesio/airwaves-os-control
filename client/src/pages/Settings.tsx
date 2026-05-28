@@ -28,6 +28,16 @@ export default function Settings() {
 
   const hostname = config?.device?.hostname ?? "airwaves-station-1";
   const osVersion = sysInfo?.airwaves_version ?? "1.0.0";
+  const osCodename = sysInfo?.airwaves_codename;
+  const osBuildInfo = sysInfo
+    ? [
+        sysInfo.airwaves_board && `board ${sysInfo.airwaves_board}`,
+        sysInfo.os,
+        sysInfo.airwaves_build_date && `built ${sysInfo.airwaves_build_date.split("T")[0]}`,
+      ]
+        .filter(Boolean)
+        .join(" • ")
+    : "";
 
   // WiFi state
   const [wifiStatus, setWifiStatus] = useState<WifiStatus | null>(null);
@@ -281,7 +291,12 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium">Airwaves OS Core</div>
-                <div className="text-sm text-muted-foreground">Current: v{osVersion}</div>
+                <div className="text-sm text-muted-foreground">
+                  Current: v{osVersion}{osCodename ? ` “${osCodename}”` : ""}
+                </div>
+                {osBuildInfo && (
+                  <div className="text-xs text-muted-foreground/70 mt-0.5">{osBuildInfo}</div>
+                )}
               </div>
               <Button variant="outline" disabled>Up to date</Button>
             </div>

@@ -29,10 +29,17 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 export interface SystemInfo {
   hostname: string;
   os: string;
+  os_codename: string;
   architecture: string;
   kernel: string;
   uptime: number;
+  model: string;
+  cpu_model: string;
+  cpu_cores: number;
   airwaves_version: string;
+  airwaves_codename: string;
+  airwaves_build_date: string;
+  airwaves_board: string;
 }
 
 export interface SystemStats {
