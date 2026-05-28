@@ -505,7 +505,11 @@ export function connectWs(onEvent: (event: WsEvent) => void): WebSocket | null {
 
 export async function isApiAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE.replace('/v1', '')}/health`, {
+    // Probe a real manager route behind the gateway's /api/ proxy. (The
+    // manager's own /health is gateway-local; via the proxy it would map to
+    // /api/health on the manager, which doesn't exist.) system/info is a
+    // long-stable, lightweight endpoint that confirms the manager is up.
+    const response = await fetch(`${API_BASE}/system/info`, {
       signal: AbortSignal.timeout(2000),
     });
     return response.ok;
