@@ -75,6 +75,21 @@ export const systemApi = {
     method: 'POST',
     body: JSON.stringify({ command }),
   }),
+  // Privileged host control
+  setHostname: (hostname: string) => apiFetch<{ status: string; hostname: string }>('/system/hostname', {
+    method: 'POST',
+    body: JSON.stringify({ hostname }),
+  }),
+  reboot: () => apiFetch<{ status: string }>('/system/reboot', { method: 'POST' }),
+  shutdown: () => apiFetch<{ status: string }>('/system/shutdown', { method: 'POST' }),
+  setTimezone: (timezone: string) => apiFetch<{ status: string; timezone: string }>('/system/timezone', {
+    method: 'POST',
+    body: JSON.stringify({ timezone }),
+  }),
+  restartService: (service: string) => apiFetch<{ status: string; service: string }>('/system/service/restart', {
+    method: 'POST',
+    body: JSON.stringify({ service }),
+  }),
 };
 
 // ---------- Containers ----------

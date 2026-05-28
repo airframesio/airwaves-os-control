@@ -7,21 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Moon, Sun, Monitor, Shield, Network, Loader2, Wifi, WifiOff, Signal,
-  Download, Upload, HardDrive, RotateCcw, CheckCircle2
+  Download, Upload, HardDrive, RotateCcw, CheckCircle2, Power
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { useConfig, useUpdateConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
+import { useConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 import { useToast } from "@/hooks/use-toast";
-import { wifiApi, configApi, type WifiStatus, type WifiNetwork } from "@/lib/api";
+import { wifiApi, configApi, systemApi, type WifiStatus, type WifiNetwork } from "@/lib/api";
 
 export default function Settings() {
   const [theme, setTheme] = useState("dark");
   const apiAvailable = useApiStatus();
   const { data: config } = useConfig();
   const { data: sysInfo } = useSystemInfo();
-  const updateConfig = useUpdateConfig();
   const { connected: wsConnected } = useManagerEvents();
   const { toast } = useToast();
   const hostnameRef = useRef<HTMLInputElement>(null);
@@ -64,17 +63,50 @@ export default function Settings() {
     }
   }, [apiAvailable]);
 
-  const handleSaveHostname = () => {
-    const newHostname = hostnameRef.current?.value?.trim();
-    if (!newHostname || !config) return;
-    if (apiAvailable) {
-      updateConfig.mutate(
-        { ...config, device: { ...config.device, hostname: newHostname } },
-        {
-          onSuccess: () => toast({ title: "Hostname Updated", description: `Set to ${newHostname}. Reboot to apply.` }),
-          onError: (err) => toast({ title: "Save Failed", description: String(err), variant: "destructive" }),
-        }
-      );
+  const [savingHostname, setSavingHostname] = useState(false);
+  const [powerAction, setPowerAction] = useState<null | "reboot" | "shutdown">(null);
+
+  const handleSaveHostname = async () => {
+    const newHostname = hostnameRef.current?.value?.trim().toLowerCase();
+    if (!newHostname) return;
+    if (!apiAvailable) {
+      toast({ title: "Offline", description: "Connect to a device to change the hostname.", variant: "destructive" });
+      return;
+    }
+    setSavingHostname(true);
+    try {
+      // Persistently change the system hostname on the host; the manager also
+      // mirrors it into config.json and restarts avahi/mDNS.
+      await systemApi.setHostname(newHostname);
+      toast({ title: "Hostname Updated", description: `System hostname set to ${newHostname}.` });
+    } catch (err) {
+      toast({ title: "Save Failed", description: String(err), variant: "destructive" });
+    } finally {
+      setSavingHostname(false);
+    }
+  };
+
+  const handleReboot = async () => {
+    if (!window.confirm("Reboot the device now? The control panel will be unavailable for a minute or two.")) return;
+    setPowerAction("reboot");
+    try {
+      await systemApi.reboot();
+      toast({ title: "Rebooting", description: "The device is restarting. This page will reconnect shortly." });
+    } catch (err) {
+      toast({ title: "Reboot Failed", description: String(err), variant: "destructive" });
+      setPowerAction(null);
+    }
+  };
+
+  const handleShutdown = async () => {
+    if (!window.confirm("Power off the device now? You will need physical access to turn it back on.")) return;
+    setPowerAction("shutdown");
+    try {
+      await systemApi.shutdown();
+      toast({ title: "Shutting Down", description: "The device is powering off." });
+    } catch (err) {
+      toast({ title: "Shutdown Failed", description: String(err), variant: "destructive" });
+      setPowerAction(null);
     }
   };
 
@@ -188,8 +220,8 @@ export default function Settings() {
               <Label htmlFor="hostname">Device Hostname</Label>
               <div className="flex gap-2">
                 <Input id="hostname" ref={hostnameRef} defaultValue={hostname} key={hostname} />
-                <Button onClick={handleSaveHostname} disabled={updateConfig.isPending}>
-                  {updateConfig.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                <Button onClick={handleSaveHostname} disabled={savingHostname}>
+                  {savingHostname ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
                 </Button>
               </div>
             </div>
@@ -306,6 +338,45 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">Automatically install updates for containers.</p>
               </div>
               <Switch />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Power */}
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Power className="w-5 h-5 text-primary" /> Power
+            </CardTitle>
+            <CardDescription>Reboot or power off the device.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base">Reboot</Label>
+                <p className="text-sm text-muted-foreground">Restart the device and all running apps.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleReboot}
+                disabled={!apiAvailable || powerAction !== null}
+              >
+                {powerAction === "reboot" ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RotateCcw className="w-4 h-4 mr-2" /> Reboot</>}
+              </Button>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base text-red-500">Power Off</Label>
+                <p className="text-sm text-muted-foreground">Shut down the device. Requires physical access to restart.</p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={handleShutdown}
+                disabled={!apiAvailable || powerAction !== null}
+              >
+                {powerAction === "shutdown" ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Power className="w-4 h-4 mr-2" /> Power Off</>}
+              </Button>
             </div>
           </CardContent>
         </Card>
