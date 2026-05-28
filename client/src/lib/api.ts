@@ -92,6 +92,69 @@ export const systemApi = {
   }),
 };
 
+// ---------- System Updates ----------
+
+export type Severity = 'nice-to-have' | 'recommended' | 'required';
+
+export interface InstalledVersions {
+  os_version: string;
+  os_codename: string;
+  manager: string;
+  control_app: string;
+  compose: number;
+  catalog: number;
+  channel: string;
+}
+
+export interface ComponentUpdate {
+  name: string;            // manager | gateway | compose | catalog
+  installed: string;
+  available: string;
+  update_available: boolean;
+  severity: Severity;
+  kind: string;            // image | file | os
+}
+
+export interface MajorUpgrade {
+  from: string;
+  to: string;
+  severity: Severity;
+  guide_url?: string;
+}
+
+export interface UpdateStatus {
+  installed: InstalledVersions;
+  available_os_version: string | null;
+  components: ComponentUpdate[];
+  highest_severity: Severity | null;
+  update_available: boolean;
+  os_packages_upgradable: number | null;
+  major_upgrade: MajorUpgrade | null;
+  last_checked: string | null;
+  error?: string;
+}
+
+export interface UpdateProgress {
+  state: string;           // idle | running | success | failed | rolled_back
+  phase: string;
+  percent: number;
+  log: string[];
+  reboot_required: boolean;
+  error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+}
+
+export const updateApi = {
+  getStatus: () => apiFetch<UpdateStatus>('/system/update/status'),
+  check: () => apiFetch<UpdateStatus>('/system/update/check', { method: 'POST' }),
+  apply: (components: string[]) => apiFetch<{ status: string }>('/system/update/apply', {
+    method: 'POST',
+    body: JSON.stringify({ components }),
+  }),
+  getProgress: () => apiFetch<UpdateProgress>('/system/update/progress'),
+};
+
 // ---------- Containers ----------
 
 export interface ContainerInfo {
@@ -408,7 +471,8 @@ export type WsEvent =
   | { type: 'SystemStats'; data: SystemStats }
   | { type: 'SdrDeviceChanged'; data: { action: string; device_id: string } }
   | { type: 'AppInstalled'; data: { app_id: string; container_id: string } }
-  | { type: 'AppUninstalled'; data: { app_id: string } };
+  | { type: 'AppUninstalled'; data: { app_id: string } }
+  | { type: 'UpdateAvailable'; data: { severity: Severity; os_version: string | null } };
 
 export function connectWs(onEvent: (event: WsEvent) => void): WebSocket | null {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

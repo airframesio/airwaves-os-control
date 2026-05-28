@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight, Sun, Moon, Laptop, MessageSquareText, Monitor } from "lucide-react";
+import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight, Sun, Moon, Laptop, MessageSquareText, Monitor, DownloadCloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -58,6 +58,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Devices", icon: Radio, href: "/devices" },
     { label: "Fleet", icon: Server, href: "/systems" },
     { label: "Feeds", icon: Rss, href: "/feeds" },
+    { label: "Updates", icon: DownloadCloud, href: "/updates" },
     { label: "Settings", icon: Settings, href: "/settings" },
   ];
 

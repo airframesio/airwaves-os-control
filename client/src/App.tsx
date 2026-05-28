@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
@@ -18,6 +18,7 @@ import Feeds from "./pages/Feeds";
 import Settings from "./pages/Settings";
 import Systems from "./pages/Systems";
 import SystemMonitor from "./pages/SystemMonitor";
+import SystemUpdate from "./pages/SystemUpdate";
 import Tracking from "./pages/Tracking";
 import LiveMessages from "./pages/LiveMessages";
 import RtlAirband from "./pages/RtlAirband";
@@ -25,10 +26,41 @@ import SetupWizard from "./pages/SetupWizard";
 import AppLayout from "./components/layout/AppLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+function UpdateBanner() {
+  const apiAvailable = useApiStatus();
+  const [show, setShow] = useState(false);
+  const [osVersion, setOsVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!apiAvailable) return;
+    let cancelled = false;
+    import("./lib/api").then(({ updateApi }) => {
+      updateApi.getStatus().then((s) => {
+        if (cancelled) return;
+        if (s.update_available && s.highest_severity === "required") {
+          setShow(true);
+          setOsVersion(s.available_os_version);
+        }
+      }).catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [apiAvailable]);
+
+  if (!show) return null;
+  return (
+    <Link href="/updates">
+      <div className="bg-red-500/10 border-b border-red-500/30 text-red-500 text-sm px-4 py-2 flex items-center justify-center gap-2 cursor-pointer hover:bg-red-500/15">
+        A required system update is available{osVersion ? ` (Airwaves OS ${osVersion})` : ""}. Click to review and install.
+      </div>
+    </Link>
+  );
+}
+
 function Router() {
   return (
     <AppLayout>
       <ErrorBoundary>
+      <UpdateBanner />
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/map" component={Tracking} />
@@ -43,6 +75,7 @@ function Router() {
         <Route path="/devices/:id/config" component={DeviceConfig} />
         <Route path="/feeds" component={Feeds} />
         <Route path="/systems" component={Systems} />
+        <Route path="/updates" component={SystemUpdate} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>

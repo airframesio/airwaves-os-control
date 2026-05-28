@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Moon, Sun, Monitor, Shield, Network, Loader2, Wifi, WifiOff, Signal,
-  Download, Upload, HardDrive, RotateCcw, CheckCircle2, Power
+  Download, Upload, HardDrive, RotateCcw, CheckCircle2, Power, DownloadCloud
 } from "lucide-react";
+import { Link } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { useConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
@@ -330,7 +331,11 @@ export default function Settings() {
                   <div className="text-xs text-muted-foreground/70 mt-0.5">{osBuildInfo}</div>
                 )}
               </div>
-              <Button variant="outline" disabled>Up to date</Button>
+              <Link href="/updates">
+                <Button variant="outline">
+                  <DownloadCloud className="w-4 h-4 mr-2" /> Check for updates
+                </Button>
+              </Link>
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
