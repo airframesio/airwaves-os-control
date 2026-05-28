@@ -17,30 +17,6 @@ import { useTracking } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 
 // Helper to generate simulated path
-const generateSimulatedPath = (vehicle: { lat: number, lng: number, heading: number }) => {
-  const path: [number, number][] = [];
-  let { lat, lng, heading } = vehicle;
-  
-  // Add current position
-  path.push([lat, lng]);
-
-  // Generate 20 points backwards
-  for (let i = 0; i < 20; i++) {
-    const dist = 0.01; 
-    const rad = (90 - heading) * (Math.PI / 180);
-    
-    // Reverse direction
-    lat -= Math.sin(rad) * dist;
-    lng -= Math.cos(rad) * dist;
-    
-    // Slight curve for realism
-    heading += (Math.random() * 10 - 5);
-
-    path.push([lat, lng]);
-  }
-  return path;
-};
-
 // Helper component to update map center
 function MapUpdater({ selectedVehicle, activeNodeLocation }: { selectedVehicle: { lat: number, lng: number } | null, activeNodeLocation: { lat: number, lng: number } }) {
   const map = useMapEvents({});
@@ -176,17 +152,24 @@ export default function Tracking() {
   const [showAllTrails, setShowAllTrails] = useState(false);
   const [vehicleHistory, setVehicleHistory] = useState<Record<string, [number, number][]>>({});
 
+  // Tracks whether mock vehicles have been seeded for the current node, so we
+  // seed them once and then let the client simulation drive them — rather than
+  // resetting positions to origin every time the (empty) tracking API refetches.
+  const mockSeededRef = useRef(false);
+
   // Reset state when active node changes
   useEffect(() => {
     setSelectedVehicle(null);
     setExternalVehicles([]);
     setVehicleHistory({});
-    // Internal vehicles will be updated by the polling effect below
+    mockSeededRef.current = false;
+    // Internal vehicles will be updated by the sync effect below
   }, [activeNode.id]);
 
-  // Sync vehicles: prefer real tracking API, fall back to mock from nodeStore
+  // Sync vehicles: prefer real tracking API, fall back to mock from nodeStore.
   useEffect(() => {
     if (apiAvailable && trackingData?.vehicles?.length) {
+      // Real positions are authoritative; adopt them on every refresh.
       setVehicles(trackingData.vehicles.map(v => ({
         id: v.id,
         callsign: v.callsign,
@@ -198,25 +181,30 @@ export default function Tracking() {
         heading: v.heading,
         source: v.source,
       })));
-    } else {
+      mockSeededRef.current = false;
+    } else if (!mockSeededRef.current) {
+      // No live tracking data: seed mock vehicles once. The client simulation
+      // then drives them, so trails accumulate smoothly instead of snapping
+      // back to origin on each 3s tracking refetch.
       setVehicles(data.vehicles || []);
+      mockSeededRef.current = true;
     }
   }, [apiAvailable, trackingData, data.vehicles]);
 
-  // Keep ref synced with state
+  // Keep refs synced with state so the trail recorder (an interval) always
+  // reads the latest positions without stale closures.
   useEffect(() => {
     selectedVehicleRef.current = selectedVehicle;
   }, [selectedVehicle]);
+  const vehiclesRef = useRef<any[]>(vehicles);
+  const externalVehiclesRef = useRef<any[]>(externalVehicles);
+  useEffect(() => { vehiclesRef.current = vehicles; }, [vehicles]);
+  useEffect(() => { externalVehiclesRef.current = externalVehicles; }, [externalVehicles]);
 
-  // Generate simulated flight path history for selected vehicle
+  // Flight path for the selected vehicle comes from accumulated real history.
   useEffect(() => {
     if (selectedVehicle && showFlightPath) {
-      if (selectedVehicle.id.startsWith('EXT-')) {
-        // For external vehicles, use real recorded history
-        setFlightPath(vehicleHistory[selectedVehicle.id] || []);
-      } else {
-        setFlightPath(generateSimulatedPath(selectedVehicle));
-      }
+      setFlightPath(vehicleHistory[selectedVehicle.id] || []);
     } else {
       setFlightPath([]);
     }
@@ -295,38 +283,8 @@ export default function Tracking() {
           }
         }
         setExternalVehicles(newExternalVehicles);
-        
-        // Update history for external vehicles
-        setVehicleHistory(prev => {
-          const next = { ...prev };
-          const currentIds = new Set(newExternalVehicles.map(v => v.id));
-          let hasChanges = false;
-          
-          // 1. Add/Update existing
-          newExternalVehicles.forEach(v => {
-            const existing = next[v.id] || [];
-            // Check distance to avoid duplicates if stationary (approx 1m)
-            const last = existing[existing.length - 1];
-            if (!last || Math.abs(last[0] - v.lat) > 0.00001 || Math.abs(last[1] - v.lng) > 0.00001) {
-               next[v.id] = [...existing, [v.lat, v.lng]].slice(-200); // Keep last 200 points
-               hasChanges = true;
-            }
-          });
-
-          // 2. Remove stale vehicles from history (cleanup)
-          // Keep history ONLY if vehicle is still present OR if it's the currently selected vehicle
-          Object.keys(next).forEach(id => {
-            if (!currentIds.has(id)) {
-              // If it's not the selected vehicle, remove it to prevent memory leaks and stale trails
-              if (selectedVehicleRef.current?.id !== id) {
-                 delete next[id];
-                 hasChanges = true;
-              }
-            }
-          });
-          
-          return hasChanges ? next : prev;
-        });
+        // Trail history (for external + internal) is recorded by the unified
+        // recorder interval below.
 
         // Update selected vehicle if it's external
         if (selectedVehicleRef.current && selectedVehicleRef.current.id.startsWith('EXT-')) {
@@ -391,11 +349,48 @@ export default function Tracking() {
 
         return nextVehicles;
       });
-    }, 100); 
+    }, 100);
+
+    // Unified trail recorder: sample every vehicle's position into in-browser
+    // history (regardless of "Show All Trails"), so trails are accurate and
+    // immediately available when toggled on. Prunes a vehicle's trail once it
+    // is no longer present. Deduped by distance and capped for efficiency.
+    const MAX_TRAIL_POINTS = 200;
+    const MIN_MOVE = 0.0001; // ~10m; ignore jitter
+    const recordInterval = setInterval(() => {
+      const current = [...vehiclesRef.current, ...externalVehiclesRef.current];
+      setVehicleHistory(prev => {
+        const next = { ...prev };
+        const currentIds = new Set<string>();
+        let changed = false;
+
+        for (const v of current) {
+          if (typeof v?.lat !== 'number' || typeof v?.lng !== 'number') continue;
+          currentIds.add(v.id);
+          const existing = next[v.id] || [];
+          const last = existing[existing.length - 1];
+          if (!last || Math.abs(last[0] - v.lat) > MIN_MOVE || Math.abs(last[1] - v.lng) > MIN_MOVE) {
+            next[v.id] = [...existing, [v.lat, v.lng] as [number, number]].slice(-MAX_TRAIL_POINTS);
+            changed = true;
+          }
+        }
+
+        // Delete trails for vehicles that are no longer available.
+        for (const id of Object.keys(next)) {
+          if (!currentIds.has(id)) {
+            delete next[id];
+            changed = true;
+          }
+        }
+
+        return changed ? next : prev;
+      });
+    }, 1000);
 
     return () => {
       clearInterval(interval);
       clearInterval(feedInterval);
+      clearInterval(recordInterval);
     };
   }, []); // Only run once on mount
 
@@ -499,14 +494,13 @@ export default function Tracking() {
             // 2. OR this vehicle is selected AND Show Flight Path is ON
             if (!showAllTrails && (!isSelected || !showFlightPath)) return null;
 
-            // Get path data
-            let path: [number, number][] = [];
-            if (v.id.startsWith('EXT-')) {
-               path = vehicleHistory[v.id] || [];
-            } else {
-               // Only generate simulated path if we need it
-               path = generateSimulatedPath(v);
-            }
+            // Trail = accumulated real history, with the live position attached
+            // so the trail tip stays connected to the moving marker.
+            const history = vehicleHistory[v.id] || [];
+            const path: [number, number][] =
+              typeof v.lat === 'number' && typeof v.lng === 'number'
+                ? [...history, [v.lat, v.lng]]
+                : history;
 
             if (path.length < 2) return null;
 
