@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useToast } from "@/hooks/use-toast";
 import {
-  updateApi, systemApi,
+  updateApi, systemApi, UPDATE_CHANNELS,
   type UpdateStatus, type UpdateProgress, type Severity, type ComponentUpdate,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,26 @@ export default function SystemUpdate() {
   const [checking, setChecking] = useState(false);
   const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [applying, setApplying] = useState(false);
+  const [switchingChannel, setSwitchingChannel] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleSetChannel = async (channel: string) => {
+    if (channel === status?.installed.channel) return;
+    if ((channel === "dev" || channel === "beta") &&
+        !window.confirm(`Switch to the "${channel}" channel? It may offer less-tested updates.`)) {
+      return;
+    }
+    setSwitchingChannel(true);
+    try {
+      const s = await updateApi.setChannel(channel);
+      setStatus(s);
+      toast({ title: "Channel changed", description: `Now tracking the ${channel} channel.` });
+    } catch (err) {
+      toast({ title: "Couldn't switch channel", description: String(err), variant: "destructive" });
+    } finally {
+      setSwitchingChannel(false);
+    }
+  };
 
   const loadStatus = async (force = false) => {
     if (!apiAvailable) return;
@@ -155,12 +174,34 @@ export default function SystemUpdate() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <Header />
-        <Button variant="outline" onClick={() => loadStatus(true)} disabled={checking || applying}>
-          {checking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-          Check now
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Update channel selector */}
+          <div className="flex items-center rounded-lg border border-border/60 p-0.5 bg-card/50">
+            {UPDATE_CHANNELS.map((ch) => {
+              const active = (status?.installed.channel ?? "stable") === ch;
+              return (
+                <button
+                  key={ch}
+                  onClick={() => handleSetChannel(ch)}
+                  disabled={!apiAvailable || switchingChannel || applying}
+                  className={cn(
+                    "px-3 py-1 text-xs font-medium rounded-md capitalize transition-colors disabled:opacity-50",
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={`Track the ${ch} channel`}
+                >
+                  {ch}
+                </button>
+              );
+            })}
+          </div>
+          <Button variant="outline" onClick={() => loadStatus(true)} disabled={checking || applying || switchingChannel}>
+            {checking || switchingChannel ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            Check now
+          </Button>
+        </div>
       </div>
 
       {status?.error && (

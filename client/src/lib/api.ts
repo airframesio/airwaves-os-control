@@ -153,7 +153,13 @@ export const updateApi = {
     body: JSON.stringify({ components }),
   }),
   getProgress: () => apiFetch<UpdateProgress>('/system/update/progress'),
+  setChannel: (channel: string) => apiFetch<UpdateStatus>('/system/update/channel', {
+    method: 'POST',
+    body: JSON.stringify({ channel }),
+  }),
 };
+
+export const UPDATE_CHANNELS = ['stable', 'beta', 'dev'] as const;
 
 // ---------- Containers ----------
 
