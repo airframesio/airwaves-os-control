@@ -215,15 +215,28 @@ export default function AppLayout({ children }: SidebarProps) {
           </nav>
         </div>
 
-        <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex flex-col items-center gap-2" : "p-4")}>
-          <SidebarUpdateIndicator collapsed={collapsed} />
-          {/* Theme switcher: its own control above System Status */}
+        {/* Update notification — above the footer divider. The indicator
+            renders nothing when up to date, so the wrapper stays empty (no
+            stray gap) thanks to the indicator owning its own bottom margin. */}
+        {!collapsed && (
+          <div className="px-4">
+            <SidebarUpdateIndicator collapsed={false} />
+          </div>
+        )}
+
+        <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex flex-col items-center gap-2" : "p-4 space-y-3")}>
+          {collapsed && <SidebarUpdateIndicator collapsed />}
+          {/* Theme switcher: same px-3 margins as the System Status card below */}
           {!collapsed && (
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center justify-between px-3">
               <span className="text-xs text-sidebar-foreground/60">Theme</span>
               <ThemeSwitcher size="sm" />
             </div>
           )}
+
+          {/* Divider between Theme and System Status */}
+          {!collapsed && <div className="h-px w-full bg-sidebar-border/50" />}
+
           {collapsed ? (
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
                 <div className={cn(
