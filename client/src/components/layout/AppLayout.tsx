@@ -163,7 +163,7 @@ export default function AppLayout({ children }: SidebarProps) {
                      <span className="flex items-center gap-2 truncate">
                        <div className={cn(
                          "w-2 h-2 rounded-full animate-pulse",
-                         activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                         statusOnline ? "bg-emerald-500" : "bg-red-500"
                        )}></div>
                        {activeNode.name}
                      </span>
@@ -172,7 +172,7 @@ export default function AppLayout({ children }: SidebarProps) {
                  ) : (
                    <div className={cn(
                     "w-2 h-2 rounded-full animate-pulse",
-                    activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                    statusOnline ? "bg-emerald-500" : "bg-red-500"
                   )}></div>
                  )}
                </Button>
@@ -249,7 +249,7 @@ export default function AppLayout({ children }: SidebarProps) {
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
                 <div className={cn(
                   "w-1.5 h-1.5 rounded-full animate-pulse",
-                  activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                  statusOnline ? "bg-emerald-500" : "bg-red-500"
                 )}></div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
                   <div 
@@ -270,13 +270,13 @@ export default function AppLayout({ children }: SidebarProps) {
                 <span>System Status</span>
                 <span className={cn(
                   "font-medium flex items-center gap-1.5",
-                  activeNode.status === 'online' ? "text-emerald-500" : "text-red-500"
+                  statusOnline ? "text-emerald-500" : "text-red-500"
                 )}>
                   <span className={cn(
                     "w-1.5 h-1.5 rounded-full animate-pulse",
-                    activeNode.status === 'online' ? "bg-emerald-500" : "bg-red-500"
+                    statusOnline ? "bg-emerald-500" : "bg-red-500"
                   )}></span>
-                  {activeNode.status === 'online' ? 'Online' : 'Offline'}
+                  {statusOnline ? 'Online' : 'Offline'}
                 </span>
               </div>
               <div className="space-y-1.5">

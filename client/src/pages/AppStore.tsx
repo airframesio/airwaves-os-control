@@ -118,7 +118,17 @@ export default function AppStore() {
                   ) : app.status === 'installing' ? (
                     <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 flex gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Installing</Badge>
                   ) : (
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      disabled={!apiAvailable || installMutation.isPending}
+                      title={apiAvailable ? "Install" : "Connect to a device to install"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        installMutation.mutate(app.id);
+                      }}
+                    >
                       <Download className="w-4 h-4" />
                     </Button>
                   )}

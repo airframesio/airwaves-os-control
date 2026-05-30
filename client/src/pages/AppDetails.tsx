@@ -1,299 +1,193 @@
-import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
-import { mockApps, mockDevices } from "@/lib/mockData";
+import { useParams, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Download, Check, ExternalLink, Globe, HardDrive, Calendar, Server, Radio, Loader2, Github } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import {
+  ArrowLeft, Download, Globe, Box, Cpu, Network, CheckCircle2, ExternalLink,
+  Trash2, Loader2, Radio, Plane, Ship, Satellite, Waves, BarChart3, Map,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppCatalog, useContainers, useInstallApp, useSdrDevices } from "@/hooks/useAirwavesApi";
+import { useNodeStore } from "@/lib/nodeStore";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { useToast } from "@/hooks/use-toast";
+import {
+  useAppCatalog, useContainers, useInstallApp, useUninstallApp,
+} from "@/hooks/useAirwavesApi";
+
+const appIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  ultrafeeder: Plane, readsb: Plane, acarsdec: Radio, dumpvdl2: Waves,
+  dumphfdl: Satellite, "acars-router": Waves, "ais-catcher": Ship,
+  "rtl-airband": Radio, "rtl-433": Waves, satdump: Satellite, dump978: Plane,
+  acarshub: BarChart3, tar1090: Map, shipfeeder: Ship, graphs1090: BarChart3,
+};
 
 export default function AppDetails() {
-  const [match, params] = useRoute("/store/:id");
+  const { id } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [installing, setInstalling] = useState(false);
-  const [installStep, setInstallStep] = useState(0);
-  const [selectedDevice, setSelectedDevice] = useState<string>("");
-
   const apiAvailable = useApiStatus();
-  const { data: catalogApps } = useAppCatalog();
-  const { data: liveContainers } = useContainers();
-  const { data: liveSdrDevices } = useSdrDevices();
+
+  const { data: catalog } = useAppCatalog();
+  const { data: containers } = useContainers();
   const installMutation = useInstallApp();
+  const uninstallMutation = useUninstallApp();
 
-  // Find app from catalog or mock data
-  const catalogApp = catalogApps?.find(a => a.id === params?.id);
-  const mockApp = mockApps.find(a => a.id === params?.id);
-  const app = mockApp ?? (catalogApp ? {
-    ...catalogApp,
-    installed: liveContainers?.some(c => c.name === `airwaves-${catalogApp.id}`) ?? false,
-    status: "stopped" as const,
-    icon: Radio,
-    cpuUsage: 0,
-    memoryUsage: 0,
-  } : undefined);
+  // Mock fallback so the page still renders without a device.
+  const { data: nodeData } = useNodeStore();
 
-  // Use live SDR devices when available
-  const availableDevices = apiAvailable && liveSdrDevices
-    ? liveSdrDevices.filter(d => d.status === "available").map(d => ({
-        id: d.id, name: d.name, type: d.device_type, serial: d.serial ?? "N/A",
-        status: "idle" as const, assignedApp: d.assigned_to ?? undefined,
-      }))
-    : mockDevices.filter(d => d.status === "idle");
+  const catalogApp = catalog?.find(a => a.id === id);
+  const mockApp = nodeData.apps.find((a: any) => a.id === id);
 
-  if (!app) {
+  if (!catalogApp && !mockApp) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <h2 className="text-2xl font-bold">App not found</h2>
-        <Button variant="outline" onClick={() => setLocation("/store")}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Store
-        </Button>
+      <div className="space-y-6">
+        <Link href="/store"><Button variant="ghost"><ArrowLeft className="w-4 h-4 mr-2" />Back to App Catalog</Button></Link>
+        <Card><CardContent className="py-16 text-center text-muted-foreground">App not found.</CardContent></Card>
       </div>
     );
   }
 
-  const handleInstallClick = () => {
-    setInstallStep(1);
+  const app = {
+    id: id!,
+    name: catalogApp?.name ?? mockApp?.name ?? id!,
+    description: catalogApp?.description ?? mockApp?.description ?? "",
+    category: catalogApp?.category ?? "app",
+    image: catalogApp?.image ?? "",
+    version: catalogApp?.version ?? "latest",
+    requiresSdr: catalogApp?.requires_sdr ?? false,
+    sdrTypes: catalogApp?.sdr_types ?? [],
+    ports: catalogApp?.ports ?? [],
   };
 
-  const handleNextStep = () => {
-    if (installStep === 1) {
-      setInstallStep(2);
-    } else if (installStep === 2) {
-      setInstallStep(3);
-      // Simulate installation
-      setTimeout(() => {
-        toast({
-          title: "Installation Complete",
-          description: `${app.name} has been successfully installed.`,
-        });
-        setInstallStep(0);
-        // In a real app, this would update the app status
-      }, 2000);
-    }
+  const containerName = `airwaves-${app.id}`;
+  const container = containers?.find(c => c.name.replace(/^\//, "") === containerName);
+  const installed = !!container;
+  const running = container?.state === "running";
+  const Icon = appIcons[app.id] ?? Box;
+
+  // The first published host port gives us a link to the app's own web UI.
+  const webPort = app.ports.find(p => p.host_port)?.host_port;
+  const webUrl = webPort ? `${window.location.protocol}//${window.location.hostname}:${webPort}` : null;
+
+  const installing = installMutation.isPending;
+  const uninstalling = uninstallMutation.isPending;
+
+  const handleInstall = () => {
+    installMutation.mutate(app.id, {
+      onSuccess: () => toast({ title: "Installing", description: `${app.name} is being installed.` }),
+      onError: (e) => toast({ title: "Install failed", description: String(e), variant: "destructive" }),
+    });
+  };
+
+  const handleUninstall = () => {
+    if (!window.confirm(`Uninstall ${app.name}? This removes its container.`)) return;
+    uninstallMutation.mutate(app.id, {
+      onSuccess: () => toast({ title: "Uninstalled", description: `${app.name} was removed.` }),
+      onError: (e) => toast({ title: "Uninstall failed", description: String(e), variant: "destructive" }),
+    });
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <Button 
-        variant="ghost" 
-        className="mb-4 pl-0 hover:bg-transparent hover:text-primary"
-        onClick={() => setLocation("/store")}
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Store
-      </Button>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <Link href="/store">
+        <Button variant="ghost" className="-ml-2"><ArrowLeft className="w-4 h-4 mr-2" />Back to App Catalog</Button>
+      </Link>
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row gap-8 items-start">
-        <div className="w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-primary/10 flex items-center justify-center shadow-xl shadow-primary/5">
-          <app.icon className="w-16 h-16 md:w-20 md:h-20 text-primary" />
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-start gap-6">
+        <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="w-12 h-12 text-primary" />
         </div>
-        
-        <div className="flex-1 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight">{app.name}</h1>
-              <p className="text-xl text-muted-foreground mt-2">{app.description}</p>
-            </div>
-            
-            <div className="flex gap-3">
-              {app.installed ? (
-                <Button size="lg" variant="outline" className="h-12 px-8 text-base border-primary/20 bg-primary/5 text-primary" disabled>
-                  <Check className="w-5 h-5 mr-2" /> Installed
-                </Button>
-              ) : (
-                <Button size="lg" className="h-12 px-8 text-base shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all" onClick={handleInstallClick}>
-                  <Download className="w-5 h-5 mr-2" /> Install App
-                </Button>
-              )}
-            </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold tracking-tight">{app.name}</h1>
+            {installed && (
+              <Badge variant="secondary" className={cn(
+                running ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+              )}>
+                {running ? "Running" : "Stopped"}
+              </Badge>
+            )}
           </div>
+          <p className="text-sm text-muted-foreground capitalize mt-1">{app.category} · {app.version}</p>
+          <p className="text-base text-muted-foreground mt-3 max-w-2xl">{app.description}</p>
 
-          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground pt-2">
-            <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
-              <Globe className="w-4 h-4" /> {app.developer || "Unknown Developer"}
-            </div>
-            <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full capitalize">
-              <Check className="w-4 h-4" /> {app.category}
-            </div>
-            <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
-              <HardDrive className="w-4 h-4" /> {app.size || "Unknown Size"}
-            </div>
-            <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
-              <Calendar className="w-4 h-4" /> Updated {app.lastUpdate || "Recently"}
-            </div>
+          <div className="flex items-center gap-3 mt-5">
+            {!installed ? (
+              <Button onClick={handleInstall} disabled={!apiAvailable || installing}>
+                {installing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Installing…</> : <><Download className="w-4 h-4 mr-2" />Install App</>}
+              </Button>
+            ) : (
+              <>
+                {webUrl && (
+                  <a href={webUrl} target="_blank" rel="noreferrer">
+                    <Button><ExternalLink className="w-4 h-4 mr-2" />Open App</Button>
+                  </a>
+                )}
+                <Button variant="outline" onClick={() => setLocation("/apps")}>Manage</Button>
+                <Button variant="ghost" className="text-red-500 hover:text-red-600" onClick={handleUninstall} disabled={uninstalling}>
+                  {uninstalling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Uninstall
+                </Button>
+              </>
+            )}
+            {!apiAvailable && (
+              <span className="text-xs text-muted-foreground">Connect to a device to install apps.</span>
+            )}
           </div>
         </div>
       </div>
 
       <Separator />
 
-      {/* Screenshots Section */}
-      {app.screenshots && app.screenshots.length > 0 ? (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Screenshots</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {app.screenshots.map((src, i) => (
-              <div key={i} className="aspect-video rounded-xl bg-muted/30 border border-border/50 overflow-hidden flex items-center justify-center relative group">
-                {/* Fallback for mock images since actual files don't exist */}
-                <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted/10" />
-                <app.icon className="w-12 h-12 text-muted-foreground/20 absolute group-hover:scale-110 transition-transform duration-500" />
-                <span className="relative text-xs text-muted-foreground font-mono">Screenshot {i + 1}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="aspect-video rounded-xl bg-muted/30 border border-border/50 overflow-hidden flex items-center justify-center relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted/10" />
-                <app.icon className="w-12 h-12 text-muted-foreground/20 absolute group-hover:scale-110 transition-transform duration-500" />
-                <span className="relative text-xs text-muted-foreground font-mono">Preview Image {i}</span>
-              </div>
-            ))}
-         </div>
-      )}
+      {/* Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 bg-card/50">
+          <CardHeader><CardTitle className="text-lg">About</CardTitle></CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <p className="text-muted-foreground">{app.description}</p>
+            <div className="flex items-center gap-2">
+              <Box className="w-4 h-4 text-muted-foreground" />
+              <span className="font-mono text-xs break-all">{app.image || "—"}</span>
+            </div>
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
-        <div className="lg:col-span-2 space-y-6">
-          <div>
-            <h3 className="text-xl font-semibold mb-3">About</h3>
-            <p className="leading-relaxed text-muted-foreground whitespace-pre-line">
-              {app.longDescription || app.description}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-semibold">Information</h3>
-              
-              <div className="flex justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Version</span>
-                <span className="font-mono">{app.version}</span>
+        <Card className="bg-card/50">
+          <CardHeader><CardTitle className="text-lg">Requirements</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row icon={Cpu} label="SDR required" value={app.requiresSdr ? "Yes" : "No"} />
+            {app.requiresSdr && app.sdrTypes.length > 0 && (
+              <Row icon={Radio} label="SDR types" value={app.sdrTypes.join(", ")} />
+            )}
+            <Row
+              icon={Network}
+              label="Ports"
+              value={app.ports.length ? app.ports.map(p => p.host_port ? `${p.host_port}→${p.container_port}` : `${p.container_port}`).join(", ") : "none"}
+            />
+            {webUrl && (
+              <a href={webUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-primary text-xs">
+                <Globe className="w-4 h-4" /> {webUrl} <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            {installed && (
+              <div className="flex items-center gap-2 text-emerald-500 text-xs pt-1">
+                <CheckCircle2 className="w-4 h-4" /> Installed{running ? " and running" : ""}
               </div>
-              <div className="flex justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Category</span>
-                <span className="capitalize">{app.category}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Size</span>
-                <span>{app.size || "N/A"}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground">Developer</span>
-                <span className="text-right truncate max-w-[150px]">{app.developer || "Unknown"}</span>
-              </div>
-              
-              {app.website && (
-                <Button variant="outline" className="w-full mt-4" onClick={() => window.open(app.website, '_blank')}>
-                  <Globe className="w-4 h-4 mr-2" /> Website
-                </Button>
-              )}
-              {app.sourceUrl && (
-                <Button variant="outline" className="w-full mt-2" onClick={() => window.open(app.sourceUrl, '_blank')}>
-                  <Github className="w-4 h-4 mr-2" /> Source Code
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+    </div>
+  );
+}
 
-      {/* Installation Dialog */}
-      <Dialog open={installStep > 0} onOpenChange={(open) => !open && setInstallStep(0)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Install {app.name}</DialogTitle>
-            <DialogDescription>
-              Configure and deploy this application to your system.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            {installStep === 1 && (
-              <div className="space-y-4">
-                <div className="bg-muted/50 p-4 rounded-lg flex items-start gap-3">
-                   <Server className="w-5 h-5 text-primary mt-0.5" />
-                   <div className="text-sm">
-                     <p className="font-medium">System Requirements</p>
-                     <p className="text-muted-foreground mt-1">This app requires approximately {app.memoryUsage || 100}MB of RAM and {app.cpuUsage || 5}% CPU.</p>
-                   </div>
-                </div>
-                <div className="bg-muted/50 p-4 rounded-lg flex items-start gap-3">
-                   <Radio className="w-5 h-5 text-primary mt-0.5" />
-                   <div className="text-sm">
-                     <p className="font-medium">Hardware Required</p>
-                     <p className="text-muted-foreground mt-1">An RTL-SDR or compatible device is required to receive signals.</p>
-                   </div>
-                </div>
-              </div>
-            )}
-
-            {installStep === 2 && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                   <label className="text-sm font-medium">Assign Radio Device</label>
-                   <Select value={selectedDevice} onValueChange={setSelectedDevice}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a device..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableDevices.length > 0 ? (
-                          availableDevices.map(d => (
-                            <SelectItem key={d.id} value={d.id}>{d.name} ({d.serial})</SelectItem>
-                          ))
-                        ) : (
-                          <div className="p-2 text-sm text-muted-foreground text-center">No idle devices found</div>
-                        )}
-                      </SelectContent>
-                   </Select>
-                   {availableDevices.length === 0 && (
-                     <p className="text-xs text-destructive mt-2">
-                       No available devices found. Please plug in a new SDR or free up an existing one.
-                     </p>
-                   )}
-                   {availableDevices.length > 0 && (
-                     <p className="text-xs text-muted-foreground mt-1">
-                       The selected device will be dedicated to this application.
-                     </p>
-                   )}
-                </div>
-              </div>
-            )}
-
-            {installStep === 3 && (
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <Loader2 className="w-12 h-12 text-primary animate-spin" />
-                <p className="text-lg font-medium">Installing {app.name}...</p>
-                <p className="text-sm text-muted-foreground">Pulling container images and configuring services.</p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            {installStep < 3 && (
-              <Button variant="outline" onClick={() => setInstallStep(0)}>Cancel</Button>
-            )}
-            {installStep === 1 && (
-              <Button onClick={handleNextStep}>Next</Button>
-            )}
-            {installStep === 2 && (
-              <Button onClick={handleNextStep} disabled={availableDevices.length === 0 && !selectedDevice}>
-                Install & Deploy
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+function Row({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground flex items-center gap-2"><Icon className="w-4 h-4" />{label}</span>
+      <span className="font-medium text-right">{value}</span>
     </div>
   );
 }
