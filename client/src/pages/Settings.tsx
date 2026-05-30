@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Moon, Sun, Monitor, Shield, Network, Loader2, Wifi, WifiOff, Signal,
+  Monitor, Shield, Network, Loader2, Wifi, WifiOff, Signal,
   Download, Upload, HardDrive, RotateCcw, CheckCircle2, Power, DownloadCloud
 } from "lucide-react";
 import { Link } from "wouter";
@@ -16,9 +16,9 @@ import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 import { useToast } from "@/hooks/use-toast";
 import { wifiApi, configApi, systemApi, type WifiStatus, type WifiNetwork } from "@/lib/api";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 export default function Settings() {
-  const [theme, setTheme] = useState("dark");
   const apiAvailable = useApiStatus();
   const { data: config } = useConfig();
   const { data: sysInfo } = useSystemInfo();
@@ -50,12 +50,6 @@ export default function Settings() {
   // Backup state
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-  }, [theme]);
 
   // Fetch WiFi status on load
   useEffect(() => {
@@ -196,14 +190,7 @@ export default function Settings() {
                 <Label className="text-base">Interface Theme</Label>
                 <p className="text-sm text-muted-foreground">Select your preferred color scheme.</p>
               </div>
-              <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-                <Button variant={theme === 'light' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('light')} className="w-8 h-8 p-0">
-                  <Sun className="w-4 h-4" />
-                </Button>
-                <Button variant={theme === 'dark' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('dark')} className="w-8 h-8 p-0">
-                  <Moon className="w-4 h-4" />
-                </Button>
-              </div>
+              <ThemeSwitcher />
             </div>
           </CardContent>
         </Card>

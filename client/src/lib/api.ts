@@ -301,6 +301,7 @@ export interface AirwavesConfig {
   services: Record<string, { enabled: boolean }>;
   aggregators: Record<string, unknown>;
   apps: Record<string, unknown>;
+  preferences?: { theme?: 'light' | 'dark' | 'system'; [k: string]: unknown };
 }
 
 export interface SystemBackup {

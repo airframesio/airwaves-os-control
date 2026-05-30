@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight, Sun, Moon, Laptop, MessageSquareText, Monitor, DownloadCloud } from "lucide-react";
+import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight, MessageSquareText, Monitor, DownloadCloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import logoIcon from "@/assets/airwaves-logo.png";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useTheme } from "next-themes";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { CommandMenu } from "@/components/CommandMenu";
 import { useNodeStore } from "@/lib/nodeStore";
 import { useApiStatus } from "@/hooks/useApiStatus";
@@ -22,7 +22,6 @@ export default function AppLayout({ children }: SidebarProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { activeNode, nodes, setActiveNode, data } = useNodeStore();
 
@@ -198,39 +197,6 @@ export default function AppLayout({ children }: SidebarProps) {
                    {activeNode.id === node.id && <Check className="w-4 h-4 ml-auto" />}
                  </DropdownMenuItem>
                ))}
-               
-               <DropdownMenuSeparator />
-               
-               <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">Theme</div>
-               <div className="flex gap-1 px-2 pb-1">
-                 <Button 
-                   variant={theme === 'light' ? 'secondary' : 'ghost'} 
-                   size="sm" 
-                   className="flex-1 h-8 px-0" 
-                   onClick={() => setTheme('light')}
-                 >
-                   <Sun className="h-4 w-4" />
-                   <span className="sr-only">Light</span>
-                 </Button>
-                 <Button 
-                   variant={theme === 'dark' ? 'secondary' : 'ghost'} 
-                   size="sm" 
-                   className="flex-1 h-8 px-0" 
-                   onClick={() => setTheme('dark')}
-                 >
-                   <Moon className="h-4 w-4" />
-                   <span className="sr-only">Dark</span>
-                 </Button>
-                 <Button 
-                   variant={theme === 'system' ? 'secondary' : 'ghost'} 
-                   size="sm" 
-                   className="flex-1 h-8 px-0" 
-                   onClick={() => setTheme('system')}
-                 >
-                   <Laptop className="h-4 w-4" />
-                   <span className="sr-only">System</span>
-                 </Button>
-               </div>
              </DropdownMenuContent>
            </DropdownMenu>
         </div>
@@ -251,6 +217,13 @@ export default function AppLayout({ children }: SidebarProps) {
 
         <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex flex-col items-center gap-2" : "p-4")}>
           <SidebarUpdateIndicator collapsed={collapsed} />
+          {/* Theme switcher: its own control above System Status */}
+          {!collapsed && (
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs text-sidebar-foreground/60">Theme</span>
+              <ThemeSwitcher size="sm" />
+            </div>
+          )}
           {collapsed ? (
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
                 <div className={cn(
