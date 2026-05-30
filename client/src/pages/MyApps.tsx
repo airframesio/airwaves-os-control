@@ -235,10 +235,26 @@ export default function MyApps() {
     : null;
 
   const [apps, setApps] = useState(mockApps.filter(app => app.installed));
+  // Transitional per-app state ("starting"/"stopping") shown immediately on a
+  // toggle and cleared only once the live container state reaches the target,
+  // so the button/badge don't flicker back to the old state on the next poll.
+  const [pending, setPending] = useState<Record<string, "starting" | "stopping">>({});
+
   // Sync with live data when available (containers + their stats).
   useEffect(() => {
     if (apiAvailable && containerApps) {
       setApps(containerApps as any);
+      // Clear any pending transition that the live data now confirms.
+      setPending((prev) => {
+        if (Object.keys(prev).length === 0) return prev;
+        const next = { ...prev };
+        for (const app of containerApps) {
+          const want = prev[app.id];
+          if (want === "starting" && app.status === "running") delete next[app.id];
+          if (want === "stopping" && app.status === "stopped") delete next[app.id];
+        }
+        return next;
+      });
     }
   }, [liveContainers, liveStats, apiAvailable]);
 
@@ -329,27 +345,34 @@ export default function MyApps() {
   const toggleAppStatus = (appId: string) => {
     const app = apps.find(a => a.id === appId);
     if (!app) return;
+    // Ignore taps while a transition is already in flight.
+    if (pending[appId]) return;
 
     const containerName = `airwaves-${appId}`;
     const isRunning = app.status === "running";
+    const transition = isRunning ? "stopping" : "starting";
 
+    // Show the transitional state immediately and keep it until the live poll
+    // confirms the target state (handled in the sync effect above). Without API
+    // we just flip to the final state since there's no live data to reconcile.
     if (apiAvailable) {
+      setPending((prev) => ({ ...prev, [appId]: transition }));
       const mutation = isRunning ? stopMutation : startMutation;
       mutation.mutate(containerName, {
         onError: (err) => {
+          setPending((prev) => { const n = { ...prev }; delete n[appId]; return n; });
           toast({ title: "Action Failed", description: String(err), variant: "destructive" });
         },
       });
+    } else {
+      const newStatus = isRunning ? "stopped" : "running";
+      setApps(apps.map(a => a.id === appId ? { ...a, status: newStatus } : a));
     }
-
-    // Optimistic update
-    const newStatus = isRunning ? "stopped" : "running";
-    toast({
-      title: `App ${newStatus === "running" ? "Started" : "Stopped"}`,
-      description: `${app.name} is now ${newStatus}.`,
-    });
-    setApps(apps.map(a => a.id === appId ? { ...a, status: newStatus } : a));
   };
+
+  /** Display status including in-flight transitions. */
+  const displayStatus = (app: { id: string; status: string }): "running" | "stopped" | "starting" | "stopping" =>
+    (pending[app.id] ?? app.status) as "running" | "stopped" | "starting" | "stopping";
 
   if (apps.length === 0) {
     return (
@@ -417,9 +440,11 @@ export default function MyApps() {
                       <h3 className="font-semibold text-sm truncate pr-2">{app.name}</h3>
                       <div className={cn(
                         "w-2 h-2 rounded-full shrink-0",
-                        app.status === "running" 
-                          ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" 
-                          : "bg-muted-foreground/30"
+                        pending[app.id]
+                          ? "bg-amber-500 animate-pulse"
+                          : app.status === "running"
+                            ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]"
+                            : "bg-muted-foreground/30"
                       )} />
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-1">{app.description}</p>
@@ -441,8 +466,11 @@ export default function MyApps() {
                         </>
                       )}
                       {app.status !== "running" && (
-                        <div className="text-[10px] text-muted-foreground font-medium">
-                          Stopped
+                        <div className={cn(
+                          "text-[10px] font-medium capitalize",
+                          pending[app.id] ? "text-amber-600" : "text-muted-foreground"
+                        )}>
+                          {pending[app.id] ?? "Stopped"}
                         </div>
                       )}
                     </div>
@@ -482,13 +510,21 @@ export default function MyApps() {
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-2">
                     <h2 className="text-xl md:text-2xl font-bold tracking-tight">{selectedApp.name}</h2>
-                    <Badge variant={selectedApp.status === "running" ? "default" : "secondary"} className={cn(
-                      "capitalize", 
-                      selectedApp.status === "running" ? "bg-emerald-500 hover:bg-emerald-600 border-transparent" : ""
-                    )}>
-                      {selectedApp.status === "running" ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                      {selectedApp.status}
-                    </Badge>
+                    {(() => {
+                      const st = displayStatus(selectedApp);
+                      const transitioning = st === "starting" || st === "stopping";
+                      return (
+                        <Badge variant={st === "running" ? "default" : "secondary"} className={cn(
+                          "capitalize",
+                          st === "running" ? "bg-emerald-500 hover:bg-emerald-600 border-transparent" : ""
+                        )}>
+                          {transitioning
+                            ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                            : st === "running" ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                          {st}
+                        </Badge>
+                      );
+                    })()}
                   </div>
                   <p className="text-muted-foreground max-w-lg mb-4 text-sm leading-relaxed line-clamp-2 md:line-clamp-none">
                     {selectedApp.description}
@@ -510,21 +546,33 @@ export default function MyApps() {
               </div>
 
               <div className="flex items-center gap-2 mt-2 md:mt-0">
-                <Button 
-                  variant={selectedApp.status === "running" ? "destructive" : "default"} 
-                  className={cn("flex-1 md:flex-none gap-2 shadow-sm", selectedApp.status === "running" ? "" : "bg-emerald-600 hover:bg-emerald-700")}
-                  onClick={() => toggleAppStatus(selectedApp.id)}
-                >
-                  {selectedApp.status === "running" ? (
-                    <>
-                      <Power className="w-4 h-4" /> Stop <span className="hidden sm:inline">App</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 fill-current" /> Start <span className="hidden sm:inline">App</span>
-                    </>
-                  )}
-                </Button>
+                {(() => {
+                  const st = displayStatus(selectedApp);
+                  const transitioning = st === "starting" || st === "stopping";
+                  return (
+                    <Button
+                      variant={st === "running" ? "destructive" : "default"}
+                      disabled={transitioning}
+                      className={cn("flex-1 md:flex-none gap-2 shadow-sm", st === "running" || transitioning ? "" : "bg-emerald-600 hover:bg-emerald-700")}
+                      onClick={() => toggleAppStatus(selectedApp.id)}
+                    >
+                      {transitioning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span className="capitalize">{st}</span><span className="hidden sm:inline">…</span>
+                        </>
+                      ) : st === "running" ? (
+                        <>
+                          <Power className="w-4 h-4" /> Stop <span className="hidden sm:inline">App</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 fill-current" /> Start <span className="hidden sm:inline">App</span>
+                        </>
+                      )}
+                    </Button>
+                  );
+                })()}
                 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
