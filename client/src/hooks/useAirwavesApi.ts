@@ -21,6 +21,7 @@ import {
   type SystemStats,
   type SystemOverview,
   type ContainerInfo,
+  type ContainerStats,
   type SdrDevice,
   type NetworkInterface,
   type AirwavesConfig,
@@ -71,6 +72,15 @@ export function useContainers() {
     queryKey: ['containers'],
     queryFn: containersApi.list,
     refetchInterval: 10_000,
+    retry: 1,
+  });
+}
+
+export function useContainerStats() {
+  return useQuery<ContainerStats[]>({
+    queryKey: ['containers', 'stats'],
+    queryFn: containersApi.stats,
+    refetchInterval: 5_000,
     retry: 1,
   });
 }

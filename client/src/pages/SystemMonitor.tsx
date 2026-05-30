@@ -9,7 +9,7 @@ import { motion, useSpring, useTransform } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSystemInfo, useSystemStats } from "@/hooks/useAirwavesApi";
+import { useSystemInfo, useSystemStats, useContainers, useContainerStats, useNetworkInterfaces } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 
@@ -150,10 +150,43 @@ export default function SystemMonitor() {
   const { data: liveStats } = useSystemStats();
   const { data: liveInfo } = useSystemInfo();
   const { liveStats: wsStats } = useManagerEvents();
-  const runningApps = data.apps.filter(app => app.status === "running");
+  const { data: liveContainers } = useContainers();
+  const { data: liveContainerStats } = useContainerStats();
+  const { data: liveInterfaces } = useNetworkInterfaces();
+
+  const useLive = apiAvailable && !!liveContainers;
+
+  // Real process list from running containers (joined with live CPU/mem stats),
+  // or mock apps when offline.
+  const statsById = new Map((liveContainerStats ?? []).map(s => [s.id, s]));
+  const statsByName = new Map((liveContainerStats ?? []).map(s => [s.name, s]));
+  const nowSec = Math.floor(Date.now() / 1000);
+  const realProcesses = (liveContainers ?? [])
+    .filter(c => c.state === "running")
+    .map(c => {
+      const cid = c.id.slice(0, 12);
+      const s = statsById.get(cid) ?? statsByName.get(c.name);
+      return {
+        id: c.id,
+        name: c.name.replace(/^airwaves-/, ""),
+        image: c.image,
+        cpuUsage: s ? Math.round(s.cpu_percent) : 0,
+        memoryUsage: s ? Math.round(s.memory_used / (1024 * 1024)) : 0,
+        uptime: c.created ? formatUptime(nowSec - c.created) : "—",
+        icon: Server,
+      };
+    });
+  const runningApps = useLive ? realProcesses : data.apps.filter(app => app.status === "running");
 
   // Calculate total resources used by apps
   const totalAppCpu = runningApps.reduce((acc, app) => acc + app.cpuUsage, 0);
+
+  // Real primary IP from network interfaces (skip docker/veth/loopback).
+  const primaryIp = useLive
+    ? (liveInterfaces ?? [])
+        .filter(i => i.is_up && !["docker", "loopback"].includes(i.interface_type) && !i.name.startsWith("veth") && !i.name.startsWith("br-"))
+        .flatMap(i => i.ip_addresses)[0] ?? activeNode.ip
+    : activeNode.ip;
 
   // Get simulated stats for this node, override with live data when available
   // Prefer WebSocket stats (real-time every 5s) over REST poll
@@ -327,7 +360,7 @@ export default function SystemMonitor() {
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Activity className="w-4 h-4" /> IP Address
               </span>
-              <span className="text-sm font-mono">{activeNode.ip}</span>
+              <span className="text-sm font-mono">{primaryIp}</span>
             </div>
           </CardContent>
         </Card>
@@ -368,7 +401,9 @@ export default function SystemMonitor() {
                         </div>
                         <div>
                           <div className="font-semibold">{app.name}</div>
-                          <div className="text-xs text-muted-foreground">PID: {Math.floor(Math.random() * 10000) + 1000}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[220px]" title={(app as any).image}>
+                            {(app as any).image ?? `PID: ${Math.floor(Math.random() * 10000) + 1000}`}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
@@ -384,7 +419,7 @@ export default function SystemMonitor() {
                       {app.memoryUsage} MB
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                      2d 4h
+                      {(app as any).uptime ?? "—"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -407,7 +442,9 @@ export default function SystemMonitor() {
                       {(stats.cpu - totalAppCpu > 0 ? stats.cpu - totalAppCpu : 1).toFixed(1)}%
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                       ~800 MB
+                       {useLive && liveStats
+                         ? `${Math.max(0, Math.round(liveStats.memory_used / (1024 * 1024) - runningApps.reduce((a, p) => a + p.memoryUsage, 0)))} MB`
+                         : "~800 MB"}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs text-muted-foreground">
                       {stats.uptime}

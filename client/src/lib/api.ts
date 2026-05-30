@@ -177,8 +177,17 @@ export interface ContainerInfo {
   }>;
 }
 
+export interface ContainerStats {
+  id: string;
+  name: string;
+  cpu_percent: number;
+  memory_used: number;
+  memory_limit: number;
+}
+
 export const containersApi = {
   list: () => apiFetch<ContainerInfo[]>('/containers'),
+  stats: () => apiFetch<ContainerStats[]>('/containers/stats'),
   start: (id: string) => apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/start`, { method: 'POST' }),
   stop: (id: string) => apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
   restart: (id: string) => apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/restart`, { method: 'POST' }),
