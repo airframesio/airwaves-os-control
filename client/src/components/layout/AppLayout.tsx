@@ -234,8 +234,10 @@ export default function AppLayout({ children }: SidebarProps) {
             </div>
           )}
 
-          {/* Divider between Theme and System Status */}
-          {!collapsed && <div className="h-px w-full bg-sidebar-border/50" />}
+          {/* Divider between Theme and System Status — break out of the p-4
+              padding (-mx-4) so it spans the full sidebar width like the top
+              border, not inset by the padding. */}
+          {!collapsed && <div className="h-px -mx-4 bg-sidebar-border/50" />}
 
           {collapsed ? (
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
