@@ -12,6 +12,7 @@ import { useNodeStore } from "@/lib/nodeStore";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useSystemStats } from "@/hooks/useAirwavesApi";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
+import SidebarUpdateIndicator from "@/components/SidebarUpdateIndicator";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -248,7 +249,8 @@ export default function AppLayout({ children }: SidebarProps) {
           </nav>
         </div>
 
-        <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex justify-center" : "p-4")}>
+        <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex flex-col items-center gap-2" : "p-4")}>
+          <SidebarUpdateIndicator collapsed={collapsed} />
           {collapsed ? (
              <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
                 <div className={cn(
