@@ -5,8 +5,10 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   DownloadCloud, RefreshCw, CheckCircle2, AlertTriangle, Loader2, Package,
-  Server, LayoutGrid, FileCog, Boxes, RotateCcw, ArrowUpCircle, ExternalLink, Power
+  Server, LayoutGrid, FileCog, Boxes, RotateCcw, ArrowUpCircle, ExternalLink, Power, FileText
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { UPDATING_FLAG } from "@/components/ApiStatusBanner";
 import { useEffect, useRef, useState } from "react";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +46,18 @@ export default function SystemUpdate() {
   const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [applying, setApplying] = useState(false);
   const [switchingChannel, setSwitchingChannel] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [lastLog, setLastLog] = useState<UpdateProgress | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const openLastLog = async () => {
+    setLogOpen(true);
+    try {
+      setLastLog(await updateApi.getProgress());
+    } catch {
+      /* dialog shows empty-state */
+    }
+  };
 
   const handleSetChannel = async (channel: string) => {
     if (channel === status?.installed.channel) return;
@@ -102,13 +115,19 @@ export default function SystemUpdate() {
 
   const startPolling = () => {
     stopPolling();
+    // Mark an update in progress so the global banner shows "updating" (not
+    // "demo data") while the manager/gateway briefly restart. Refreshed each
+    // tick; auto-expires after 10 min as a safety net.
+    try { localStorage.setItem(UPDATING_FLAG, String(Date.now() + 10 * 60 * 1000)); } catch { /* ignore */ }
     pollRef.current = setInterval(async () => {
       try {
         const p = await updateApi.getProgress();
         setProgress(p);
+        try { localStorage.setItem(UPDATING_FLAG, String(Date.now() + 10 * 60 * 1000)); } catch { /* ignore */ }
         if (TERMINAL_STATES.includes(p.state)) {
           stopPolling();
           setApplying(false);
+          try { localStorage.removeItem(UPDATING_FLAG); } catch { /* ignore */ }
           if (p.state === "success") {
             toast({ title: "Update complete", description: p.reboot_required ? "A reboot is required to finish." : "All done." });
             loadStatus(true);
@@ -248,7 +267,7 @@ export default function SystemUpdate() {
           <CardContent className="space-y-3">
             <Progress value={progress.percent} className="h-2" />
             {progress.log.length > 0 && (
-              <pre className="text-xs bg-black/40 rounded p-3 max-h-40 overflow-auto font-mono text-muted-foreground">
+              <pre className="text-xs bg-zinc-950 text-zinc-100 border border-border/50 rounded p-3 max-h-40 overflow-auto font-mono leading-relaxed whitespace-pre-wrap">
                 {progress.log.slice(-12).join("\n")}
               </pre>
             )}
@@ -276,13 +295,24 @@ export default function SystemUpdate() {
       {/* Current versions */}
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-primary" /> Installed
-          </CardTitle>
-          <CardDescription>
-            {status?.last_checked ? `Last checked ${new Date(status.last_checked).toLocaleString()}` : "Not checked yet"}
-            {inst?.channel ? ` • ${inst.channel} channel` : ""}
-          </CardDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-primary" /> Installed
+              </CardTitle>
+              <CardDescription>
+                {status?.last_checked ? `Last checked ${new Date(status.last_checked).toLocaleString()}` : "Not checked yet"}
+                {inst?.channel ? ` • ${inst.channel} channel` : ""}
+              </CardDescription>
+            </div>
+            <button
+              onClick={openLastLog}
+              className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
+              title="View the log from the most recent update"
+            >
+              <FileText className="w-3.5 h-3.5" /> View last update log
+            </button>
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <Field label="Airwaves OS" value={inst ? `${inst.os_version}${inst.os_codename ? ` (${inst.os_codename})` : ""}` : "—"} />
@@ -373,6 +403,30 @@ export default function SystemUpdate() {
           )}
         </CardContent>
       </Card>
+
+      {/* Last update log */}
+      <Dialog open={logOpen} onOpenChange={setLogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Last update log</DialogTitle>
+            <DialogDescription>
+              {lastLog?.finished_at
+                ? `Finished ${new Date(lastLog.finished_at).toLocaleString()} — ${lastLog.state}`
+                : lastLog?.started_at
+                  ? `Started ${new Date(lastLog.started_at).toLocaleString()} — ${lastLog.state}`
+                  : "Most recent update run"}
+            </DialogDescription>
+          </DialogHeader>
+          {lastLog?.error && (
+            <div className="text-sm text-red-500 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {lastLog.error}
+            </div>
+          )}
+          <pre className="text-xs bg-zinc-950 text-zinc-100 border border-border/50 rounded p-3 max-h-[60vh] overflow-auto font-mono leading-relaxed whitespace-pre-wrap">
+            {(lastLog?.log ?? []).join("\n") || "No update has been run on this device yet."}
+          </pre>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
