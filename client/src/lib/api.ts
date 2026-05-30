@@ -351,6 +351,17 @@ export const feedsApi = {
 
 // ---------- App Catalog ----------
 
+export interface ConfigField {
+  key: string;
+  label: string;
+  help?: string;
+  /** "text" | "number" | "select" | "sdr" */
+  kind: string;
+  default: string;
+  options: string[];
+  required: boolean;
+}
+
 export interface CatalogApp {
   id: string;
   name: string;
@@ -366,13 +377,18 @@ export interface CatalogApp {
   }>;
   requires_sdr: boolean;
   sdr_types: string[];
+  /** Default environment variables (merged with wizard overrides at install). */
+  env?: Record<string, string>;
+  /** Fields the pre-install wizard should prompt for. */
+  config_fields?: ConfigField[];
 }
 
 export const appsApi = {
   catalog: () => apiFetch<CatalogApp[]>('/apps/catalog'),
-  install: (appId: string) => apiFetch<ContainerInfo>('/apps/install', {
+  /** Install an app, optionally with environment overrides from the wizard. */
+  install: (appId: string, env?: Record<string, string>) => apiFetch<ContainerInfo>('/apps/install', {
     method: 'POST',
-    body: JSON.stringify({ app_id: appId }),
+    body: JSON.stringify(env && Object.keys(env).length ? { app_id: appId, env } : { app_id: appId }),
   }),
   uninstall: (appId: string) => apiFetch<{ status: string }>(`/apps/${encodeURIComponent(appId)}`, {
     method: 'DELETE',

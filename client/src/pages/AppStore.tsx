@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,9 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAppCatalog, useContainers, useInstallApp } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import AppInstallWizard from "@/components/AppInstallWizard";
+import type { CatalogApp } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 // Map app IDs to icons for catalog apps
 const appIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -42,6 +45,33 @@ export default function AppStore() {
   const { data: catalogApps } = useAppCatalog();
   const { data: containers } = useContainers();
   const installMutation = useInstallApp();
+  const { toast } = useToast();
+
+  // App being configured in the pre-install wizard (null = closed).
+  const [wizardApp, setWizardApp] = useState<CatalogApp | null>(null);
+
+  const doInstall = (app: { id: string; name: string }, env?: Record<string, string>) => {
+    installMutation.mutate(
+      { appId: app.id, env },
+      {
+        onSuccess: () => { setWizardApp(null); toast({ title: "App installed", description: `${app.name} is ready.` }); },
+        onError: (err) => toast({ title: "Install failed", description: String(err), variant: "destructive" }),
+      },
+    );
+  };
+
+  // Apps that need configuration (declared fields, or an SDR) open a wizard
+  // before install; everything else installs directly.
+  const startInstall = (appId: string) => {
+    const full = (catalogApps ?? []).find((a) => a.id === appId);
+    if (full && ((full.config_fields?.length ?? 0) > 0 || full.requires_sdr)) {
+      setWizardApp(full);
+    } else if (full) {
+      doInstall(full);
+    } else {
+      installMutation.mutate({ appId });
+    }
+  };
 
   // Determine installed container names
   const installedNames = new Set(
@@ -56,7 +86,7 @@ export default function AppStore() {
         description: app.description,
         category: app.category,
         installed: installedNames.has(app.id),
-        status: installMutation.isPending && installMutation.variables === app.id ? 'installing' as const : 'running' as const,
+        status: installMutation.isPending && installMutation.variables?.appId === app.id ? 'installing' as const : 'running' as const,
         icon: appIcons[app.id] ?? Box,
       }))
     : data.apps;
@@ -126,7 +156,7 @@ export default function AppStore() {
                       title={apiAvailable ? "Install" : "Connect to a device to install"}
                       onClick={(e) => {
                         e.stopPropagation();
-                        installMutation.mutate(app.id);
+                        startInstall(app.id);
                       }}
                     >
                       <Download className="w-4 h-4" />
@@ -159,6 +189,14 @@ export default function AppStore() {
           </div>
         )}
       </div>
+
+      <AppInstallWizard
+        app={wizardApp}
+        open={wizardApp !== null}
+        onOpenChange={(v) => { if (!v) setWizardApp(null); }}
+        installing={installMutation.isPending && installMutation.variables?.appId === wizardApp?.id}
+        onConfirm={(env) => wizardApp && doInstall(wizardApp, env)}
+      />
     </div>
   );
 }

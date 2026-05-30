@@ -96,7 +96,7 @@ export default function AppInstallWizard({
                 <Select value={values[f.key] ?? ""} onValueChange={(v) => set(f.key, v)}>
                   <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
                   <SelectContent>
-                    {f.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    {f.options.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (
