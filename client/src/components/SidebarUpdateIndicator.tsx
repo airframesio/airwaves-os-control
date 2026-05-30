@@ -13,11 +13,14 @@ import { updateApi, type Severity } from "@/lib/api";
 export default function SidebarUpdateIndicator({ collapsed }: { collapsed?: boolean }) {
   const apiAvailable = useApiStatus();
   const { data } = useQuery({
-    queryKey: ["update", "status", "sidebar"],
+    queryKey: ["update", "status"],
     queryFn: updateApi.getStatus,
     enabled: apiAvailable,
-    refetchInterval: 5 * 60 * 1000,
-    staleTime: 60 * 1000,
+    // Poll for freshness without a reload; also invalidated immediately by the
+    // manager's UpdateAvailable WebSocket event and by Check/Update actions.
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000,
     retry: false,
   });
 

@@ -69,6 +69,12 @@ export function useManagerEvents(): ManagerEventState {
             case 'SdrDeviceChanged':
               queryClient.invalidateQueries({ queryKey: ['hardware', 'sdr'] });
               break;
+
+            case 'UpdateAvailable':
+              // Refresh the update status everywhere (sidebar indicator, page)
+              // without a reload when the manager's background check finds one.
+              queryClient.invalidateQueries({ queryKey: ['update'] });
+              break;
           }
         } catch {
           // Ignore malformed messages

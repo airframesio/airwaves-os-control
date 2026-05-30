@@ -148,6 +148,22 @@ export default function SystemUpdate() {
     }
   };
 
+  const handleRefresh = async () => {
+    if (!window.confirm(
+      "Reinstall the current release? This re-pulls the correct compose, config, catalog, and re-installs the System Manager and Control Panel at the current version. It does NOT upgrade — a backup is taken first."
+    )) return;
+    setApplying(true);
+    setProgress({ state: "running", phase: "queued", percent: 0, log: ["Force refresh requested"], reboot_required: false });
+    try {
+      await updateApi.refresh();
+      startPolling();
+      toast({ title: "Refreshing", description: "Reinstalling the current release (a backup is taken first)." });
+    } catch (err) {
+      setApplying(false);
+      toast({ title: "Couldn't start refresh", description: String(err), variant: "destructive" });
+    }
+  };
+
   const pendingComponents = (status?.components ?? []).filter((c) => c.update_available);
   const applyAll = () => {
     const names = pendingComponents.map((c) => c.name);
@@ -200,6 +216,15 @@ export default function SystemUpdate() {
           <Button variant="outline" onClick={() => loadStatus(true)} disabled={checking || applying || switchingChannel}>
             {checking || switchingChannel ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Check now
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={applying || switchingChannel}
+            title="Reinstall the current release (repair) without upgrading — a backup is taken first"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Force refresh
           </Button>
         </div>
       </div>

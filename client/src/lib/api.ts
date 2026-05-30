@@ -157,6 +157,8 @@ export const updateApi = {
     method: 'POST',
     body: JSON.stringify({ channel }),
   }),
+  // Force-refresh (repair) the system at its current release — no version bump.
+  refresh: () => apiFetch<{ status: string }>('/system/update/refresh', { method: 'POST' }),
 };
 
 export const UPDATE_CHANNELS = ['stable', 'beta', 'dev'] as const;
