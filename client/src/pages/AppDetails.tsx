@@ -74,7 +74,7 @@ export default function AppDetails() {
   const uninstalling = uninstallMutation.isPending;
 
   const handleInstall = () => {
-    installMutation.mutate(app.id, {
+    installMutation.mutate({ appId: app.id }, {
       onSuccess: () => toast({ title: "Installing", description: `${app.name} is being installed.` }),
       onError: (e) => toast({ title: "Install failed", description: String(e), variant: "destructive" }),
     });
