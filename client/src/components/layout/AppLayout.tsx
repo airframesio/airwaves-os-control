@@ -9,6 +9,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useTheme } from "next-themes";
 import { CommandMenu } from "@/components/CommandMenu";
 import { useNodeStore } from "@/lib/nodeStore";
+import { useApiStatus } from "@/hooks/useApiStatus";
+import { useSystemStats } from "@/hooks/useAirwavesApi";
+import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -20,8 +23,19 @@ export default function AppLayout({ children }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [systemStats, setSystemStats] = useState({ cpu: 45, ram: 62 });
   const { activeNode, nodes, setActiveNode, data } = useNodeStore();
+
+  // Real system health when connected to a device; mock otherwise. Prefer the
+  // live WebSocket stats (pushed ~5s) over the REST poll. "Online" reflects
+  // actual API reachability, not a hardcoded node flag.
+  const apiAvailable = useApiStatus();
+  const { data: restStats } = useSystemStats();
+  const { liveStats: wsStats } = useManagerEvents();
+  const realStats = wsStats ?? restStats;
+  const statusOnline = apiAvailable;
+  const systemStats = apiAvailable && realStats
+    ? { cpu: Math.round(realStats.cpu_usage), ram: Math.round(realStats.memory_percent) }
+    : { cpu: 45, ram: 62 };
 
   // Check if rtl_airband is installed on the active node
   const hasRtlAirband = data.apps.some(app => app.id === 'rtl_airband' && app.installed);
@@ -29,16 +43,6 @@ export default function AppLayout({ children }: SidebarProps) {
   // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
-    
-    // Simulate system stats changes
-    const interval = setInterval(() => {
-      setSystemStats(prev => ({
-        cpu: Math.max(10, Math.min(90, prev.cpu + (Math.random() * 10 - 5))),
-        ram: Math.max(20, Math.min(85, prev.ram + (Math.random() * 6 - 3)))
-      }));
-    }, 2000);
-    
-    return () => clearInterval(interval);
   }, []);
 
   const mainNavItems = [
