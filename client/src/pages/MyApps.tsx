@@ -48,8 +48,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppMetrics from "@/components/AppMetrics";
 import { motion, useSpring, useTransform } from "framer-motion";
-import { useContainers, useContainerStart, useContainerStop, useUninstallApp } from "@/hooks/useAirwavesApi";
+import { useContainers, useContainerStats, useContainerStart, useContainerStop, useUninstallApp, useContainerLogs } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+
+const fmtUptime = (createdSec: number): string => {
+  if (!createdSec) return "-";
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - createdSec);
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${m}m`;
+};
 
 const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
@@ -186,17 +195,23 @@ function ExternalFeedConfig() {
 export default function MyApps() {
   const apiAvailable = useApiStatus();
   const { data: liveContainers } = useContainers();
+  const { data: liveStats } = useContainerStats();
   const startMutation = useContainerStart();
   const stopMutation = useContainerStop();
   const uninstallMutation = useUninstallApp();
 
-  // Map live containers to app-like objects when API is available
+  // Map live containers to app-like objects when API is available, joined with
+  // live per-container CPU/memory stats.
+  const statsByName = new Map((liveStats ?? []).map(s => [s.name, s]));
+  const statsById = new Map((liveStats ?? []).map(s => [s.id, s]));
   const containerApps = apiAvailable && liveContainers
     ? liveContainers
         .filter(c => c.name.startsWith('airwaves-') && c.name !== 'airwaves-gateway' && c.name !== 'airwaves-manager')
         .map(c => {
           const appId = c.name.replace(/^airwaves-/, '');
           const mockApp = mockApps.find(a => a.id === appId);
+          const st = statsByName.get(c.name) ?? statsById.get(c.id.slice(0, 12));
+          const memLimitMb = st && st.memory_limit ? Math.round(st.memory_limit / (1024 * 1024)) : 512;
           return {
             ...mockApp,
             id: appId,
@@ -204,22 +219,28 @@ export default function MyApps() {
             description: mockApp?.description ?? c.image,
             status: c.state === 'running' ? 'running' as const : 'stopped' as const,
             installed: true,
-            cpuUsage: mockApp?.cpuUsage ?? 0,
-            memoryUsage: mockApp?.memoryUsage ?? 0,
+            cpuUsage: st ? Math.round(st.cpu_percent) : 0,
+            memoryUsage: st ? Math.round(st.memory_used / (1024 * 1024)) : 0,
+            memoryLimit: memLimitMb,
             icon: mockApp?.icon ?? Radio,
             category: mockApp?.category ?? 'system',
+            version: mockApp?.version ?? 'latest',
+            image: c.image,
+            ports: c.ports ?? [],
+            createdAt: c.created ?? 0,
+            uptime: c.state === 'running' ? fmtUptime(c.created ?? 0) : '-',
             containerId: c.id,
           };
         })
     : null;
 
   const [apps, setApps] = useState(mockApps.filter(app => app.installed));
-  // Sync with live data when available
+  // Sync with live data when available (containers + their stats).
   useEffect(() => {
-    if (containerApps && containerApps.length > 0) {
+    if (apiAvailable && containerApps) {
       setApps(containerApps as any);
     }
-  }, [liveContainers]);
+  }, [liveContainers, liveStats, apiAvailable]);
 
   const [selectedAppId, setSelectedAppId] = useState<string>(apps[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");
@@ -241,6 +262,16 @@ export default function MyApps() {
   }, []);
 
   const selectedApp = apps.find(app => app.id === selectedAppId);
+
+  // Live container logs for the selected app (polls every 5s when API is up).
+  const { data: logData } = useContainerLogs(
+    apiAvailable && selectedAppId ? `airwaves-${selectedAppId}` : "",
+    300,
+  );
+  const logLines: string[] = (logData?.logs ?? "")
+    .split("\n")
+    .map(l => l.replace(/[\x00-\x08]/g, "").trimEnd())
+    .filter(l => l.length > 0);
 
   // Reset showDetail when switching to desktop
   useEffect(() => {
@@ -465,7 +496,7 @@ export default function MyApps() {
                   <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs font-medium text-muted-foreground">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/50">
                       <Clock className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Uptime:</span> {selectedApp.status === "running" ? "2d 4h" : "-"}
+                      <span className="hidden sm:inline">Uptime:</span> {selectedApp.status === "running" ? ((selectedApp as any).uptime ?? "-") : "-"}
                     </div>
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/50">
                       <Radio className="w-3.5 h-3.5" />
@@ -566,26 +597,25 @@ export default function MyApps() {
                         <div className="text-2xl font-bold mb-2">
                           <AnimatedNumber value={selectedApp.status === "running" ? selectedApp.memoryUsage : 0} /> MB
                         </div>
-                        <Progress value={selectedApp.status === "running" ? (selectedApp.memoryUsage / 512) * 100 : 0} className="h-1.5 bg-muted" indicatorClassName="bg-purple-500" />
-                        <p className="text-xs text-muted-foreground mt-2">of 512 MB Limit</p>
+                        <Progress value={selectedApp.status === "running" ? (selectedApp.memoryUsage / ((selectedApp as any).memoryLimit || 512)) * 100 : 0} className="h-1.5 bg-muted" indicatorClassName="bg-purple-500" />
+                        <p className="text-xs text-muted-foreground mt-2">of {(selectedApp as any).memoryLimit || 512} MB Limit</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-card/50 border-border/50">
                       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Disk I/O</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Published Ports</CardTitle>
                         <HardDrive className="w-4 h-4 text-orange-500" />
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold mb-2">
-                          <AnimatedNumber 
-                            value={selectedApp.status === "running" ? 1.2 : 0} 
-                            format={(v) => v.toFixed(1)} 
-                          /> MB/s
+                          {((selectedApp as any).ports ?? []).filter((p: any) => p.host_port).length || 0}
                         </div>
-                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
-                          <div className="h-full bg-orange-500 w-[15%]"></div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">Write Heavy</p>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
+                          {((selectedApp as any).ports ?? [])
+                            .filter((p: any) => p.host_port)
+                            .map((p: any) => `${p.host_port}→${p.container_port}`)
+                            .join(", ") || "none"}
+                        </p>
                       </CardContent>
                     </Card>
                   </div>
@@ -623,11 +653,14 @@ export default function MyApps() {
                        <h3 className="text-lg font-medium">Recent Activity</h3>
                        <Button variant="link" size="sm" className="h-auto p-0 text-primary">View all logs</Button>
                      </div>
-                     <div className="bg-card border border-border/50 rounded-lg p-4 font-mono text-xs text-muted-foreground space-y-2">
-                       <div className="flex gap-2"><span className="text-muted-foreground/50">12:00:01</span> <span className="text-blue-400">[INFO]</span> Application service starting...</div>
-                       <div className="flex gap-2"><span className="text-muted-foreground/50">12:00:02</span> <span className="text-blue-400">[INFO]</span> Device initialized successfully.</div>
-                       <div className="flex gap-2"><span className="text-muted-foreground/50">12:05:00</span> <span className="text-yellow-400">[WARN]</span> Signal strength low on channel 1.</div>
-                       <div className="flex gap-2"><span className="text-muted-foreground/50">12:05:05</span> <span className="text-emerald-400">[DATA]</span> Packet received: ID #49281</div>
+                     <div className="bg-card border border-border/50 rounded-lg p-4 font-mono text-xs text-muted-foreground space-y-1 max-h-40 overflow-auto">
+                       {logLines.length > 0 ? (
+                         logLines.slice(-6).map((line, i) => (
+                           <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
+                         ))
+                       ) : (
+                         <div className="text-muted-foreground/60">{apiAvailable ? "No recent log output." : "Connect to a device to view logs."}</div>
+                       )}
                      </div>
                   </div>
                 </TabsContent>
@@ -640,7 +673,7 @@ export default function MyApps() {
                    <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs font-mono">
                      <div className="flex items-center gap-2">
                        <Terminal className="w-3.5 h-3.5" />
-                       <span className="truncate max-w-[150px] md:max-w-none">/var/log/{selectedApp.id}.log</span>
+                       <span className="truncate max-w-[150px] md:max-w-none">docker logs airwaves-{selectedApp.id}</span>
                      </div>
                      <div className="flex items-center gap-3">
                        <div className="flex items-center gap-1.5">
@@ -653,24 +686,25 @@ export default function MyApps() {
                      </div>
                    </div>
                    <ScrollArea className="flex-1 p-4 font-mono text-xs md:text-sm text-zinc-300 selection:bg-zinc-700">
-                      <div className="space-y-1">
-                        <div className="opacity-50">2026-01-01 12:00:01 [INFO] Starting {selectedApp.name} v{selectedApp.version}...</div>
-                        <div className="opacity-50">2026-01-01 12:00:02 [INFO] Loading configuration from /etc/{selectedApp.name}/config.json</div>
-                        {selectedApp.assignedDevice && (
-                          <div className="text-emerald-400">2026-01-01 12:00:03 [SUCCESS] Device {selectedApp.assignedDevice} initialized successfully.</div>
+                      <div className="space-y-0.5">
+                        {logLines.length > 0 ? (
+                          logLines.map((line, i) => {
+                            const lower = line.toLowerCase();
+                            const cls = /\berror\b|\bfatal\b/.test(lower)
+                              ? "text-red-400"
+                              : /\bwarn(ing)?\b/.test(lower)
+                                ? "text-yellow-400"
+                                : /\bsuccess\b|\bready\b|\bstarted\b/.test(lower)
+                                  ? "text-emerald-400"
+                                  : "";
+                            return <div key={i} className={cn("whitespace-pre-wrap break-all", cls)}>{line}</div>;
+                          })
+                        ) : (
+                          <div className="text-zinc-500">
+                            {apiAvailable ? `No log output from ${selectedApp.name}.` : "Connect to a device to stream logs."}
+                          </div>
                         )}
-                        <div>2026-01-01 12:00:05 [INFO] Listening on port 30005...</div>
-                        <div>2026-01-01 12:01:12 [DATA] Message received from ICAO 485921 (Level 12)</div>
-                        <div>2026-01-01 12:01:14 [DATA] Message received from ICAO 881922 (Level 9)</div>
-                        <div>2026-01-01 12:02:30 [INFO] Statistics update: 42 messages/min</div>
-                        <div className="text-yellow-400">2026-01-01 12:05:00 [WARN] Weak signal detected on channel 2</div>
-                        <div>2026-01-01 12:05:05 [DATA] Message received from ICAO 112345</div>
-                        <div>2026-01-01 12:06:12 [DATA] Message received from ICAO 485921 (Level 11)</div>
-                        <div className="text-red-400">2026-01-01 12:07:00 [ERROR] Connection reset by peer (192.168.1.105)</div>
-                        <div>2026-01-01 12:07:01 [INFO] Reconnecting...</div>
-                        <div className="text-emerald-400">2026-01-01 12:07:02 [SUCCESS] Connection restored.</div>
-                        <div>2026-01-01 12:08:45 [DATA] Message received from ICAO 993821 (Level 8)</div>
-                        <div className="animate-pulse">_</div>
+                        {logLines.length > 0 && <div className="animate-pulse text-zinc-500">_</div>}
                       </div>
                    </ScrollArea>
                 </TabsContent>
@@ -681,50 +715,45 @@ export default function MyApps() {
                   ) : (
                   <div className="bg-card border border-border/50 rounded-xl p-6 space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium mb-1">Network Settings</h3>
-                      <p className="text-sm text-muted-foreground mb-4">Configure how this app communicates with other services.</p>
-                      <div className="grid gap-4 md:grid-cols-2">
-                         <div className="space-y-2">
-                           <label className="text-sm font-medium">Listening Port</label>
-                           <Input defaultValue="30005" />
-                         </div>
-                         <div className="space-y-2">
-                           <label className="text-sm font-medium">Protocol</label>
-                           <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                             <option>TCP</option>
-                             <option>UDP</option>
-                           </select>
-                         </div>
-                      </div>
+                      <h3 className="text-lg font-medium mb-1">Container</h3>
+                      <p className="text-sm text-muted-foreground mb-4">Live configuration of the running container.</p>
+                      <dl className="grid gap-3 text-sm">
+                        <div className="flex justify-between gap-4 py-2 border-b border-border/40">
+                          <dt className="text-muted-foreground">Image</dt>
+                          <dd className="font-mono text-right break-all">{(selectedApp as any).image ?? "—"}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4 py-2 border-b border-border/40">
+                          <dt className="text-muted-foreground">Container</dt>
+                          <dd className="font-mono">airwaves-{selectedApp.id}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4 py-2 border-b border-border/40">
+                          <dt className="text-muted-foreground">State</dt>
+                          <dd className="capitalize">{selectedApp.status}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4 py-2 border-b border-border/40">
+                          <dt className="text-muted-foreground">Restart policy</dt>
+                          <dd>unless-stopped</dd>
+                        </div>
+                        <div className="flex justify-between gap-4 py-2">
+                          <dt className="text-muted-foreground">Published ports</dt>
+                          <dd className="font-mono text-right">
+                            {((selectedApp as any).ports ?? []).filter((p: any) => p.host_port).length
+                              ? ((selectedApp as any).ports ?? [])
+                                  .filter((p: any) => p.host_port)
+                                  .map((p: any) => `${p.host_port}→${p.container_port}/${p.protocol}`)
+                                  .join(", ")
+                              : "none"}
+                          </dd>
+                        </div>
+                      </dl>
                     </div>
-                    
+
                     <Separator />
 
-                    <div>
-                      <h3 className="text-lg font-medium mb-1">Device Settings</h3>
-                      <p className="text-sm text-muted-foreground mb-4">Radio frequency and gain control.</p>
-                      <div className="grid gap-4 md:grid-cols-2">
-                         <div className="space-y-2">
-                           <label className="text-sm font-medium">Frequency (MHz)</label>
-                           <Input defaultValue="1090.00" />
-                         </div>
-                         <div className="space-y-2">
-                           <label className="text-sm font-medium">Gain (dB)</label>
-                           <Input defaultValue="45.0" />
-                         </div>
-                         <div className="space-y-2 md:col-span-2">
-                           <label className="text-sm font-medium">PPM Correction</label>
-                           <div className="flex items-center gap-4">
-                             <Input type="range" className="flex-1" />
-                             <span className="w-12 text-sm font-mono text-right">0</span>
-                           </div>
-                         </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 flex justify-end">
-                      <Button>Save Changes</Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      App-specific settings (frequency, gain, env vars) are defined by the catalog
+                      app and applied at install. Editable per-app configuration is coming soon.
+                    </p>
                   </div>
                   )}
                 </TabsContent>

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import FleetTopology from "@/components/FleetTopology";
 import { mockSystems, System } from "@/lib/mockData";
 import { Activity, Circle, MoreVertical, Plus, Server, Trash2, Wifi, WifiOff, Settings, Check, ArrowRight, Cog, Loader2, Search, Radio } from "lucide-react";
 import { useState, useEffect } from "react";
