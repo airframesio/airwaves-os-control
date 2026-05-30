@@ -169,17 +169,17 @@ export default function SystemUpdate() {
 
   const handleRefresh = async () => {
     if (!window.confirm(
-      "Reinstall the current release? This re-pulls the correct compose, config, catalog, and re-installs the System Manager and Control Panel at the current version. It does NOT upgrade — a backup is taken first."
+      "Repair the current install? This re-pulls the images already in use and recreates the containers at the SAME installed versions — it does not upgrade or change versions. A backup is taken first."
     )) return;
     setApplying(true);
-    setProgress({ state: "running", phase: "queued", percent: 0, log: ["Force refresh requested"], reboot_required: false });
+    setProgress({ state: "running", phase: "queued", percent: 0, log: ["Repair (recreate at installed version) requested"], reboot_required: false });
     try {
       await updateApi.refresh();
       startPolling();
-      toast({ title: "Refreshing", description: "Reinstalling the current release (a backup is taken first)." });
+      toast({ title: "Repairing", description: "Recreating containers at the installed versions (a backup is taken first)." });
     } catch (err) {
       setApplying(false);
-      toast({ title: "Couldn't start refresh", description: String(err), variant: "destructive" });
+      toast({ title: "Couldn't start repair", description: String(err), variant: "destructive" });
     }
   };
 
@@ -240,7 +240,7 @@ export default function SystemUpdate() {
             variant="outline"
             onClick={handleRefresh}
             disabled={applying || switchingChannel}
-            title="Reinstall the current release (repair) without upgrading — a backup is taken first"
+            title="Repair: recreate the containers at the installed versions without upgrading — a backup is taken first"
           >
             <RotateCcw className="w-4 h-4 mr-2" />
             Force refresh
@@ -417,9 +417,19 @@ export default function SystemUpdate() {
                   : "Most recent update run"}
             </DialogDescription>
           </DialogHeader>
-          {lastLog?.error && (
-            <div className="text-sm text-red-500 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {lastLog.error}
+          {lastLog && lastLog.state !== "idle" && (
+            <div
+              className={cn(
+                "text-sm flex items-start gap-2 rounded-md px-3 py-2 border",
+                lastLog.state === "success"
+                  ? "text-emerald-600 bg-emerald-500/5 border-emerald-500/20"
+                  : "text-red-500 bg-red-500/5 border-red-500/20"
+              )}
+            >
+              {lastLog.state === "success"
+                ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                : <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />}
+              <span>{lastLogSummary(lastLog)}</span>
             </div>
           )}
           <pre className="text-xs bg-zinc-950 text-zinc-100 border border-border/50 rounded p-3 max-h-[60vh] overflow-auto font-mono leading-relaxed whitespace-pre-wrap">
@@ -440,6 +450,25 @@ function Header() {
       <p className="text-muted-foreground mt-1">Keep Airwaves OS, the control panel, and the base system current.</p>
     </div>
   );
+}
+
+/** A short, human one-liner for the last-update-log header — NOT the full log
+ *  (the host updater embeds a log tail in `error`, so we trim to one line and
+ *  cap length; the complete log lives in the console block below). */
+function lastLogSummary(p: UpdateProgress): string {
+  const STATE_LABEL: Record<string, string> = {
+    success: "Update completed successfully.",
+    failed: "Update failed.",
+    rolled_back: "Update failed and was rolled back to the previous version.",
+    running: "Update in progress…",
+  };
+  const base = STATE_LABEL[p.state] ?? `State: ${p.state}`;
+  if (p.state === "success") {
+    return p.reboot_required ? `${base} A reboot is required to finish.` : base;
+  }
+  const firstLine = (p.error ?? "").split("\n")[0]?.trim() ?? "";
+  const reason = firstLine.length > 160 ? `${firstLine.slice(0, 157)}…` : firstLine;
+  return reason ? `${base} ${reason}` : base;
 }
 
 function Field({ label, value }: { label: string; value: string }) {
