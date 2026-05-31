@@ -50,9 +50,9 @@ export default function AppStore() {
   // App being configured in the pre-install wizard (null = closed).
   const [wizardApp, setWizardApp] = useState<CatalogApp | null>(null);
 
-  const doInstall = (app: { id: string; name: string }, env?: Record<string, string>) => {
+  const doInstall = (app: { id: string; name: string }, env?: Record<string, string>, imageTag?: string) => {
     installMutation.mutate(
-      { appId: app.id, env },
+      { appId: app.id, env, imageTag },
       {
         onSuccess: () => { setWizardApp(null); toast({ title: "App installed", description: `${app.name} is ready.` }); },
         onError: (err) => toast({ title: "Install failed", description: String(err), variant: "destructive" }),
@@ -198,7 +198,7 @@ export default function AppStore() {
         open={wizardApp !== null}
         onOpenChange={(v) => { if (!v) setWizardApp(null); }}
         installing={installMutation.isPending && installMutation.variables?.appId === wizardApp?.id}
-        onConfirm={(env) => wizardApp && doInstall(wizardApp, env)}
+        onConfirm={(env, imageTag) => wizardApp && doInstall(wizardApp, env, imageTag)}
       />
     </div>
   );

@@ -387,11 +387,16 @@ export interface CatalogApp {
 
 export const appsApi = {
   catalog: () => apiFetch<CatalogApp[]>('/apps/catalog'),
-  /** Install an app, optionally with environment overrides from the wizard. */
-  install: (appId: string, env?: Record<string, string>) => apiFetch<ContainerInfo>('/apps/install', {
-    method: 'POST',
-    body: JSON.stringify(env && Object.keys(env).length ? { app_id: appId, env } : { app_id: appId }),
-  }),
+  /** Install an app, optionally with env overrides and a pinned image tag. */
+  install: (appId: string, env?: Record<string, string>, imageTag?: string) =>
+    apiFetch<ContainerInfo>('/apps/install', {
+      method: 'POST',
+      body: JSON.stringify({
+        app_id: appId,
+        ...(env && Object.keys(env).length ? { env } : {}),
+        ...(imageTag && imageTag.trim() ? { image_tag: imageTag.trim() } : {}),
+      }),
+    }),
   uninstall: (appId: string) => apiFetch<{ status: string }>(`/apps/${encodeURIComponent(appId)}`, {
     method: 'DELETE',
   }),

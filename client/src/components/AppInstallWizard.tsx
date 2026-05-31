@@ -28,7 +28,7 @@ export default function AppInstallWizard({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   installing: boolean;
-  onConfirm: (env: Record<string, string>) => void;
+  onConfirm: (env: Record<string, string>, imageTag: string) => void;
 }) {
   const fields: ConfigField[] = app?.config_fields ?? [];
   const { data: sdrDevices } = useSdrDevices();
@@ -41,9 +41,12 @@ export default function AppInstallWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app?.id]);
   const [values, setValues] = useState<Record<string, string>>(initial);
+  // Image tag/version to install (defaults to the catalog version, e.g. latest).
+  const [imageTag, setImageTag] = useState<string>(app?.version ?? "latest");
 
   // Reset when the app changes.
   useMemo(() => setValues(initial), [initial]);
+  useMemo(() => setImageTag(app?.version ?? "latest"), [app?.id]);
 
   const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
@@ -58,7 +61,7 @@ export default function AppInstallWizard({
       const v = (values[f.key] ?? "").trim();
       if (v) env[f.key] = v;
     }
-    onConfirm(env);
+    onConfirm(env, (imageTag ?? "").trim());
   };
 
   return (
@@ -112,6 +115,19 @@ export default function AppInstallWizard({
               {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
             </div>
           ))}
+
+          {/* Image version — applies to every app so installs can be pinned. */}
+          <div className="space-y-1.5 border-t border-border/50 pt-4">
+            <label className="text-sm font-medium">Version</label>
+            <Input
+              value={imageTag}
+              onChange={(e) => setImageTag(e.target.value)}
+              placeholder="latest"
+            />
+            <p className="text-xs text-muted-foreground">
+              Image tag to install (e.g. <code>latest</code> or a specific version). Leave as <code>latest</code> for the newest build.
+            </p>
+          </div>
 
           {missingRequired.length > 0 && (
             <div className="text-xs text-amber-600 flex items-center gap-1.5">

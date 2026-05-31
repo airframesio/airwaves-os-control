@@ -91,8 +91,8 @@ export default function AppDetails() {
     }
   };
 
-  const confirmInstall = (env: Record<string, string>) => {
-    installMutation.mutate({ appId: app.id, env }, {
+  const confirmInstall = (env: Record<string, string>, imageTag: string) => {
+    installMutation.mutate({ appId: app.id, env, imageTag }, {
       onSuccess: () => { setWizardOpen(false); toast({ title: "Installing", description: `${app.name} is being installed.` }); },
       onError: (e) => toast({ title: "Install failed", description: String(e), variant: "destructive" }),
     });

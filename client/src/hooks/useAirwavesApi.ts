@@ -173,8 +173,8 @@ export function useAppCatalog() {
 export function useInstallApp() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ appId, env }: { appId: string; env?: Record<string, string> }) =>
-      appsApi.install(appId, env),
+    mutationFn: ({ appId, env, imageTag }: { appId: string; env?: Record<string, string>; imageTag?: string }) =>
+      appsApi.install(appId, env, imageTag),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['containers'] });
       queryClient.invalidateQueries({ queryKey: ['apps', 'catalog'] });
