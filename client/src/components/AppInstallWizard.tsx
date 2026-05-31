@@ -90,6 +90,7 @@ export default function AppInstallWizard({
                 <SdrSelect
                   value={values[f.key] ?? ""}
                   devices={sdrDevices}
+                  format={f.format ?? "soapy"}
                   onChange={(v) => set(f.key, v)}
                 />
               ) : f.kind === "select" ? (
@@ -141,10 +142,13 @@ export default function AppInstallWizard({
 function SdrSelect({
   value,
   devices,
+  format,
   onChange,
 }: {
   value: string;
   devices: SdrDevice[] | undefined;
+  /** "soapy" → "driver=rtlsdr,serial=…"; "serial" → bare serial. */
+  format: string;
   onChange: (v: string) => void;
 }) {
   const list = devices ?? [];
@@ -159,22 +163,24 @@ function SdrSelect({
   const driverFor = (t: string) =>
     t?.toLowerCase().includes("airspy") ? "airspy" : "rtlsdr";
 
+  // Encode the picked device into the env value the app expects: a SoapySDR
+  // device string, or (for readsb/dump978-style apps) the bare serial.
+  const encode = (d: SdrDevice): string => {
+    if (format === "serial") return d.serial ?? "";
+    const driver = driverFor(d.device_type as unknown as string);
+    return d.serial ? `driver=${driver},serial=${d.serial}` : `driver=${driver}`;
+  };
+
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger><SelectValue placeholder="Select an SDR…" /></SelectTrigger>
       <SelectContent>
-        {list.map((d) => {
-          const driver = driverFor(d.device_type as unknown as string);
-          const composed = d.serial
-            ? `driver=${driver},serial=${d.serial}`
-            : `driver=${driver}`;
-          return (
-            <SelectItem key={d.id} value={composed}>
-              {d.name}{d.serial ? ` · ${d.serial}` : ""}
-              {d.assigned_to ? ` (in use by ${d.assigned_to})` : ""}
-            </SelectItem>
-          );
-        })}
+        {list.map((d) => (
+          <SelectItem key={d.id} value={encode(d)}>
+            {d.name}{d.serial ? ` · ${d.serial}` : ""}
+            {d.assigned_to ? ` (in use by ${d.assigned_to})` : ""}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

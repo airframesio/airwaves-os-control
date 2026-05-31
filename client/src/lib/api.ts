@@ -357,6 +357,8 @@ export interface ConfigField {
   help?: string;
   /** "text" | "number" | "select" | "sdr" */
   kind: string;
+  /** For kind "sdr": "soapy" (driver=..,serial=..) or "serial" (bare serial). */
+  format?: string;
   default: string;
   options: string[];
   required: boolean;
