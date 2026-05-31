@@ -8,12 +8,15 @@ import {
   Trash2, Loader2, Radio, Plane, Ship, Satellite, Waves, BarChart3, Map,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 import { useNodeStore } from "@/lib/nodeStore";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useToast } from "@/hooks/use-toast";
 import {
   useAppCatalog, useContainers, useInstallApp, useUninstallApp,
 } from "@/hooks/useAirwavesApi";
+import AppInstallWizard from "@/components/AppInstallWizard";
+import type { CatalogApp } from "@/lib/api";
 
 const appIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   ultrafeeder: Plane, readsb: Plane, acarsdec: Radio, dumpvdl2: Waves,
@@ -32,6 +35,7 @@ export default function AppDetails() {
   const { data: containers } = useContainers();
   const installMutation = useInstallApp();
   const uninstallMutation = useUninstallApp();
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Mock fallback so the page still renders without a device.
   const { data: nodeData } = useNodeStore();
@@ -179,6 +183,14 @@ export default function AppDetails() {
           </CardContent>
         </Card>
       </div>
+
+      <AppInstallWizard
+        app={catalogApp as CatalogApp | null}
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        installing={installing}
+        onConfirm={confirmInstall}
+      />
     </div>
   );
 }

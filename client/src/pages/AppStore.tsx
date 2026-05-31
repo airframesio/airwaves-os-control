@@ -64,10 +64,13 @@ export default function AppStore() {
   // before install; everything else installs directly.
   const startInstall = (appId: string) => {
     const full = (catalogApps ?? []).find((a) => a.id === appId);
-    if (full && ((full.config_fields?.length ?? 0) > 0 || full.requires_sdr)) {
+    // Always open the configuration wizard so every app is configurable before
+    // it's added. The wizard renders an "Install" button even when an app has
+    // no config_fields, so a no-options app still gets a confirm step rather
+    // than installing blind. Fall back to a direct install only if the full
+    // catalog entry isn't available (e.g. mock/offline).
+    if (full) {
       setWizardApp(full);
-    } else if (full) {
-      doInstall(full);
     } else {
       installMutation.mutate({ appId });
     }
