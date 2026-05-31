@@ -77,9 +77,23 @@ export default function AppDetails() {
   const installing = installMutation.isPending;
   const uninstalling = uninstallMutation.isPending;
 
+  // Open the configuration wizard before installing, so the app is configurable
+  // (SDR, frequencies, etc.) when added — matching the App Catalog flow. If the
+  // full catalog entry isn't loaded (offline/mock), install directly.
   const handleInstall = () => {
-    installMutation.mutate({ appId: app.id }, {
-      onSuccess: () => toast({ title: "Installing", description: `${app.name} is being installed.` }),
+    if (catalogApp) {
+      setWizardOpen(true);
+    } else {
+      installMutation.mutate({ appId: app.id }, {
+        onSuccess: () => toast({ title: "Installing", description: `${app.name} is being installed.` }),
+        onError: (e) => toast({ title: "Install failed", description: String(e), variant: "destructive" }),
+      });
+    }
+  };
+
+  const confirmInstall = (env: Record<string, string>) => {
+    installMutation.mutate({ appId: app.id, env }, {
+      onSuccess: () => { setWizardOpen(false); toast({ title: "Installing", description: `${app.name} is being installed.` }); },
       onError: (e) => toast({ title: "Install failed", description: String(e), variant: "destructive" }),
     });
   };
