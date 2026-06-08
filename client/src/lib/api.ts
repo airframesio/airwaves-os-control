@@ -5,19 +5,21 @@
  * Falls back gracefully when the API is unavailable (e.g., development mode).
  */
 
-const API_BASE = '/api/v1';
+const API_BASE = "/api/v1";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...options?.headers,
     },
     ...options,
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }));
+    const error = await response
+      .json()
+      .catch(() => ({ error: response.statusText }));
     throw new Error(error.error || `API error: ${response.status}`);
   }
 
@@ -63,38 +65,49 @@ export interface ExecResponse {
 export interface SystemOverview {
   info: SystemInfo;
   stats: SystemStats;
-  containers: { total: number; running: number; stopped: number; airwaves_apps: number };
+  containers: {
+    total: number;
+    running: number;
+    stopped: number;
+    airwaves_apps: number;
+  };
   hardware: { sdr_devices: number; usb_devices: number };
 }
 
 export const systemApi = {
-  getInfo: () => apiFetch<SystemInfo>('/system/info'),
-  getStats: () => apiFetch<SystemStats>('/system/stats'),
-  getOverview: () => apiFetch<SystemOverview>('/system/overview'),
-  exec: (command: string) => apiFetch<ExecResponse>('/system/exec', {
-    method: 'POST',
-    body: JSON.stringify({ command }),
-  }),
+  getInfo: () => apiFetch<SystemInfo>("/system/info"),
+  getStats: () => apiFetch<SystemStats>("/system/stats"),
+  getOverview: () => apiFetch<SystemOverview>("/system/overview"),
+  exec: (command: string) =>
+    apiFetch<ExecResponse>("/system/exec", {
+      method: "POST",
+      body: JSON.stringify({ command }),
+    }),
   // Privileged host control
-  setHostname: (hostname: string) => apiFetch<{ status: string; hostname: string }>('/system/hostname', {
-    method: 'POST',
-    body: JSON.stringify({ hostname }),
-  }),
-  reboot: () => apiFetch<{ status: string }>('/system/reboot', { method: 'POST' }),
-  shutdown: () => apiFetch<{ status: string }>('/system/shutdown', { method: 'POST' }),
-  setTimezone: (timezone: string) => apiFetch<{ status: string; timezone: string }>('/system/timezone', {
-    method: 'POST',
-    body: JSON.stringify({ timezone }),
-  }),
-  restartService: (service: string) => apiFetch<{ status: string; service: string }>('/system/service/restart', {
-    method: 'POST',
-    body: JSON.stringify({ service }),
-  }),
+  setHostname: (hostname: string) =>
+    apiFetch<{ status: string; hostname: string }>("/system/hostname", {
+      method: "POST",
+      body: JSON.stringify({ hostname }),
+    }),
+  reboot: () =>
+    apiFetch<{ status: string }>("/system/reboot", { method: "POST" }),
+  shutdown: () =>
+    apiFetch<{ status: string }>("/system/shutdown", { method: "POST" }),
+  setTimezone: (timezone: string) =>
+    apiFetch<{ status: string; timezone: string }>("/system/timezone", {
+      method: "POST",
+      body: JSON.stringify({ timezone }),
+    }),
+  restartService: (service: string) =>
+    apiFetch<{ status: string; service: string }>("/system/service/restart", {
+      method: "POST",
+      body: JSON.stringify({ service }),
+    }),
 };
 
 // ---------- System Updates ----------
 
-export type Severity = 'nice-to-have' | 'recommended' | 'required';
+export type Severity = "nice-to-have" | "recommended" | "required";
 
 export interface InstalledVersions {
   os_version: string;
@@ -107,12 +120,12 @@ export interface InstalledVersions {
 }
 
 export interface ComponentUpdate {
-  name: string;            // manager | gateway | compose | catalog
+  name: string; // manager | gateway | compose | catalog
   installed: string;
   available: string;
   update_available: boolean;
   severity: Severity;
-  kind: string;            // image | file | os
+  kind: string; // image | file | os
 }
 
 export interface MajorUpgrade {
@@ -135,7 +148,7 @@ export interface UpdateStatus {
 }
 
 export interface UpdateProgress {
-  state: string;           // idle | running | success | failed | rolled_back
+  state: string; // idle | running | success | failed | rolled_back
   phase: string;
   percent: number;
   log: string[];
@@ -146,22 +159,26 @@ export interface UpdateProgress {
 }
 
 export const updateApi = {
-  getStatus: () => apiFetch<UpdateStatus>('/system/update/status'),
-  check: () => apiFetch<UpdateStatus>('/system/update/check', { method: 'POST' }),
-  apply: (components: string[]) => apiFetch<{ status: string }>('/system/update/apply', {
-    method: 'POST',
-    body: JSON.stringify({ components }),
-  }),
-  getProgress: () => apiFetch<UpdateProgress>('/system/update/progress'),
-  setChannel: (channel: string) => apiFetch<UpdateStatus>('/system/update/channel', {
-    method: 'POST',
-    body: JSON.stringify({ channel }),
-  }),
+  getStatus: () => apiFetch<UpdateStatus>("/system/update/status"),
+  check: () =>
+    apiFetch<UpdateStatus>("/system/update/check", { method: "POST" }),
+  apply: (components: string[]) =>
+    apiFetch<{ status: string }>("/system/update/apply", {
+      method: "POST",
+      body: JSON.stringify({ components }),
+    }),
+  getProgress: () => apiFetch<UpdateProgress>("/system/update/progress"),
+  setChannel: (channel: string) =>
+    apiFetch<UpdateStatus>("/system/update/channel", {
+      method: "POST",
+      body: JSON.stringify({ channel }),
+    }),
   // Force-refresh (repair) the system at its current release — no version bump.
-  refresh: () => apiFetch<{ status: string }>('/system/update/refresh', { method: 'POST' }),
+  refresh: () =>
+    apiFetch<{ status: string }>("/system/update/refresh", { method: "POST" }),
 };
 
-export const UPDATE_CHANNELS = ['stable', 'beta', 'dev'] as const;
+export const UPDATE_CHANNELS = ["stable", "beta", "dev"] as const;
 
 // ---------- Containers ----------
 
@@ -185,15 +202,34 @@ export interface ContainerStats {
   cpu_percent: number;
   memory_used: number;
   memory_limit: number;
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+  block_read_bytes: number;
+  block_write_bytes: number;
+  pids: number;
 }
 
 export const containersApi = {
-  list: () => apiFetch<ContainerInfo[]>('/containers'),
-  stats: () => apiFetch<ContainerStats[]>('/containers/stats'),
-  start: (id: string) => apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/start`, { method: 'POST' }),
-  stop: (id: string) => apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/stop`, { method: 'POST' }),
-  restart: (id: string) => apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/restart`, { method: 'POST' }),
-  logs: (id: string, tail = 100) => apiFetch<{ id: string; logs: string }>(`/containers/${encodeURIComponent(id)}/logs?tail=${tail}`),
+  list: () => apiFetch<ContainerInfo[]>("/containers"),
+  stats: () => apiFetch<ContainerStats[]>("/containers/stats"),
+  start: (id: string) =>
+    apiFetch<{ status: string }>(
+      `/containers/${encodeURIComponent(id)}/start`,
+      { method: "POST" },
+    ),
+  stop: (id: string) =>
+    apiFetch<{ status: string }>(`/containers/${encodeURIComponent(id)}/stop`, {
+      method: "POST",
+    }),
+  restart: (id: string) =>
+    apiFetch<{ status: string }>(
+      `/containers/${encodeURIComponent(id)}/restart`,
+      { method: "POST" },
+    ),
+  logs: (id: string, tail = 100) =>
+    apiFetch<{ id: string; logs: string }>(
+      `/containers/${encodeURIComponent(id)}/logs?tail=${tail}`,
+    ),
 };
 
 // ---------- Hardware ----------
@@ -220,8 +256,8 @@ export interface SdrDevice {
 }
 
 export const hardwareApi = {
-  listDevices: () => apiFetch<UsbDevice[]>('/hardware/devices'),
-  listSdr: () => apiFetch<SdrDevice[]>('/hardware/sdr'),
+  listDevices: () => apiFetch<UsbDevice[]>("/hardware/devices"),
+  listSdr: () => apiFetch<SdrDevice[]>("/hardware/sdr"),
 };
 
 // ---------- Network ----------
@@ -235,7 +271,7 @@ export interface NetworkInterface {
 }
 
 export const networkApi = {
-  listInterfaces: () => apiFetch<NetworkInterface[]>('/network/interfaces'),
+  listInterfaces: () => apiFetch<NetworkInterface[]>("/network/interfaces"),
 };
 
 // ---------- WiFi ----------
@@ -257,12 +293,13 @@ export interface WifiStatus {
 }
 
 export const wifiApi = {
-  getStatus: () => apiFetch<WifiStatus>('/wifi/status'),
-  scan: () => apiFetch<WifiNetwork[]>('/wifi/scan'),
-  connect: (ssid: string, password?: string) => apiFetch<{ status: string }>('/wifi/connect', {
-    method: 'POST',
-    body: JSON.stringify({ ssid, password }),
-  }),
+  getStatus: () => apiFetch<WifiStatus>("/wifi/status"),
+  scan: () => apiFetch<WifiNetwork[]>("/wifi/scan"),
+  connect: (ssid: string, password?: string) =>
+    apiFetch<{ status: string }>("/wifi/connect", {
+      method: "POST",
+      body: JSON.stringify({ ssid, password }),
+    }),
 };
 
 // ---------- App Proxy ----------
@@ -276,8 +313,11 @@ export interface AppProxy {
 }
 
 export const proxyApi = {
-  list: () => apiFetch<AppProxy[]>('/proxy/list'),
-  generate: () => apiFetch<{ status: string; app_count: number }>('/proxy/generate', { method: 'POST' }),
+  list: () => apiFetch<AppProxy[]>("/proxy/list"),
+  generate: () =>
+    apiFetch<{ status: string; app_count: number }>("/proxy/generate", {
+      method: "POST",
+    }),
 };
 
 // ---------- Config ----------
@@ -301,7 +341,7 @@ export interface AirwavesConfig {
   services: Record<string, { enabled: boolean }>;
   aggregators: Record<string, unknown>;
   apps: Record<string, unknown>;
-  preferences?: { theme?: 'light' | 'dark' | 'system'; [k: string]: unknown };
+  preferences?: { theme?: "light" | "dark" | "system"; [k: string]: unknown };
 }
 
 export interface SystemBackup {
@@ -312,16 +352,18 @@ export interface SystemBackup {
 }
 
 export const configApi = {
-  get: () => apiFetch<AirwavesConfig>('/config'),
-  update: (config: AirwavesConfig) => apiFetch<{ status: string }>('/config', {
-    method: 'PUT',
-    body: JSON.stringify(config),
-  }),
-  backup: () => apiFetch<SystemBackup>('/config/backup'),
-  restore: (backup: SystemBackup) => apiFetch<{ status: string }>('/config/restore', {
-    method: 'POST',
-    body: JSON.stringify(backup),
-  }),
+  get: () => apiFetch<AirwavesConfig>("/config"),
+  update: (config: AirwavesConfig) =>
+    apiFetch<{ status: string }>("/config", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
+  backup: () => apiFetch<SystemBackup>("/config/backup"),
+  restore: (backup: SystemBackup) =>
+    apiFetch<{ status: string }>("/config/restore", {
+      method: "POST",
+      body: JSON.stringify(backup),
+    }),
 };
 
 // ---------- Feeds ----------
@@ -339,14 +381,16 @@ export interface FeedConfig {
 }
 
 export const feedsApi = {
-  list: () => apiFetch<FeedConfig[]>('/feeds'),
-  upsert: (feed: FeedConfig) => apiFetch<{ status: string }>('/feeds', {
-    method: 'POST',
-    body: JSON.stringify(feed),
-  }),
-  delete: (id: string) => apiFetch<{ status: string }>(`/feeds/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  }),
+  list: () => apiFetch<FeedConfig[]>("/feeds"),
+  upsert: (feed: FeedConfig) =>
+    apiFetch<{ status: string }>("/feeds", {
+      method: "POST",
+      body: JSON.stringify(feed),
+    }),
+  delete: (id: string) =>
+    apiFetch<{ status: string }>(`/feeds/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
 };
 
 // ---------- App Catalog ----------
@@ -368,6 +412,7 @@ export interface CatalogApp {
   id: string;
   name: string;
   description: string;
+  long_description?: string;
   version: string;
   category: string;
   image: string;
@@ -383,23 +428,65 @@ export interface CatalogApp {
   env?: Record<string, string>;
   /** Fields the pre-install wizard should prompt for. */
   config_fields?: ConfigField[];
+  /** Human install guidance shown before confirmation. */
+  install_notes?: string[];
+  /** Data/UI capabilities produced by this app. */
+  outputs?: Array<{
+    kind: "messages" | "tracking" | "audio" | "web" | "metrics" | "raw";
+    label: string;
+    description?: string;
+    protocol?: string;
+    port?: number;
+  }>;
+  /** Optional feed templates offered during install. */
+  suggested_feeds?: Array<{
+    id: string;
+    name: string;
+    feed_type: string;
+    protocol: string;
+    host: string;
+    port: number;
+    enabled?: boolean;
+    description?: string;
+  }>;
+  /** First-class internal pages that are useful only when the app is installed. */
+  value_page?: {
+    label: string;
+    path: string;
+    description?: string;
+  };
+  /** Built-in control-app features unlocked/provided by this app. */
+  bundled_features?: Array<{
+    id: string;
+    kind: "control_page" | "nav_item" | "feed_template";
+    label: string;
+    path?: string;
+    description?: string;
+    entrypoint?: string;
+  }>;
+  /** Links surfaced on the app detail page. */
+  links?: Array<{
+    label: string;
+    url: string;
+  }>;
 }
 
 export const appsApi = {
-  catalog: () => apiFetch<CatalogApp[]>('/apps/catalog'),
+  catalog: () => apiFetch<CatalogApp[]>("/apps/catalog"),
   /** Install an app, optionally with env overrides and a pinned image tag. */
   install: (appId: string, env?: Record<string, string>, imageTag?: string) =>
-    apiFetch<ContainerInfo>('/apps/install', {
-      method: 'POST',
+    apiFetch<ContainerInfo>("/apps/install", {
+      method: "POST",
       body: JSON.stringify({
         app_id: appId,
         ...(env && Object.keys(env).length ? { env } : {}),
         ...(imageTag && imageTag.trim() ? { image_tag: imageTag.trim() } : {}),
       }),
     }),
-  uninstall: (appId: string) => apiFetch<{ status: string }>(`/apps/${encodeURIComponent(appId)}`, {
-    method: 'DELETE',
-  }),
+  uninstall: (appId: string) =>
+    apiFetch<{ status: string }>(`/apps/${encodeURIComponent(appId)}`, {
+      method: "DELETE",
+    }),
 };
 
 // ---------- Tracking ----------
@@ -419,11 +506,16 @@ export interface Vehicle {
 export interface TrackingResponse {
   vehicles: Vehicle[];
   station: { lat: number; lng: number };
-  sources: Array<{ name: string; source_type: string; vehicle_count: number; available: boolean }>;
+  sources: Array<{
+    name: string;
+    source_type: string;
+    vehicle_count: number;
+    available: boolean;
+  }>;
 }
 
 export const trackingApi = {
-  getVehicles: () => apiFetch<TrackingResponse>('/tracking/vehicles'),
+  getVehicles: () => apiFetch<TrackingResponse>("/tracking/vehicles"),
 };
 
 // ---------- Message Forwarding ----------
@@ -444,7 +536,7 @@ export interface ForwardingConfig {
   enabled: boolean;
   target_ip: string;
   target_port: number;
-  mode: 'all' | 'selective' | 'disabled';
+  mode: "all" | "selective" | "disabled";
   decoders: string[];
 }
 
@@ -458,13 +550,14 @@ export interface ForwardingStats {
 }
 
 export const forwardingApi = {
-  getMessages: () => apiFetch<DecodedMessage[]>('/messages'),
-  getConfig: () => apiFetch<ForwardingConfig>('/forwarding/config'),
-  setConfig: (config: ForwardingConfig) => apiFetch<{ status: string }>('/forwarding/config', {
-    method: 'PUT',
-    body: JSON.stringify(config),
-  }),
-  getStats: () => apiFetch<ForwardingStats>('/forwarding/stats'),
+  getMessages: () => apiFetch<DecodedMessage[]>("/messages"),
+  getConfig: () => apiFetch<ForwardingConfig>("/forwarding/config"),
+  setConfig: (config: ForwardingConfig) =>
+    apiFetch<{ status: string }>("/forwarding/config", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
+  getStats: () => apiFetch<ForwardingStats>("/forwarding/stats"),
 };
 
 // ---------- Fleet ----------
@@ -494,29 +587,37 @@ export interface DiscoveredNode {
 }
 
 export const fleetApi = {
-  getStatus: () => apiFetch<FleetStatus>('/fleet'),
-  discover: () => apiFetch<DiscoveredNode[]>('/fleet/discover'),
-  pair: (ip: string, name?: string) => apiFetch<FleetNode>('/fleet/pair', {
-    method: 'POST',
-    body: JSON.stringify({ ip, name }),
-  }),
-  unpair: (id: string) => apiFetch<{ status: string }>(`/fleet/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  }),
+  getStatus: () => apiFetch<FleetStatus>("/fleet"),
+  discover: () => apiFetch<DiscoveredNode[]>("/fleet/discover"),
+  pair: (ip: string, name?: string) =>
+    apiFetch<FleetNode>("/fleet/pair", {
+      method: "POST",
+      body: JSON.stringify({ ip, name }),
+    }),
+  unpair: (id: string) =>
+    apiFetch<{ status: string }>(`/fleet/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
 };
 
 // ---------- WebSocket ----------
 
 export type WsEvent =
-  | { type: 'ContainerStatusChanged'; data: { id: string; name: string; status: string } }
-  | { type: 'SystemStats'; data: SystemStats }
-  | { type: 'SdrDeviceChanged'; data: { action: string; device_id: string } }
-  | { type: 'AppInstalled'; data: { app_id: string; container_id: string } }
-  | { type: 'AppUninstalled'; data: { app_id: string } }
-  | { type: 'UpdateAvailable'; data: { severity: Severity; os_version: string | null } };
+  | {
+      type: "ContainerStatusChanged";
+      data: { id: string; name: string; status: string };
+    }
+  | { type: "SystemStats"; data: SystemStats }
+  | { type: "SdrDeviceChanged"; data: { action: string; device_id: string } }
+  | { type: "AppInstalled"; data: { app_id: string; container_id: string } }
+  | { type: "AppUninstalled"; data: { app_id: string } }
+  | {
+      type: "UpdateAvailable";
+      data: { severity: Severity; os_version: string | null };
+    };
 
 export function connectWs(onEvent: (event: WsEvent) => void): WebSocket | null {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${protocol}//${window.location.host}/ws/events`;
 
   try {

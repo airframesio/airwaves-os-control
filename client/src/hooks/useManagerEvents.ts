@@ -5,10 +5,10 @@
  * Automatically reconnects on disconnect. No-ops when API is unavailable.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useApiStatus } from './useApiStatus';
-import type { WsEvent, SystemStats } from '@/lib/api';
+import { useEffect, useRef, useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useApiStatus } from "./useApiStatus";
+import type { WsEvent, SystemStats } from "@/lib/api";
 
 export interface ManagerEventState {
   connected: boolean;
@@ -20,7 +20,7 @@ export function useManagerEvents(): ManagerEventState {
   const apiAvailable = useApiStatus();
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [connected, setConnected] = useState(false);
   const [liveStats, setLiveStats] = useState<SystemStats | null>(null);
   const [lastContainerEvent, setLastContainerEvent] = useState<{
@@ -32,7 +32,7 @@ export function useManagerEvents(): ManagerEventState {
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const url = `${protocol}//${window.location.host}/ws/events`;
 
     try {
@@ -47,33 +47,33 @@ export function useManagerEvents(): ManagerEventState {
           const event: WsEvent = JSON.parse(msg.data);
 
           switch (event.type) {
-            case 'SystemStats':
+            case "SystemStats":
               setLiveStats(event.data);
               break;
 
-            case 'ContainerStatusChanged':
+            case "ContainerStatusChanged":
               setLastContainerEvent(event.data);
               // Invalidate container queries so the UI refreshes
-              queryClient.invalidateQueries({ queryKey: ['containers'] });
+              queryClient.invalidateQueries({ queryKey: ["containers"] });
               break;
 
-            case 'AppInstalled':
-              queryClient.invalidateQueries({ queryKey: ['containers'] });
-              queryClient.invalidateQueries({ queryKey: ['apps', 'catalog'] });
+            case "AppInstalled":
+              queryClient.invalidateQueries({ queryKey: ["containers"] });
+              queryClient.invalidateQueries({ queryKey: ["apps", "catalog"] });
               break;
 
-            case 'AppUninstalled':
-              queryClient.invalidateQueries({ queryKey: ['containers'] });
+            case "AppUninstalled":
+              queryClient.invalidateQueries({ queryKey: ["containers"] });
               break;
 
-            case 'SdrDeviceChanged':
-              queryClient.invalidateQueries({ queryKey: ['hardware', 'sdr'] });
+            case "SdrDeviceChanged":
+              queryClient.invalidateQueries({ queryKey: ["hardware", "sdr"] });
               break;
 
-            case 'UpdateAvailable':
+            case "UpdateAvailable":
               // Refresh the update status everywhere (sidebar indicator, page)
               // without a reload when the manager's background check finds one.
-              queryClient.invalidateQueries({ queryKey: ['update'] });
+              queryClient.invalidateQueries({ queryKey: ["update"] });
               break;
           }
         } catch {
@@ -105,7 +105,7 @@ export function useManagerEvents(): ManagerEventState {
     }
 
     return () => {
-      clearTimeout(reconnectTimer.current);
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
     };
   }, [apiAvailable, connect]);

@@ -1,436 +1,471 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMemo, type ComponentType } from "react";
+import { Link } from "wouter";
+import {
+  Activity,
+  Cast,
+  ExternalLink,
+  FileText,
+  Headphones,
+  Network,
+  Radio as RadioIcon,
+  Settings,
+  Signal,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Radio as RadioIcon, Play, Pause, Download, Settings, Music, Mic2, Save, Trash2, Volume2, Cast, Activity } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { useContainers } from "@/hooks/useAirwavesApi";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  useAppCatalog,
+  useConfig,
+  useContainerLogs,
+  useContainers,
+  useFeeds,
+} from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { cn } from "@/lib/utils";
+
+const AIRBAND_IDS = new Set(["rtl-airband", "rtl_airband"]);
+
+function normalizeAppId(id: string) {
+  return id.replace(/^airwaves-/, "").replace(/^\//, "");
+}
+
+function configAppsById(config: any): Map<string, any> {
+  const raw = config?.apps;
+  if (Array.isArray(raw)) return new Map(raw.map((app) => [app.id, app]));
+  if (raw && typeof raw === "object") return new Map(Object.entries(raw));
+  return new Map();
+}
+
+function splitList(value?: string) {
+  return (value ?? "")
+    .split(/[;,]/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
 
 export default function RtlAirband() {
   const apiAvailable = useApiStatus();
   const { data: containers } = useContainers();
+  const { data: catalog } = useAppCatalog();
+  const { data: config } = useConfig();
+  const { data: feeds } = useFeeds();
 
-  // Check if rtl_airband container is running
-  const airbandContainer = containers?.find(c => c.name.includes('airband'));
-  const isAirbandRunning = airbandContainer?.state === 'running';
-  const airbandPort = airbandContainer?.ports?.find(p => p.host_port)?.host_port ?? 8000;
-  const [channels, setChannels] = useState([
-    { id: 1, name: "Tower (Primary)", freq: "118.700", squelch: 28, gain: 42, status: "active", scanning: false },
-    { id: 2, name: "Ground", freq: "121.900", squelch: 25, gain: 40, status: "active", scanning: false },
-    { id: 3, name: "Approach", freq: "124.500", squelch: 30, gain: 45, status: "idle", scanning: true },
-    { id: 4, name: "Departure", freq: "125.300", squelch: 30, gain: 45, status: "idle", scanning: true },
-  ]);
+  const airbandCatalog = catalog?.find((app) => AIRBAND_IDS.has(app.id));
+  const airbandContainer = containers?.find((container) =>
+    AIRBAND_IDS.has(normalizeAppId(container.name)),
+  );
+  const installedRecords = configAppsById(config);
+  const installedRecord =
+    installedRecords.get("rtl-airband") ?? installedRecords.get("rtl_airband");
+  const env: Record<string, string> =
+    installedRecord?.env ?? airbandCatalog?.env ?? {};
 
-  const [recordings, setRecordings] = useState([
-    { id: 1, name: "TWR_118.700_2026-01-07_14-30.mp3", duration: "12:45", size: "14.6 MB", date: "2026-01-07 14:30" },
-    { id: 2, name: "GND_121.900_2026-01-07_14-15.mp3", duration: "08:20", size: "9.5 MB", date: "2026-01-07 14:15" },
-    { id: 3, name: "APP_124.500_2026-01-07_13-55.mp3", duration: "24:10", size: "27.8 MB", date: "2026-01-07 13:55" },
-  ]);
+  const isInstalled = !!airbandContainer || !apiAvailable;
+  const isRunning = airbandContainer?.state === "running" || !apiAvailable;
+  const hostPort =
+    airbandContainer?.ports?.find((port) => port.host_port)?.host_port ??
+    airbandCatalog?.ports?.find((port) => port.host_port)?.host_port ??
+    8000;
+  const streamBaseUrl =
+    apiAvailable && airbandContainer
+      ? `${window.location.protocol}//${window.location.hostname}:${hostPort}`
+      : "http://stream.airwaves.local:8000";
+  const containerName =
+    airbandContainer?.name.replace(/^\//, "") ?? "airwaves-rtl-airband";
+  const { data: logData } = useContainerLogs(
+    apiAvailable && airbandContainer ? containerName : "",
+    300,
+  );
+  const logLines = (logData?.logs ?? "")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
 
-  const streamBaseUrl = apiAvailable && isAirbandRunning
-    ? `http://${window.location.hostname}:${airbandPort}`
-    : "http://stream.airwaves.local:8000";
+  const assignedSdr =
+    env.RTLSDRAIRBAND_SERIAL || env.SDR_SERIAL || env.DEVICE || "";
+  const gain = env.RTLSDRAIRBAND_GAIN || env.GAIN || "catalog default";
+  const timezone = env.TZ || "UTC";
+  const configuredFrequencies = splitList(
+    env.RTLSDRAIRBAND_CHANNELS || env.RTLSDRAIRBAND_FREQUENCIES,
+  );
+  const linkedFeeds = (feeds ?? []).filter((feed) =>
+    AIRBAND_IDS.has(feed.app_id ?? ""),
+  );
 
-  const [streams, setStreams] = useState([
-    { id: 1, name: "Tower Feed", mount: "/tower", listeners: 45, status: "live", url: `${streamBaseUrl}/tower` },
-    { id: 2, name: "Ground Feed", mount: "/ground", listeners: 12, status: "live", url: `${streamBaseUrl}/ground` },
-  ]);
+  const streams = useMemo(() => {
+    const mountValues = splitList(
+      env.RTLSDRAIRBAND_MOUNTS || env.ICECAST_MOUNT,
+    );
+    const mounts = mountValues.length ? mountValues : [""];
+    return mounts.map((mount, index) => ({
+      id: `${mount || "root"}-${index}`,
+      name: mount ? mount.replace(/^\//, "") : "Primary rtl_airband stream",
+      mount: mount || "/",
+      url: mount
+        ? `${streamBaseUrl}${mount.startsWith("/") ? mount : `/${mount}`}`
+        : streamBaseUrl,
+      status: isRunning ? "live" : "offline",
+    }));
+  }, [env.ICECAST_MOUNT, env.RTLSDRAIRBAND_MOUNTS, isRunning, streamBaseUrl]);
 
-  const [activeTab, setActiveTab] = useState("monitor");
-  const [editingChannel, setEditingChannel] = useState<any>(null);
-
-  const handleEditChannel = (channel: any) => {
-    setEditingChannel({ ...channel });
-  };
-
-  const handleSaveChannel = () => {
-    if (editingChannel) {
-      if (editingChannel.id === -1) {
-        // Create new channel
-        const newId = Math.max(...channels.map(c => c.id), 0) + 1;
-        setChannels(prev => [...prev, { ...editingChannel, id: newId }]);
-      } else {
-        // Update existing channel
-        setChannels(prev => prev.map(c => c.id === editingChannel.id ? editingChannel : c));
-      }
-      setEditingChannel(null);
-    }
-  };
-
-  const handleAddChannel = () => {
-    setEditingChannel({
-      id: -1,
-      name: "New Channel",
-      freq: "118.000",
-      squelch: 30,
-      gain: 40,
-      status: "idle",
-      scanning: false
-    });
-  };
+  if (apiAvailable && !isInstalled) {
+    return (
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <Card className="max-w-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RadioIcon className="h-5 w-5 text-primary" />
+              Airband is not installed
+            </CardTitle>
+            <CardDescription>
+              The Airband page is bundled with apps that provide the Airband
+              control feature. Install rtl_airband to unlock this page in the
+              navigation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/store/rtl-airband">
+              <Button>Install rtl_airband</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <RadioIcon className="w-8 h-8 text-primary" />
+          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+            <RadioIcon className="h-8 w-8 text-primary" />
             Airband
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Multichannel AM/FM receiver for air traffic monitoring
+          <p className="mt-1 max-w-3xl text-muted-foreground">
+            Bundled control page provided by rtl_airband. Monitor service
+            status, stream endpoints, install-time settings, linked feeds, and
+            live container logs.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="h-9 px-4 gap-2 text-sm font-normal bg-green-500/10 text-green-500 border-green-500/20">
-             <Activity className="w-4 h-4" />
-             Service Running
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-9 gap-2 px-4 text-sm font-normal",
+              isRunning
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                : "border-amber-500/20 bg-amber-500/10 text-amber-500",
+            )}
+          >
+            <Activity className="h-4 w-4" />
+            {isRunning ? "rtl_airband running" : "rtl_airband stopped"}
           </Badge>
-          <Button variant="outline" onClick={() => setActiveTab("config")}>
-            <Settings className="w-4 h-4 mr-2" />
-            Global Config
-          </Button>
+          <a href={streamBaseUrl} target="_blank" rel="noreferrer">
+            <Button variant="outline">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open Stream
+            </Button>
+          </a>
         </div>
       </div>
 
-      <Tabs defaultValue="monitor" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          icon={Signal}
+          label="Container"
+          value={airbandContainer?.state ?? "demo"}
+          detail={containerName}
+        />
+        <SummaryCard
+          icon={Network}
+          label="Stream endpoint"
+          value={`:${hostPort}`}
+          detail={streamBaseUrl}
+        />
+        <SummaryCard
+          icon={RadioIcon}
+          label="Assigned SDR"
+          value={assignedSdr || "Auto-select"}
+          detail="Install-time radio binding"
+        />
+        <SummaryCard
+          icon={Settings}
+          label="Gain"
+          value={gain}
+          detail={`Timezone ${timezone}`}
+        />
+      </div>
+
+      <Tabs defaultValue="streams" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="monitor" className="gap-2"><Mic2 className="w-4 h-4" /> Monitor & Control</TabsTrigger>
-          <TabsTrigger value="streams" className="gap-2"><Cast className="w-4 h-4" /> Icecast Streams</TabsTrigger>
-          <TabsTrigger value="recordings" className="gap-2"><Music className="w-4 h-4" /> Recordings</TabsTrigger>
-          <TabsTrigger value="config" className="gap-2"><Settings className="w-4 h-4" /> Configuration</TabsTrigger>
+          <TabsTrigger value="streams" className="gap-2">
+            <Cast className="h-4 w-4" /> Streams
+          </TabsTrigger>
+          <TabsTrigger value="config" className="gap-2">
+            <Settings className="h-4 w-4" /> Configuration
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="gap-2">
+            <FileText className="h-4 w-4" /> Logs
+          </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="monitor" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-            {channels.map(channel => (
-              <Card key={channel.id} className="bg-card/50 backdrop-blur-sm border-border/50">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{channel.name}</CardTitle>
-                      <CardDescription className="font-mono text-primary mt-1">{channel.freq} MHz</CardDescription>
-                    </div>
-                    <Badge variant={channel.status === 'active' ? 'default' : 'secondary'}>
-                      {channel.status.toUpperCase()}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Squelch ({channel.squelch}dB)</span>
-                      </div>
-                      <Slider defaultValue={[channel.squelch]} max={100} step={1} className="h-2" />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Gain ({channel.gain}dB)</span>
-                      </div>
-                      <Slider defaultValue={[channel.gain]} max={50} step={1} className="h-2" />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                       <div className="flex items-center space-x-2">
-                          <Switch id={`scan-${channel.id}`} checked={channel.scanning} />
-                          <Label htmlFor={`scan-${channel.id}`}>Scanning Mode</Label>
-                       </div>
-                       <div className="flex gap-2">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0"><Volume2 className="w-4 h-4" /></Button>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleEditChannel(channel)}>
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Visualizer Placeholder */}
-                  <div className="h-16 bg-muted/30 rounded-md border border-border/50 flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center gap-0.5">
-                       {Array.from({ length: 40 }).map((_, i) => (
-                          <div 
-                            key={i} 
-                            className={`w-1 rounded-full bg-primary/40 transition-all duration-75`}
-                            style={{ 
-                              height: channel.status === 'active' ? `${Math.random() * 80 + 20}%` : '4px',
-                              opacity: channel.status === 'active' ? 1 : 0.3
-                            }}
-                          ></div>
-                       ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
 
         <TabsContent value="streams" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Active Icecast Streams</CardTitle>
-              <CardDescription>Live audio feeds broadcasting to external clients</CardDescription>
+              <CardTitle>Live Audio Streams</CardTitle>
+              <CardDescription>
+                Stream endpoints exposed by the rtl_airband container. Mount
+                names come from installed environment values when available.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Stream Name</TableHead>
-                    <TableHead>Mount Point</TableHead>
+                    <TableHead>Stream</TableHead>
+                    <TableHead>Mount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Listeners</TableHead>
+                    <TableHead>URL</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {streams.map(stream => (
+                  {streams.map((stream) => (
                     <TableRow key={stream.id}>
-                      <TableCell className="font-medium">{stream.name}</TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">{stream.mount}</TableCell>
+                      <TableCell className="font-medium">
+                        {stream.name}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {stream.mount}
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                          {stream.status.toUpperCase()}
+                        <Badge
+                          variant="outline"
+                          className={
+                            stream.status === "live"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                              : ""
+                          }
+                        >
+                          {stream.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{stream.listeners}</TableCell>
+                      <TableCell className="max-w-[24rem] truncate font-mono text-xs text-muted-foreground">
+                        {stream.url}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="gap-2">
-                          <Play className="w-4 h-4" /> Listen
-                        </Button>
+                        <a href={stream.url} target="_blank" rel="noreferrer">
+                          <Button variant="ghost" size="sm">
+                            <Headphones className="mr-2 h-4 w-4" />
+                            Listen
+                          </Button>
+                        </a>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="recordings" className="space-y-4">
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Download All
-            </Button>
-            <Button variant="destructive" size="sm">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear History
-            </Button>
-          </div>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Filename</TableHead>
-                    <TableHead>Date Recorded</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recordings.map(rec => (
-                    <TableRow key={rec.id}>
-                      <TableCell className="font-mono text-sm">{rec.name}</TableCell>
-                      <TableCell>{rec.date}</TableCell>
-                      <TableCell>{rec.duration}</TableCell>
-                      <TableCell>{rec.size}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Play className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="config" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Channel Configuration</CardTitle>
-              <CardDescription>Manage monitored frequencies and channel settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Channel Name</TableHead>
-                    <TableHead>Frequency (MHz)</TableHead>
-                    <TableHead>Gain</TableHead>
-                    <TableHead>Squelch</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {channels.map((channel) => (
-                    <TableRow key={channel.id}>
-                      <TableCell className="font-medium">{channel.name}</TableCell>
-                      <TableCell>{channel.freq}</TableCell>
-                      <TableCell>{channel.gain}</TableCell>
-                      <TableCell>{channel.squelch}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditChannel(channel)}>
-                          <Settings className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Button className="w-full" onClick={handleAddChannel}>Add New Channel</Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Icecast Configuration</CardTitle>
-              <CardDescription>Server settings for live audio streaming</CardDescription>
+              <CardTitle>Linked Feed Records</CardTitle>
+              <CardDescription>
+                Feed records connected to rtl_airband. These are managed from
+                the install wizard or Feeds page.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Server Address</Label>
-                  <Input defaultValue="localhost" />
+            <CardContent>
+              {linkedFeeds.length ? (
+                <div className="grid gap-2">
+                  {linkedFeeds.map((feed) => (
+                    <div
+                      key={feed.id}
+                      className="rounded-md border border-border/60 bg-muted/20 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">{feed.name}</span>
+                        <Badge variant={feed.enabled ? "default" : "secondary"}>
+                          {feed.enabled ? "Enabled" : "Disabled"}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-muted-foreground">
+                        {feed.protocol.toUpperCase()} {feed.host}:{feed.port}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label>Port</Label>
-                  <Input defaultValue="8000" />
+              ) : (
+                <div className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+                  No Airband feed records exist yet. Add one from the Feeds page
+                  if you forward or publish this stream externally.
                 </div>
-                <div className="space-y-2">
-                  <Label>Source Password</Label>
-                  <Input type="password" defaultValue="hackme" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Admin Password</Label>
-                  <Input type="password" defaultValue="hackme" />
-                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="config" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Installed rtl_airband Configuration</CardTitle>
+              <CardDescription>
+                Values recorded by the app install flow and passed to the
+                container. Editing these requires reinstalling or adding a
+                manager-side config endpoint.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 text-sm">
+                <ConfigRow
+                  label="SDR serial"
+                  value={assignedSdr || "Auto-select"}
+                />
+                <ConfigRow label="Gain" value={gain} />
+                <ConfigRow label="Timezone" value={timezone} />
+                <ConfigRow
+                  label="Image"
+                  value={
+                    airbandContainer?.image ?? airbandCatalog?.image ?? "-"
+                  }
+                />
+                <ConfigRow label="Container" value={containerName} />
               </div>
-              <Button>
-                <Save className="w-4 h-4 mr-2" /> Save Settings
-              </Button>
+
+              <Separator />
+
+              <div>
+                <h3 className="font-semibold">Configured Frequencies</h3>
+                {configuredFrequencies.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {configuredFrequencies.map((frequency) => (
+                      <Badge
+                        key={frequency}
+                        variant="outline"
+                        className="font-mono"
+                      >
+                        {frequency} MHz
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    No channel/frequency list is exposed in the current catalog
+                    defaults. The container will use its bundled rtl_airband
+                    configuration unless the install metadata provides channel
+                    environment values.
+                  </p>
+                )}
+              </div>
+
+              {airbandCatalog?.config_fields?.length ? (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold">Catalog Install Fields</h3>
+                    <div className="mt-3 grid gap-2 text-sm">
+                      {airbandCatalog.config_fields.map((field) => (
+                        <ConfigRow
+                          key={field.key}
+                          label={field.label}
+                          value={env[field.key] || field.default || "-"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </CardContent>
           </Card>
+        </TabsContent>
 
+        <TabsContent value="logs" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Storage Settings</CardTitle>
-              <CardDescription>Configure where and how recordings are saved</CardDescription>
+              <CardTitle>rtl_airband Logs</CardTitle>
+              <CardDescription>
+                Live container logs from {containerName}.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Enable Recording</Label>
-                    <p className="text-sm text-muted-foreground">Save audio to disk when squelch opens</p>
+            <CardContent>
+              <div className="max-h-[32rem] overflow-auto rounded-md border border-border/60 bg-black p-4 font-mono text-xs text-zinc-300">
+                {logLines.length ? (
+                  logLines.map((line, index) => (
+                    <div
+                      key={`${index}-${line}`}
+                      className="whitespace-pre-wrap break-all"
+                    >
+                      {line}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-zinc-500">
+                    {apiAvailable
+                      ? "No rtl_airband log output is available yet."
+                      : "Connect to a device to stream rtl_airband logs."}
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="space-y-2">
-                   <Label>Recording Path</Label>
-                   <Input defaultValue="/var/lib/airwaves/recordings" />
-                </div>
-                <div className="space-y-2">
-                   <Label>Retention Policy</Label>
-                   <RadioGroup defaultValue="r1" className="flex gap-4">
-                      <div className="flex items-center space-x-2">
-                         <RadioGroupItem value="r1" id="r1" />
-                         <Label htmlFor="r1">Keep for 7 days</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                         <RadioGroupItem value="r2" id="r2" />
-                         <Label htmlFor="r2">Keep forever</Label>
-                      </div>
-                   </RadioGroup>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
 
-      <Dialog open={!!editingChannel} onOpenChange={(open) => !open && setEditingChannel(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingChannel?.id === -1 ? 'Add New Channel' : 'Edit Channel'}</DialogTitle>
-            <DialogDescription>
-              Configure frequency and receiver settings for this channel.
-            </DialogDescription>
-          </DialogHeader>
-          {editingChannel && (
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label>Channel Name</Label>
-                <Input 
-                  value={editingChannel.name} 
-                  onChange={(e) => setEditingChannel({ ...editingChannel, name: e.target.value })} 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Frequency (MHz)</Label>
-                <Input 
-                  value={editingChannel.freq} 
-                  onChange={(e) => setEditingChannel({ ...editingChannel, freq: e.target.value })} 
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Squelch ({editingChannel.squelch}dB)</Label>
-                  <Slider 
-                    value={[editingChannel.squelch]} 
-                    max={100} 
-                    step={1} 
-                    onValueChange={([val]) => setEditingChannel({ ...editingChannel, squelch: val })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gain ({editingChannel.gain}dB)</Label>
-                  <Slider 
-                    value={[editingChannel.gain]} 
-                    max={50} 
-                    step={1} 
-                    onValueChange={([val]) => setEditingChannel({ ...editingChannel, gain: val })}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 pt-2">
-                <Switch 
-                  id="scanning-mode" 
-                  checked={editingChannel.scanning}
-                  onCheckedChange={(checked) => setEditingChannel({ ...editingChannel, scanning: checked })}
-                />
-                <Label htmlFor="scanning-mode">Enable Scanning Mode</Label>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingChannel(null)}>Cancel</Button>
-            <Button onClick={handleSaveChannel}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-4 p-5">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <p className="mt-1 truncate text-xl font-bold">{value}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {detail}
+          </p>
+        </div>
+        <div className="rounded-md bg-primary/10 p-3 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ConfigRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-border/40 py-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="break-all text-right font-mono">{value || "-"}</dd>
     </div>
   );
 }

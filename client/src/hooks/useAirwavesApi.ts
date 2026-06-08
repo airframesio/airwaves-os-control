@@ -5,7 +5,7 @@
  * When the API is unavailable (dev mode), components should fall back to mock data.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   systemApi,
   containersApi,
@@ -34,13 +34,13 @@ import {
   type DecodedMessage,
   type ForwardingConfig,
   type ForwardingStats,
-} from '@/lib/api';
+} from "@/lib/api";
 
 // ---------- System ----------
 
 export function useSystemInfo() {
   return useQuery<SystemInfo>({
-    queryKey: ['system', 'info'],
+    queryKey: ["system", "info"],
     queryFn: systemApi.getInfo,
     staleTime: 30_000,
     retry: 1,
@@ -49,7 +49,7 @@ export function useSystemInfo() {
 
 export function useSystemStats() {
   return useQuery<SystemStats>({
-    queryKey: ['system', 'stats'],
+    queryKey: ["system", "stats"],
     queryFn: systemApi.getStats,
     refetchInterval: 5_000,
     retry: 1,
@@ -58,7 +58,7 @@ export function useSystemStats() {
 
 export function useSystemOverview() {
   return useQuery<SystemOverview>({
-    queryKey: ['system', 'overview'],
+    queryKey: ["system", "overview"],
     queryFn: systemApi.getOverview,
     refetchInterval: 10_000,
     retry: 1,
@@ -69,7 +69,7 @@ export function useSystemOverview() {
 
 export function useContainers() {
   return useQuery<ContainerInfo[]>({
-    queryKey: ['containers'],
+    queryKey: ["containers"],
     queryFn: containersApi.list,
     refetchInterval: 10_000,
     retry: 1,
@@ -78,7 +78,7 @@ export function useContainers() {
 
 export function useContainerStats() {
   return useQuery<ContainerStats[]>({
-    queryKey: ['containers', 'stats'],
+    queryKey: ["containers", "stats"],
     queryFn: containersApi.stats,
     refetchInterval: 5_000,
     retry: 1,
@@ -89,7 +89,8 @@ export function useContainerStart() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => containersApi.start(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['containers'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["containers"] }),
   });
 }
 
@@ -97,7 +98,8 @@ export function useContainerStop() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => containersApi.stop(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['containers'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["containers"] }),
   });
 }
 
@@ -105,13 +107,14 @@ export function useContainerRestart() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => containersApi.restart(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['containers'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["containers"] }),
   });
 }
 
 export function useContainerLogs(id: string, tail = 100) {
   return useQuery({
-    queryKey: ['containers', id, 'logs', tail],
+    queryKey: ["containers", id, "logs", tail],
     queryFn: () => containersApi.logs(id, tail),
     enabled: !!id,
     refetchInterval: 5_000,
@@ -122,7 +125,7 @@ export function useContainerLogs(id: string, tail = 100) {
 
 export function useSdrDevices() {
   return useQuery<SdrDevice[]>({
-    queryKey: ['hardware', 'sdr'],
+    queryKey: ["hardware", "sdr"],
     queryFn: hardwareApi.listSdr,
     refetchInterval: 10_000,
     retry: 1,
@@ -133,7 +136,7 @@ export function useSdrDevices() {
 
 export function useNetworkInterfaces() {
   return useQuery<NetworkInterface[]>({
-    queryKey: ['network', 'interfaces'],
+    queryKey: ["network", "interfaces"],
     queryFn: networkApi.listInterfaces,
     staleTime: 30_000,
     retry: 1,
@@ -144,7 +147,7 @@ export function useNetworkInterfaces() {
 
 export function useConfig() {
   return useQuery<AirwavesConfig>({
-    queryKey: ['config'],
+    queryKey: ["config"],
     queryFn: configApi.get,
     staleTime: 60_000,
     retry: 1,
@@ -155,7 +158,7 @@ export function useUpdateConfig() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (config: AirwavesConfig) => configApi.update(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['config'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["config"] }),
   });
 }
 
@@ -163,7 +166,7 @@ export function useUpdateConfig() {
 
 export function useAppCatalog() {
   return useQuery<CatalogApp[]>({
-    queryKey: ['apps', 'catalog'],
+    queryKey: ["apps", "catalog"],
     queryFn: appsApi.catalog,
     staleTime: 300_000,
     retry: 1,
@@ -173,11 +176,19 @@ export function useAppCatalog() {
 export function useInstallApp() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ appId, env, imageTag }: { appId: string; env?: Record<string, string>; imageTag?: string }) =>
-      appsApi.install(appId, env, imageTag),
+    mutationFn: ({
+      appId,
+      env,
+      imageTag,
+    }: {
+      appId: string;
+      env?: Record<string, string>;
+      imageTag?: string;
+    }) => appsApi.install(appId, env, imageTag),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containers'] });
-      queryClient.invalidateQueries({ queryKey: ['apps', 'catalog'] });
+      queryClient.invalidateQueries({ queryKey: ["containers"] });
+      queryClient.invalidateQueries({ queryKey: ["apps", "catalog"] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
     },
   });
 }
@@ -187,8 +198,8 @@ export function useUninstallApp() {
   return useMutation({
     mutationFn: (appId: string) => appsApi.uninstall(appId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containers'] });
-      queryClient.invalidateQueries({ queryKey: ['apps', 'catalog'] });
+      queryClient.invalidateQueries({ queryKey: ["containers"] });
+      queryClient.invalidateQueries({ queryKey: ["apps", "catalog"] });
     },
   });
 }
@@ -197,7 +208,7 @@ export function useUninstallApp() {
 
 export function useFeeds() {
   return useQuery<FeedConfig[]>({
-    queryKey: ['feeds'],
+    queryKey: ["feeds"],
     queryFn: feedsApi.list,
     staleTime: 30_000,
     retry: 1,
@@ -208,7 +219,7 @@ export function useUpsertFeed() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (feed: FeedConfig) => feedsApi.upsert(feed),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feeds'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["feeds"] }),
   });
 }
 
@@ -216,7 +227,7 @@ export function useDeleteFeed() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => feedsApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feeds'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["feeds"] }),
   });
 }
 
@@ -224,7 +235,7 @@ export function useDeleteFeed() {
 
 export function useTracking() {
   return useQuery<TrackingResponse>({
-    queryKey: ['tracking', 'vehicles'],
+    queryKey: ["tracking", "vehicles"],
     queryFn: trackingApi.getVehicles,
     refetchInterval: 3_000,
     retry: 1,
@@ -235,7 +246,7 @@ export function useTracking() {
 
 export function useFleetStatus() {
   return useQuery<FleetStatus>({
-    queryKey: ['fleet'],
+    queryKey: ["fleet"],
     queryFn: fleetApi.getStatus,
     refetchInterval: 30_000,
     retry: 1,
@@ -245,8 +256,9 @@ export function useFleetStatus() {
 export function usePairNode() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ ip, name }: { ip: string; name?: string }) => fleetApi.pair(ip, name),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fleet'] }),
+    mutationFn: ({ ip, name }: { ip: string; name?: string }) =>
+      fleetApi.pair(ip, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fleet"] }),
   });
 }
 
@@ -254,13 +266,13 @@ export function useUnpairNode() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => fleetApi.unpair(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fleet'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fleet"] }),
   });
 }
 
 export function useDiscoverNodes() {
   return useQuery<DiscoveredNode[]>({
-    queryKey: ['fleet', 'discover'],
+    queryKey: ["fleet", "discover"],
     queryFn: fleetApi.discover,
     enabled: false,
     retry: 1,
@@ -271,7 +283,7 @@ export function useDiscoverNodes() {
 
 export function useDecodedMessages() {
   return useQuery<DecodedMessage[]>({
-    queryKey: ['messages'],
+    queryKey: ["messages"],
     queryFn: forwardingApi.getMessages,
     refetchInterval: 5_000,
     retry: 1,
@@ -280,7 +292,7 @@ export function useDecodedMessages() {
 
 export function useForwardingConfig() {
   return useQuery<ForwardingConfig>({
-    queryKey: ['forwarding', 'config'],
+    queryKey: ["forwarding", "config"],
     queryFn: forwardingApi.getConfig,
     staleTime: 30_000,
     retry: 1,
@@ -291,13 +303,14 @@ export function useUpdateForwardingConfig() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (config: ForwardingConfig) => forwardingApi.setConfig(config),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['forwarding'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["forwarding"] }),
   });
 }
 
 export function useForwardingStats() {
   return useQuery<ForwardingStats>({
-    queryKey: ['forwarding', 'stats'],
+    queryKey: ["forwarding", "stats"],
     queryFn: forwardingApi.getStats,
     refetchInterval: 10_000,
     retry: 1,
