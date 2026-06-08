@@ -49,6 +49,8 @@ export default function SystemUpdate() {
   const [logOpen, setLogOpen] = useState(false);
   const [lastLog, setLastLog] = useState<UpdateProgress | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressLogRef = useRef<HTMLPreElement | null>(null);
+  const progressLogText = progress?.log.slice(-12).join("\n") ?? "";
 
   const openLastLog = async () => {
     setLogOpen(true);
@@ -105,6 +107,16 @@ export default function SystemUpdate() {
     return () => stopPolling();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiAvailable]);
+
+  useEffect(() => {
+    if (!applying || !progressLogText) return;
+    const frame = requestAnimationFrame(() => {
+      if (progressLogRef.current) {
+        progressLogRef.current.scrollTop = progressLogRef.current.scrollHeight;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [applying, progressLogText]);
 
   const stopPolling = () => {
     if (pollRef.current) {
@@ -266,9 +278,12 @@ export default function SystemUpdate() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Progress value={progress.percent} className="h-2" />
-            {progress.log.length > 0 && (
-              <pre className="text-xs bg-zinc-950 text-zinc-100 border border-border/50 rounded p-3 max-h-40 overflow-auto font-mono leading-relaxed whitespace-pre-wrap">
-                {progress.log.slice(-12).join("\n")}
+            {progressLogText.length > 0 && (
+              <pre
+                ref={progressLogRef}
+                className="text-xs bg-zinc-950 text-zinc-100 border border-border/50 rounded p-3 max-h-40 overflow-auto font-mono leading-relaxed whitespace-pre-wrap"
+              >
+                {progressLogText}
               </pre>
             )}
             <p className="text-xs text-muted-foreground">
