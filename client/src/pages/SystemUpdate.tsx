@@ -49,8 +49,9 @@ export default function SystemUpdate() {
   const [logOpen, setLogOpen] = useState(false);
   const [lastLog, setLastLog] = useState<UpdateProgress | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const progressLogRef = useRef<HTMLPreElement | null>(null);
-  const progressLogText = progress?.log.slice(-12).join("\n") ?? "";
+  const progressLogRef = useRef<HTMLDivElement | null>(null);
+  const progressLogLines = progress?.log.slice(-40) ?? [];
+  const progressLogText = progressLogLines.join("\n");
 
   const openLastLog = async () => {
     setLogOpen(true);
@@ -110,12 +111,18 @@ export default function SystemUpdate() {
 
   useEffect(() => {
     if (!applying || !progressLogText) return;
-    const frame = requestAnimationFrame(() => {
+    const scrollToBottom = () => {
       if (progressLogRef.current) {
         progressLogRef.current.scrollTop = progressLogRef.current.scrollHeight;
       }
-    });
-    return () => cancelAnimationFrame(frame);
+    };
+    scrollToBottom();
+    const frame = requestAnimationFrame(scrollToBottom);
+    const timeout = window.setTimeout(scrollToBottom, 50);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
   }, [applying, progressLogText]);
 
   const stopPolling = () => {
@@ -278,13 +285,15 @@ export default function SystemUpdate() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Progress value={progress.percent} className="h-2" />
-            {progressLogText.length > 0 && (
-              <pre
+            {progressLogLines.length > 0 && (
+              <div
                 ref={progressLogRef}
-                className="text-xs bg-zinc-950 text-zinc-100 border border-border/50 rounded p-3 max-h-40 overflow-auto font-mono leading-relaxed whitespace-pre-wrap"
+                className="max-h-64 overflow-y-auto overflow-x-auto rounded border border-border/50 bg-zinc-950 p-3 text-xs text-zinc-100"
               >
-                {progressLogText}
-              </pre>
+                <pre className="min-w-full whitespace-pre font-mono leading-relaxed">
+                  {progressLogText}
+                </pre>
+              </div>
             )}
             <p className="text-xs text-muted-foreground">
               The manager may briefly restart during the update — this page will reconnect automatically.

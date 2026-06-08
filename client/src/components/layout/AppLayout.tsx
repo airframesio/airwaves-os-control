@@ -490,7 +490,7 @@ export default function AppLayout({ children }: SidebarProps) {
               "space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
               location === "/map"
                 ? "h-full"
-                : location === "/apps"
+                : location === "/apps" || location === "/updates"
                   ? "h-full w-full max-w-none"
                   : "max-w-7xl mx-auto",
             )}
