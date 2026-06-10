@@ -193,6 +193,26 @@ export function useInstallApp() {
   });
 }
 
+export function useUpdateAppConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      appId,
+      env,
+      imageTag,
+    }: {
+      appId: string;
+      env?: Record<string, string>;
+      imageTag?: string;
+    }) => appsApi.updateConfig(appId, env, imageTag),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["containers"] });
+      queryClient.invalidateQueries({ queryKey: ["apps", "catalog"] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+  });
+}
+
 export function useUninstallApp() {
   const queryClient = useQueryClient();
   return useMutation({

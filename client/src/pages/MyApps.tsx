@@ -69,7 +69,7 @@ import {
   useContainerStats,
   useContainerStart,
   useContainerStop,
-  useInstallApp,
+  useUpdateAppConfig,
   useUninstallApp,
   useContainerLogs,
   useFeeds,
@@ -372,7 +372,7 @@ function InstalledAppConfiguration({
   ) => void;
 }) {
   const { toast } = useToast();
-  const installMutation = useInstallApp();
+  const updateConfigMutation = useUpdateAppConfig();
   const { data: sdrDevices } = useSdrDevices();
   const configFields = ((selectedApp as any).configFields ??
     []) as ConfigField[];
@@ -461,7 +461,7 @@ function InstalledAppConfiguration({
       return;
     }
 
-    installMutation.mutate(
+    updateConfigMutation.mutate(
       {
         appId,
         env,
@@ -505,13 +505,13 @@ function InstalledAppConfiguration({
             className="gap-2"
             onClick={save}
             disabled={
-              installMutation.isPending ||
+              updateConfigMutation.isPending ||
               !dirty ||
               missingRequired.length > 0 ||
               duplicateKeys.length > 0
             }
           >
-            {installMutation.isPending ? (
+            {updateConfigMutation.isPending ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
             ) : (
               <Save className="w-4 h-4" />

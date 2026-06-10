@@ -483,6 +483,19 @@ export const appsApi = {
         ...(imageTag && imageTag.trim() ? { image_tag: imageTag.trim() } : {}),
       }),
     }),
+  /** Update an installed app's config and recreate its container. */
+  updateConfig: (
+    appId: string,
+    env?: Record<string, string>,
+    imageTag?: string,
+  ) =>
+    apiFetch<ContainerInfo>(`/apps/${encodeURIComponent(appId)}/config`, {
+      method: "PUT",
+      body: JSON.stringify({
+        ...(env && Object.keys(env).length ? { env } : {}),
+        ...(imageTag && imageTag.trim() ? { image_tag: imageTag.trim() } : {}),
+      }),
+    }),
   uninstall: (appId: string) =>
     apiFetch<{ status: string }>(`/apps/${encodeURIComponent(appId)}`, {
       method: "DELETE",
