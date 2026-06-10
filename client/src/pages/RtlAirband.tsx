@@ -38,6 +38,7 @@ import {
   useFeeds,
 } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { cn } from "@/lib/utils";
 
 const AIRBAND_IDS = new Set(["rtl-airband", "rtl_airband"]);
@@ -77,20 +78,22 @@ export default function RtlAirband() {
   const env: Record<string, string> =
     installedRecord?.env ?? airbandCatalog?.env ?? {};
 
-  const isInstalled = !!airbandContainer || !apiAvailable;
-  const isRunning = airbandContainer?.state === "running" || !apiAvailable;
+  const isInstalled = !!airbandContainer || (!apiAvailable && demoModeEnabled);
+  const isRunning = airbandContainer?.state === "running" || (!apiAvailable && demoModeEnabled);
   const hostPort =
     airbandContainer?.ports?.find((port) => port.host_port)?.host_port ??
     airbandCatalog?.ports?.find((port) => port.host_port)?.host_port ??
     8000;
   const streamBaseUrl =
-    apiAvailable && airbandContainer
+    airbandContainer
       ? `${window.location.protocol}//${window.location.hostname}:${hostPort}`
-      : "http://stream.airwaves.local:8000";
+      : demoModeEnabled
+        ? "http://stream.airwaves.local:8000"
+        : "";
   const containerName =
     airbandContainer?.name.replace(/^\//, "") ?? "airwaves-rtl-airband";
   const { data: logData } = useContainerLogs(
-    apiAvailable && airbandContainer ? containerName : "",
+    airbandContainer ? containerName : "",
     300,
   );
   const logLines = (logData?.logs ?? "")
@@ -125,7 +128,7 @@ export default function RtlAirband() {
     }));
   }, [env.ICECAST_MOUNT, env.RTLSDRAIRBAND_MOUNTS, isRunning, streamBaseUrl]);
 
-  if (apiAvailable && !isInstalled) {
+  if (!isInstalled) {
     return (
       <div className="flex min-h-[55vh] items-center justify-center">
         <Card className="max-w-xl">

@@ -10,6 +10,7 @@ import {
   Loader2, Signal, Usb, CheckCircle2, XCircle, ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import {
   systemApi, wifiApi, hardwareApi, configApi,
@@ -128,7 +129,7 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
 
   const finishSetup = async () => {
     if (!apiAvailable) {
-      onComplete();
+      if (demoModeEnabled) onComplete();
       return;
     }
     setLoading(true);
@@ -196,7 +197,11 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
               <CardContent className="text-center space-y-4 pt-4">
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <div className={cn("w-2 h-2 rounded-full", apiAvailable ? "bg-emerald-500" : "bg-amber-500")} />
-                  {apiAvailable ? "System manager connected" : "Running in demo mode"}
+                  {apiAvailable
+                    ? "System manager connected"
+                    : demoModeEnabled
+                      ? "Running in demo mode"
+                      : "System manager disconnected"}
                 </div>
               </CardContent>
             </>

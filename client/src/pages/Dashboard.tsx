@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, ArrowUpRight, Cpu, Radio, Server, Wifi, Globe, AlertCircle, CheckCircle2 } from "lucide-react";
-import { mockApps, mockDevices, mockFeeds, mockSystems, systemStats } from "@/lib/mockData";
+import { mockApps, mockDevices, mockSystems } from "@/lib/mockData";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
@@ -29,25 +30,40 @@ export default function Dashboard() {
   const { data: liveContainers } = useContainers();
   const { liveStats: wsStats, connected: wsConnected } = useManagerEvents();
 
-  const activeApps = mockApps.filter(app => app.status === "running");
-  const activeDevices = mockDevices.filter(dev => dev.status === "active");
-  const connectedFeeds = mockFeeds.filter(feed => feed.status === "connected");
+  const activeApps = demoModeEnabled ? mockApps.filter(app => app.status === "running") : [];
+  const activeDevices = demoModeEnabled ? mockDevices.filter(dev => dev.status === "active") : [];
 
-  // Use overview for one-shot dashboard data, fall back to individual calls, then mock
-  const totalApps = overview?.containers.airwaves_apps ?? liveContainers?.filter(c => c.state === "running").length ?? activeApps.length * 2 + 1;
-  const totalDevices = overview?.hardware.sdr_devices ?? activeDevices.length + (apiAvailable ? 0 : 3);
+  // Use overview for one-shot dashboard data, fall back to individual calls, then
+  // demo fixtures only for explicitly configured example deployments.
+  const totalApps = overview?.containers.airwaves_apps ?? liveContainers?.filter(c => c.state === "running").length ?? (demoModeEnabled ? activeApps.length * 2 + 1 : 0);
+  const totalDevices = overview?.hardware.sdr_devices ?? (demoModeEnabled ? activeDevices.length : 0);
   const totalContainers = overview?.containers.running ?? liveContainers?.filter(c => c.state === "running").length ?? 0;
-  const onlineNodes = mockSystems.filter(s => s.status === "online");
-  // Prefer WebSocket stats (real-time) > overview > REST poll > mock
-  const cpuLoad = wsStats?.cpu_usage ?? overview?.stats.cpu_usage ?? liveStats?.cpu_usage ?? 32;
+  const fleetSystems = demoModeEnabled ? mockSystems : [
+    {
+      id: "local",
+      name: "Airwaves Core",
+      hostname: window.location.hostname,
+      ip: window.location.hostname,
+      status: apiAvailable ? "online" : "offline",
+      role: "primary",
+      mode: "standalone",
+      lastSeen: apiAvailable ? "Just now" : "-",
+    } as const,
+  ];
+  const onlineNodes = fleetSystems.filter(s => s.status === "online");
+  // Prefer WebSocket stats (real-time) > overview > REST poll > optional demo.
+  const cpuLoad = wsStats?.cpu_usage ?? overview?.stats.cpu_usage ?? liveStats?.cpu_usage ?? (demoModeEnabled ? 32 : 0);
   const memLoad = wsStats?.memory_percent ?? overview?.stats.memory_percent ?? liveStats?.memory_percent ?? 0;
   
   // Live chart data
-  const [chartData, setChartData] = React.useState(aggregateData);
-  const [globalRate, setGlobalRate] = React.useState(580);
+  const [chartData, setChartData] = React.useState(
+    demoModeEnabled ? aggregateData : aggregateData.map((point) => ({ ...point, msgs: 0 })),
+  );
+  const [globalRate, setGlobalRate] = React.useState(demoModeEnabled ? 580 : 0);
 
   // Simulate live data updates
   React.useEffect(() => {
+    if (!demoModeEnabled) return;
     const interval = setInterval(() => {
       // Update global rate
       setGlobalRate(prev => {
@@ -92,7 +108,9 @@ export default function Dashboard() {
               <span className="text-primary">Airwaves</span> OS
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
-              Fleet running optimally. {onlineNodes.length} nodes online, processing signals across {totalDevices} devices.
+              {apiAvailable || demoModeEnabled
+                ? `Fleet running with ${onlineNodes.length} node${onlineNodes.length === 1 ? "" : "s"} online, processing signals across ${totalDevices} devices.`
+                : "Connect to the Airwaves OS manager to view live system activity."}
             </p>
             <div className="flex flex-wrap gap-4">
                <Button size="lg" className="shadow-lg shadow-primary/20" asChild>
@@ -123,12 +141,12 @@ export default function Dashboard() {
               <Globe className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{onlineNodes.length}/{mockSystems.length}</div>
+              <div className="text-2xl font-bold">{onlineNodes.length}/{fleetSystems.length}</div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                {mockSystems.length - onlineNodes.length > 0 ? (
+                {fleetSystems.length - onlineNodes.length > 0 ? (
                   <>
                     <AlertCircle className="w-3 h-3 text-destructive" />
-                    {mockSystems.length - onlineNodes.length} node offline
+                    {fleetSystems.length - onlineNodes.length} node offline
                   </>
                 ) : (
                   <>
@@ -245,7 +263,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {mockSystems.map(sys => (
+              {fleetSystems.map(sys => (
                 <div key={sys.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={cn(

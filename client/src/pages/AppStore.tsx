@@ -20,6 +20,7 @@ import {
   useUpsertFeed,
 } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { demoModeEnabled } from "@/lib/demoMode";
 import AppInstallWizard from "@/components/AppInstallWizard";
 import type { CatalogApp, FeedConfig } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -141,9 +142,10 @@ export default function AppStore() {
     (containers ?? []).flatMap((container) => appIdAliases(container.name)),
   );
 
-  // Build the app list: use catalog API when available, fall back to nodeStore
+  // Build the app list: use catalog API when available, or demo fixtures only
+  // for explicitly configured example deployments.
   const apps: CatalogListApp[] =
-    apiAvailable && catalogApps
+    catalogApps
       ? catalogApps.map((app) => ({
           id: app.id,
           name: app.name,
@@ -158,11 +160,13 @@ export default function AppStore() {
               ? ("installing" as const)
               : ("running" as const),
         }))
-      : data.apps.map((app) => ({
-          ...app,
-          bundledFeatures: app.bundledFeatures ?? [],
-          valuePage: app.valuePage,
-        }));
+      : demoModeEnabled
+        ? data.apps.map((app) => ({
+            ...app,
+            bundledFeatures: app.bundledFeatures ?? [],
+            valuePage: app.valuePage,
+          }))
+        : [];
 
   const categories = [
     "All",

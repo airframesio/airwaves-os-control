@@ -2,7 +2,7 @@
  * TanStack Query hooks for Airwaves OS Manager API.
  *
  * These hooks provide reactive data fetching from the airwaves-manager.
- * When the API is unavailable (dev mode), components should fall back to mock data.
+ * Demo fixtures are opt-in at the page layer via VITE_AIRWAVES_DEMO.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -129,6 +129,25 @@ export function useSdrDevices() {
     queryFn: hardwareApi.listSdr,
     refetchInterval: 10_000,
     retry: 1,
+  });
+}
+
+export function useUpdateSdrDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      name,
+      serial,
+    }: {
+      id: string;
+      name?: string | null;
+      serial?: string | null;
+    }) => hardwareApi.updateSdr(id, { name, serial }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hardware", "sdr"] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
   });
 }
 

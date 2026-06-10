@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useNodeStore } from "@/lib/nodeStore";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -57,15 +58,14 @@ export default function AppDetails() {
   const upsertFeed = useUpsertFeed();
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  // Mock fallback so the page still renders without a device.
   const { data: nodeData } = useNodeStore();
 
   const catalogApp = catalog?.find(
     (a) => normalizeAppId(a.id) === normalizedRouteAppId,
   );
-  const mockApp = nodeData.apps.find(
-    (a: any) => normalizeAppId(a.id) === normalizedRouteAppId,
-  );
+  const mockApp = demoModeEnabled
+    ? nodeData.apps.find((a: any) => normalizeAppId(a.id) === normalizedRouteAppId)
+    : undefined;
 
   if (!catalogApp && !mockApp) {
     return (
@@ -114,7 +114,7 @@ export default function AppDetails() {
   const container = containers?.find(
     (c) => normalizeAppId(c.name) === normalizeAppId(app.id),
   );
-  const installed = apiAvailable ? !!container : !!mockApp?.installed;
+  const installed = container ? true : demoModeEnabled && !!mockApp?.installed;
   const running = container?.state === "running";
 
   // The first published host port gives us a link to the app's own web UI.

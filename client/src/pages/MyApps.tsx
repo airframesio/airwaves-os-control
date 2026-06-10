@@ -56,6 +56,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { mockApps } from "@/lib/mockData";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -485,12 +486,21 @@ function InstalledAppConfiguration({
     const version = imageTag.trim() || "latest";
     const appId = selectedApp.id;
 
-    if (!apiAvailable) {
+    if (!apiAvailable && demoModeEnabled) {
       onLocalUpdate(appId, env, version);
       setBaseline(envSignature(rows, version));
       toast({
         title: "Configuration saved locally",
         description: "Demo data was updated for this app.",
+      });
+      return;
+    }
+
+    if (!apiAvailable) {
+      toast({
+        title: "Manager disconnected",
+        description: "Reconnect to Airwaves OS before saving app configuration.",
+        variant: "destructive",
       });
       return;
     }
@@ -989,7 +999,7 @@ export default function MyApps() {
   const catalogById = new Map((catalogApps ?? []).map((app) => [app.id, app]));
   const recordsById = installedRecordsById(config);
   const containerApps =
-    apiAvailable && liveContainers
+    liveContainers
       ? liveContainers
           .filter(
             (c) =>
@@ -1052,7 +1062,9 @@ export default function MyApps() {
           })
       : null;
 
-  const [apps, setApps] = useState(mockApps.filter((app) => app.installed));
+  const [apps, setApps] = useState(
+    demoModeEnabled ? mockApps.filter((app) => app.installed) : [],
+  );
   // Transitional per-app state ("starting"/"stopping") shown immediately on a
   // toggle and cleared only once the live container state reaches the target,
   // so the button/badge don't flicker back to the old state on the next poll.
@@ -1062,7 +1074,7 @@ export default function MyApps() {
 
   // Sync with live data when available (containers + their stats).
   useEffect(() => {
-    if (apiAvailable && containerApps) {
+    if (containerApps) {
       setApps(containerApps as any);
       // Clear any pending transition that the live data now confirms.
       setPending((prev) => {
@@ -1078,7 +1090,7 @@ export default function MyApps() {
         return next;
       });
     }
-  }, [liveContainers, liveStats, apiAvailable]);
+  }, [liveContainers, liveStats, catalogApps, config]);
 
   const [selectedAppId, setSelectedAppId] = useState<string>(apps[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");

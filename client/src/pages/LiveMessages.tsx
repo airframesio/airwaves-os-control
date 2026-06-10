@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Clock, Radio, User, FileText, Cpu } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useDecodedMessages } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import {
@@ -127,9 +128,9 @@ export default function LiveMessages() {
 
   // Reset messages when active node changes
   useEffect(() => {
-    if (!apiAvailable) {
+    if (!apiAvailable && demoModeEnabled) {
       setMessages(mockMessages.filter(m => runningAppIds.includes(m.appId)));
-    } else {
+    } else if (apiAvailable) {
       setMessages([]);
     }
     setCurrentPage(1);
@@ -137,7 +138,7 @@ export default function LiveMessages() {
 
   // Simulated messages for offline/dev mode
   useEffect(() => {
-    if (apiAvailable || isPaused) return;
+    if (apiAvailable || !demoModeEnabled || isPaused) return;
 
     const validTemplates = SAMPLE_MESSAGES.filter(t => runningAppIds.includes(t.appId));
     if (validTemplates.length === 0) return;

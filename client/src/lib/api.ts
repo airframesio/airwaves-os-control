@@ -2,10 +2,14 @@
  * Airwaves OS API Client
  *
  * Provides typed access to the airwaves-manager REST API.
- * Falls back gracefully when the API is unavailable (e.g., development mode).
+ * Surfaces manager errors to callers. Demo fixtures are opt-in elsewhere.
  */
 
 const API_BASE = "/api/v1";
+const API_HEALTH_GRACE_MS = 90_000;
+const API_HEALTH_MISSES_BEFORE_OFFLINE = 3;
+let lastApiOkAt = 0;
+let consecutiveApiMisses = 0;
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -253,11 +257,21 @@ export interface SdrDevice {
   serial: string | null;
   status: string;
   assigned_to: string | null;
+  configured_name?: string | null;
+  configured_serial?: string | null;
 }
 
 export const hardwareApi = {
   listDevices: () => apiFetch<UsbDevice[]>("/hardware/devices"),
   listSdr: () => apiFetch<SdrDevice[]>("/hardware/sdr"),
+  updateSdr: (
+    id: string,
+    config: { name?: string | null; serial?: string | null },
+  ) =>
+    apiFetch<SdrDevice>(`/hardware/sdr/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
 };
 
 // ---------- Network ----------
@@ -341,6 +355,7 @@ export interface AirwavesConfig {
   services: Record<string, { enabled: boolean }>;
   aggregators: Record<string, unknown>;
   apps: Record<string, unknown>;
+  hardware?: Record<string, unknown>;
   preferences?: { theme?: "light" | "dark" | "system"; [k: string]: unknown };
 }
 
@@ -667,8 +682,20 @@ export async function isApiAvailable(): Promise<boolean> {
     const response = await fetch(`${API_BASE}/system/info`, {
       signal: AbortSignal.timeout(2000),
     });
-    return response.ok;
+    if (response.ok) {
+      lastApiOkAt = Date.now();
+      consecutiveApiMisses = 0;
+      return true;
+    }
   } catch {
-    return false;
+    // handled below
   }
+
+  consecutiveApiMisses += 1;
+  const withinGrace = lastApiOkAt > 0 && Date.now() - lastApiOkAt < API_HEALTH_GRACE_MS;
+  if (withinGrace && consecutiveApiMisses < API_HEALTH_MISSES_BEFORE_OFFLINE) {
+    return true;
+  }
+
+  return false;
 }

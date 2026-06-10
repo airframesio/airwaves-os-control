@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSystemInfo, useSystemStats, useContainers, useContainerStats, useNetworkInterfaces } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
@@ -61,7 +62,11 @@ const formatUptime = (seconds: number): string => {
 const WebTerminal = ({ hostname, apiAvailable }: { hostname: string; apiAvailable: boolean }) => {
   const [history, setHistory] = useState<string[]>([
     `Connecting to ${hostname}...`,
-    apiAvailable ? "Connected to Airwaves OS Manager." : "Manager offline - using simulated mode.",
+    apiAvailable
+      ? "Connected to Airwaves OS Manager."
+      : demoModeEnabled
+        ? "Manager offline - using demo terminal."
+        : "Manager offline - commands disabled.",
     "Type 'help' for a list of commands."
   ]);
   const [input, setInput] = useState("");
@@ -108,8 +113,7 @@ const WebTerminal = ({ hostname, apiAvailable }: { hostname: string; apiAvailabl
       } finally {
         setRunning(false);
       }
-    } else {
-      // Fallback: simulated
+    } else if (demoModeEnabled) {
       const simulated: Record<string, string[]> = {
         help: ["Available commands: help, clear, uname, date, uptime, hostname, docker ps, lsusb, df, free"],
         uname: ["Linux airwaves-os 6.1.0-rpi7-rpi-v8 #1 SMP PREEMPT aarch64 GNU/Linux"],
@@ -119,6 +123,8 @@ const WebTerminal = ({ hostname, apiAvailable }: { hostname: string; apiAvailabl
       };
       const output = simulated[cmd.toLowerCase()];
       setHistory(prev => [...prev, ...(output ?? [`bash: ${cmd}: command not found (offline mode)`])]);
+    } else {
+      setHistory(prev => [...prev, "Manager is disconnected. Reconnect before running commands."]);
     }
   };
 
@@ -154,7 +160,7 @@ export default function SystemMonitor() {
   const { data: liveContainerStats } = useContainerStats();
   const { data: liveInterfaces } = useNetworkInterfaces();
 
-  const useLive = apiAvailable && !!liveContainers;
+  const useLive = !!liveContainers;
 
   // Real process list from running containers (joined with live CPU/mem stats),
   // or mock apps when offline.
@@ -176,7 +182,11 @@ export default function SystemMonitor() {
         icon: Server,
       };
     });
-  const runningApps = useLive ? realProcesses : data.apps.filter(app => app.status === "running");
+  const runningApps = useLive
+    ? realProcesses
+    : demoModeEnabled
+      ? data.apps.filter(app => app.status === "running")
+      : [];
 
   // Calculate total resources used by apps
   const totalAppCpu = runningApps.reduce((acc, app) => acc + app.cpuUsage, 0);
@@ -186,35 +196,58 @@ export default function SystemMonitor() {
     ? (liveInterfaces ?? [])
         .filter(i => i.is_up && !["docker", "loopback"].includes(i.interface_type) && !i.name.startsWith("veth") && !i.name.startsWith("br-"))
         .flatMap(i => i.ip_addresses)[0] ?? activeNode.ip
-    : activeNode.ip;
+    : demoModeEnabled
+      ? activeNode.ip
+      : "";
 
   // Get simulated stats for this node, override with live data when available
   // Prefer WebSocket stats (real-time every 5s) over REST poll
   const mockStats = getNodeStats(activeNode.id);
   const realStats = wsStats ?? liveStats;
   const gb = (bytes: number) => bytes / (1024 * 1024 * 1024);
-  const stats = apiAvailable && realStats ? {
+  const stats = realStats ? {
     cpu: Math.round(realStats.cpu_usage),
     memory: Math.round(realStats.memory_percent),
     memText: liveStats
       ? `${gb(liveStats.memory_used).toFixed(1)} GB / ${gb(liveStats.memory_total).toFixed(1)} GB used`
       : `${Math.round(realStats.memory_percent)}% used`,
     disk: Math.round(realStats.disk_percent),
-    diskTotal: liveStats ? `${gb(liveStats.disk_total).toFixed(0)} GB` : mockStats.diskTotal,
-    diskUsedVal: liveStats ? gb(liveStats.disk_used) : mockStats.diskUsedVal,
-    diskUsed: liveStats ? `${gb(liveStats.disk_used).toFixed(1)} GB` : mockStats.diskUsed,
-    temp: realStats.temperature ?? mockStats.temp,
-    hasTemp: realStats.temperature != null,
-    uptime: liveInfo ? formatUptime(liveInfo.uptime) : mockStats.uptime,
-    os: liveInfo ? (liveInfo.os || mockStats.os) : mockStats.os,
+    diskTotal: liveStats ? `${gb(liveStats.disk_total).toFixed(0)} GB` : demoModeEnabled ? mockStats.diskTotal : "N/A",
+    diskUsedVal: liveStats ? gb(liveStats.disk_used) : demoModeEnabled ? mockStats.diskUsedVal : 0,
+    diskUsed: liveStats ? `${gb(liveStats.disk_used).toFixed(1)} GB` : demoModeEnabled ? mockStats.diskUsed : "N/A",
+    temp: realStats.temperature ?? (demoModeEnabled ? mockStats.temp : 0),
+    hasTemp: realStats.temperature != null || demoModeEnabled,
+    uptime: liveInfo ? formatUptime(liveInfo.uptime) : demoModeEnabled ? mockStats.uptime : "-",
+    os: liveInfo ? (liveInfo.os || (demoModeEnabled ? mockStats.os : "Unavailable")) : demoModeEnabled ? mockStats.os : "Unavailable",
     kernel: liveInfo?.kernel,
-    arch: liveInfo?.architecture ?? mockStats.arch,
-    model: liveInfo?.model || mockStats.model,
+    arch: liveInfo?.architecture ?? (demoModeEnabled ? mockStats.arch : "-"),
+    model: liveInfo?.model || (demoModeEnabled ? mockStats.model : "-"),
     cpuModel: liveInfo?.cpu_model,
     cpuCores: liveInfo?.cpu_cores,
     hostname: liveInfo?.hostname || activeNode.hostname,
     airwavesVersion: liveInfo?.airwaves_version,
-  } : { ...mockStats, memText: "2.4 GB / 4.0 GB used", hasTemp: true, hostname: activeNode.hostname };
+  } : demoModeEnabled
+    ? { ...mockStats, memText: "2.4 GB / 4.0 GB used", hasTemp: true, hostname: activeNode.hostname }
+    : {
+        cpu: 0,
+        memory: 0,
+        memText: "No live data",
+        disk: 0,
+        diskTotal: "N/A",
+        diskUsedVal: 0,
+        diskUsed: "N/A",
+        temp: 0,
+        hasTemp: false,
+        uptime: "-",
+        os: "Unavailable",
+        kernel: undefined,
+        arch: "-",
+        model: "-",
+        cpuModel: undefined,
+        cpuCores: undefined,
+        hostname: activeNode.hostname,
+        airwavesVersion: undefined,
+      };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">

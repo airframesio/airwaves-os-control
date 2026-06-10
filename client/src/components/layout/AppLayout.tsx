@@ -39,6 +39,7 @@ import {
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { CommandMenu } from "@/components/CommandMenu";
 import { useNodeStore } from "@/lib/nodeStore";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import {
   useAppCatalog,
@@ -59,9 +60,8 @@ export default function AppLayout({ children }: SidebarProps) {
   const [mounted, setMounted] = useState(false);
   const { activeNode, nodes, setActiveNode, data } = useNodeStore();
 
-  // Real system health when connected to a device; mock otherwise. Prefer the
-  // live WebSocket stats (pushed ~5s) over the REST poll. "Online" reflects
-  // actual API reachability, not a hardcoded node flag.
+  // Real system health when connected to a device. Demo fallback is available
+  // only for explicitly configured example deployments.
   const apiAvailable = useApiStatus();
   const { data: restStats } = useSystemStats();
   const { data: containers } = useContainers();
@@ -75,19 +75,23 @@ export default function AppLayout({ children }: SidebarProps) {
           cpu: Math.round(realStats.cpu_usage),
           ram: Math.round(realStats.memory_percent),
         }
-      : { cpu: 45, ram: 62 };
+      : demoModeEnabled
+        ? { cpu: 45, ram: 62 }
+        : { cpu: 0, ram: 0 };
 
   const installedAppIds = new Set(
-    apiAvailable
+    containers
       ? (containers ?? [])
           .map((c) => c.name.replace(/^airwaves-/, "").replace(/^\//, ""))
           .flatMap((id) => [id, id.replace("_", "-")])
-      : data.apps
+      : demoModeEnabled
+      ? data.apps
           .filter((app) => app.installed)
-          .flatMap((app) => [app.id, app.id.replace("_", "-")]),
+          .flatMap((app) => [app.id, app.id.replace("_", "-")])
+      : [],
   );
 
-  const providedPageItems = apiAvailable
+  const providedPageItems = catalogApps
     ? (catalogApps ?? []).flatMap((app) => {
         if (!installedAppIds.has(app.id)) return [];
         return (app.bundled_features ?? [])
@@ -98,7 +102,7 @@ export default function AppLayout({ children }: SidebarProps) {
             href: feature.path!,
           }));
       })
-    : data.apps.some(
+    : demoModeEnabled && data.apps.some(
           (app) =>
             (app.id === "rtl_airband" || app.id === "rtl-airband") &&
             app.installed,

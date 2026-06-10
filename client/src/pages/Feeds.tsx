@@ -47,6 +47,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { mockFeeds, mockApps } from "@/lib/mockData";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -204,15 +205,17 @@ export default function Feeds() {
       hasOutput: true,
     }));
   const sourceApps =
-    apiAvailable && liveSourceApps.length > 0
+    liveSourceApps.length > 0
       ? liveSourceApps
-      : mockApps.filter((app) => app.hasOutput);
+      : demoModeEnabled
+        ? mockApps.filter((app) => app.hasOutput)
+        : [];
   const selectedApp = sourceApps.find((app) => app.id === selectedSource);
   const activeAggregator = aggregators.find((a) => a.id === selectedAggregator);
 
   // Map live feeds into the format the UI expects, fall back to mock
   const feeds =
-    apiAvailable && liveFeeds
+    liveFeeds
       ? liveFeeds.map((f) => ({
           id: f.id,
           name: f.name,
@@ -228,7 +231,9 @@ export default function Feeds() {
           bandwidth: 0,
           appId: f.app_id ?? "",
         }))
-      : mockFeeds;
+      : demoModeEnabled
+        ? mockFeeds
+        : [];
 
   // Filter aggregators based on selected app category
   const availableAggregators = selectedApp
