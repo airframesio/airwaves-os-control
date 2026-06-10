@@ -117,12 +117,42 @@ const installedRecordsById = (config: any): Map<string, any> => {
   return new Map();
 };
 
+const SDR_ID_ENV_PREFIX = "AIRWAVES_SDR_ID__";
+const sdrIdEnvKey = (fieldKey: string) => `${SDR_ID_ENV_PREFIX}${fieldKey}`;
+const isSdrIdEnvKey = (key: string) => key.startsWith(SDR_ID_ENV_PREFIX);
+
+const serialFromSdrValue = (value: string): string => {
+  const serialPart = value
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => part.toLowerCase().startsWith("serial="));
+  return serialPart?.split("=").slice(1).join("=").trim() ?? "";
+};
+
+const serialCountsFor = (devices: SdrDevice[]) =>
+  devices.reduce<Record<string, number>>((counts, device) => {
+    const serial = device.serial?.toLowerCase();
+    if (serial) counts[serial] = (counts[serial] ?? 0) + 1;
+    return counts;
+  }, {});
+
+const assignedAppsFor = (device: SdrDevice) =>
+  (device.assigned_to ?? "")
+    .split(",")
+    .map((app) => app.trim())
+    .filter(Boolean);
+
+const usbPathLabel = (deviceId: string) => {
+  const match = deviceId.match(/-bus(\d+)-dev(\d+)$/);
+  return match ? `USB ${match[1]}/${match[2]}` : "";
+};
+
 const assignedDeviceFromEnv = (
   env: Record<string, string> | undefined,
 ): string => {
   if (!env) return "";
   const key = Object.keys(env).find(
-    (k) => /sdr|device|serial/i.test(k) && env[k],
+    (k) => !isSdrIdEnvKey(k) && /sdr|device|serial/i.test(k) && env[k],
   );
   return key ? env[key] : "";
 };
@@ -413,11 +443,15 @@ function InstalledAppConfiguration({
   const updateEnvValue = (key: string, value: string) => {
     setRows((current) => {
       const existing = current.find((row) => row.key === key);
+      if (existing && isSdrIdEnvKey(key) && !value.trim()) {
+        return current.filter((row) => row.id !== existing.id);
+      }
       if (existing) {
         return current.map((row) =>
           row.id === existing.id ? { ...row, value } : row,
         );
       }
+      if (isSdrIdEnvKey(key) && !value.trim()) return current;
       return [...current, { id: envRowId(), key, value }];
     });
   };
@@ -594,6 +628,11 @@ function InstalledAppConfiguration({
                   field={field}
                   value={draftEnv[field.key] ?? ""}
                   sdrDevices={sdrDevices}
+                  currentAppId={selectedApp.id}
+                  selectedSdrId={draftEnv[sdrIdEnvKey(field.key)] ?? ""}
+                  onSdrDeviceChange={(deviceId) =>
+                    updateEnvValue(sdrIdEnvKey(field.key), deviceId)
+                  }
                   onChange={(value) => updateEnvValue(field.key, value)}
                 />
               ))}
@@ -619,12 +658,12 @@ function InstalledAppConfiguration({
         </div>
 
         <div className="grid gap-3">
-          {rows.length === 0 && (
+          {rows.filter((row) => !isSdrIdEnvKey(row.key)).length === 0 && (
             <div className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
               No environment variables are recorded for this app.
             </div>
           )}
-          {rows.map((row) => {
+          {rows.filter((row) => !isSdrIdEnvKey(row.key)).map((row) => {
             const managed = fieldKeys.has(row.key);
             return (
               <div
@@ -767,11 +806,17 @@ function ConfigFieldControl({
   field,
   value,
   sdrDevices,
+  currentAppId,
+  selectedSdrId,
+  onSdrDeviceChange,
   onChange,
 }: {
   field: ConfigField;
   value: string;
   sdrDevices?: SdrDevice[];
+  currentAppId?: string;
+  selectedSdrId?: string;
+  onSdrDeviceChange?: (deviceId: string) => void;
   onChange: (value: string) => void;
 }) {
   return (
@@ -787,6 +832,9 @@ function ConfigFieldControl({
           value={value}
           devices={sdrDevices}
           format={field.format ?? "soapy"}
+          currentAppId={currentAppId}
+          selectedDeviceId={selectedSdrId}
+          onDeviceChange={onSdrDeviceChange}
           onChange={onChange}
         />
       ) : field.kind === "select" ? (
@@ -822,11 +870,17 @@ function InstalledSdrSelect({
   value,
   devices,
   format,
+  currentAppId,
+  selectedDeviceId,
+  onDeviceChange,
   onChange,
 }: {
   value: string;
   devices: SdrDevice[] | undefined;
   format: string;
+  currentAppId?: string;
+  selectedDeviceId?: string;
+  onDeviceChange?: (deviceId: string) => void;
   onChange: (value: string) => void;
 }) {
   const list = devices ?? [];
@@ -846,22 +900,69 @@ function InstalledSdrSelect({
     );
   }
 
+  const serialCounts = serialCountsFor(list);
+  const selectedById = list.find((device) => device.id === selectedDeviceId);
+  const valueSerial =
+    format === "serial" ? value.trim() : serialFromSdrValue(value);
+  const selectedByValue =
+    selectedById ??
+    list.find(
+      (device) =>
+        device.serial &&
+        valueSerial &&
+        device.serial.toLowerCase() === valueSerial.toLowerCase() &&
+        serialCounts[device.serial.toLowerCase()] === 1,
+    );
+  const selectValue = selectedByValue?.id ?? (value ? "__manual" : "__auto");
+
   return (
     <Select
-      value={value || "auto"}
-      onValueChange={(next) => onChange(next === "auto" ? "" : next)}
+      value={selectValue}
+      onValueChange={(next) => {
+        if (next === "__auto") {
+          onDeviceChange?.("");
+          onChange("");
+          return;
+        }
+        if (next === "__manual") return;
+        const device = list.find((candidate) => candidate.id === next);
+        if (!device) return;
+        const serial = device.serial || device.id;
+        onDeviceChange?.(device.id);
+        onChange(compose(serial));
+      }}
     >
       <SelectTrigger>
         <SelectValue placeholder="Auto-select SDR" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="auto">Auto-select</SelectItem>
+        <SelectItem value="__auto">Auto-select</SelectItem>
+        {value && !selectedByValue && (
+          <SelectItem value="__manual" disabled>
+            Current: {value}
+          </SelectItem>
+        )}
         {list.map((device) => {
           const serial = device.serial || device.id;
-          const configured = compose(serial);
+          const assignedApps = assignedAppsFor(device);
+          const assignedElsewhere =
+            assignedApps.length > 0 &&
+            (!currentAppId || !assignedApps.includes(currentAppId));
+          const duplicateSerial =
+            !!device.serial && serialCounts[device.serial.toLowerCase()] > 1;
+          const path = usbPathLabel(device.id);
           return (
-            <SelectItem key={device.id} value={configured}>
-              {device.name || device.device_type} ({serial})
+            <SelectItem
+              key={device.id}
+              value={device.id}
+              disabled={assignedElsewhere || device.status === "conflict"}
+            >
+              {device.name || device.device_type} ({serial}
+              {path ? `, ${path}` : ""})
+              {assignedElsewhere
+                ? ` · in use by ${assignedApps.join(", ")}`
+                : ""}
+              {duplicateSerial ? " · exact USB path pinned" : ""}
             </SelectItem>
           );
         })}

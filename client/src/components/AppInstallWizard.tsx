@@ -33,6 +33,35 @@ import {
 import { useSdrDevices } from "@/hooks/useAirwavesApi";
 import type { CatalogApp, ConfigField, FeedConfig, SdrDevice } from "@/lib/api";
 
+const SDR_ID_ENV_PREFIX = "AIRWAVES_SDR_ID__";
+const sdrIdEnvKey = (fieldKey: string) => `${SDR_ID_ENV_PREFIX}${fieldKey}`;
+
+const serialFromSdrValue = (value: string): string => {
+  const serialPart = value
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => part.toLowerCase().startsWith("serial="));
+  return serialPart?.split("=").slice(1).join("=").trim() ?? "";
+};
+
+const serialCountsFor = (devices: SdrDevice[]) =>
+  devices.reduce<Record<string, number>>((counts, device) => {
+    const serial = device.serial?.toLowerCase();
+    if (serial) counts[serial] = (counts[serial] ?? 0) + 1;
+    return counts;
+  }, {});
+
+const assignedAppsFor = (device: SdrDevice) =>
+  (device.assigned_to ?? "")
+    .split(",")
+    .map((app) => app.trim())
+    .filter(Boolean);
+
+const usbPathLabel = (deviceId: string) => {
+  const match = deviceId.match(/-bus(\d+)-dev(\d+)$/);
+  return match ? `USB ${match[1]}/${match[2]}` : "";
+};
+
 /**
  * Pre-install configuration wizard. For apps that declare `config_fields`
  * (e.g. acarsdec: SDR, frequencies, feed ID), this collects values and composes
@@ -153,6 +182,8 @@ export default function AppInstallWizard({
     for (const f of fields) {
       const v = (values[f.key] ?? "").trim();
       if (v) env[f.key] = v;
+      const sdrId = (values[sdrIdEnvKey(f.key)] ?? "").trim();
+      if (v && sdrId) env[sdrIdEnvKey(f.key)] = sdrId;
     }
     onConfirm(env, (imageTag ?? "").trim(), buildFeed());
   };
@@ -291,6 +322,11 @@ export default function AppInstallWizard({
                   field={f}
                   value={values[f.key] ?? ""}
                   sdrDevices={sdrDevices}
+                  currentAppId={app?.id}
+                  selectedSdrId={values[sdrIdEnvKey(f.key)] ?? ""}
+                  onSdrDeviceChange={(deviceId) =>
+                    set(sdrIdEnvKey(f.key), deviceId)
+                  }
                   onChange={(v) => set(f.key, v)}
                 />
               ))}
@@ -531,11 +567,17 @@ function FieldEditor({
   field,
   value,
   sdrDevices,
+  currentAppId,
+  selectedSdrId,
+  onSdrDeviceChange,
   onChange,
 }: {
   field: ConfigField;
   value: string;
   sdrDevices?: SdrDevice[];
+  currentAppId?: string;
+  selectedSdrId?: string;
+  onSdrDeviceChange?: (deviceId: string) => void;
   onChange: (value: string) => void;
 }) {
   return (
@@ -551,6 +593,9 @@ function FieldEditor({
           value={value}
           devices={sdrDevices}
           format={field.format ?? "soapy"}
+          currentAppId={currentAppId}
+          selectedDeviceId={selectedSdrId}
+          onDeviceChange={onSdrDeviceChange}
           onChange={onChange}
         />
       ) : field.kind === "select" ? (
@@ -603,12 +648,18 @@ function SdrSelect({
   value,
   devices,
   format,
+  currentAppId,
+  selectedDeviceId,
+  onDeviceChange,
   onChange,
 }: {
   value: string;
   devices: SdrDevice[] | undefined;
   /** "soapy" → "driver=rtlsdr,serial=…"; "serial" → bare serial. */
   format: string;
+  currentAppId?: string;
+  selectedDeviceId?: string;
+  onDeviceChange?: (deviceId: string) => void;
   onChange: (v: string) => void;
 }) {
   const list = devices ?? [];
@@ -634,19 +685,69 @@ function SdrSelect({
       : `driver=${driver}`;
   };
 
+  const serialCounts = serialCountsFor(list);
+  const selectedById = list.find((device) => device.id === selectedDeviceId);
+  const valueSerial =
+    format === "serial" ? value.trim() : serialFromSdrValue(value);
+  const selectedByValue =
+    selectedById ??
+    list.find(
+      (device) =>
+        device.serial &&
+        valueSerial &&
+        device.serial.toLowerCase() === valueSerial.toLowerCase() &&
+        serialCounts[device.serial.toLowerCase()] === 1,
+    );
+  const selectValue = selectedByValue?.id ?? (value ? "__manual" : "__auto");
+
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select
+      value={selectValue}
+      onValueChange={(next) => {
+        if (next === "__auto") {
+          onDeviceChange?.("");
+          onChange("");
+          return;
+        }
+        if (next === "__manual") return;
+        const device = list.find((d) => d.id === next);
+        if (!device) return;
+        onDeviceChange?.(device.id);
+        onChange(encode(device));
+      }}
+    >
       <SelectTrigger>
         <SelectValue placeholder="Select an SDR…" />
       </SelectTrigger>
       <SelectContent>
-        {list.map((d) => (
-          <SelectItem key={d.id} value={encode(d)}>
-            {d.name}
-            {d.serial ? ` · ${d.serial}` : ""}
-            {d.assigned_to ? ` (in use by ${d.assigned_to})` : ""}
+        <SelectItem value="__auto">Auto-select</SelectItem>
+        {value && !selectedByValue && (
+          <SelectItem value="__manual" disabled>
+            Current: {value}
           </SelectItem>
-        ))}
+        )}
+        {list.map((d) => {
+          const assignedApps = assignedAppsFor(d);
+          const assignedElsewhere =
+            assignedApps.length > 0 &&
+            (!currentAppId || !assignedApps.includes(currentAppId));
+          const duplicateSerial =
+            !!d.serial && serialCounts[d.serial.toLowerCase()] > 1;
+          const path = usbPathLabel(d.id);
+          return (
+            <SelectItem
+              key={d.id}
+              value={d.id}
+              disabled={assignedElsewhere || d.status === "conflict"}
+            >
+              {d.name}
+              {d.serial ? ` · ${d.serial}` : ""}
+              {path ? ` · ${path}` : ""}
+              {assignedElsewhere ? ` (in use by ${assignedApps.join(", ")})` : ""}
+              {duplicateSerial ? " (exact USB path pinned)" : ""}
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );
