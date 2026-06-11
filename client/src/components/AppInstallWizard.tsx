@@ -44,6 +44,13 @@ const serialFromSdrValue = (value: string): string => {
   return serialPart?.split("=").slice(1).join("=").trim() ?? "";
 };
 
+const hasRequiredValue = (field: ConfigField, value: string): boolean => {
+  if (field.kind !== "sdr") return Boolean(value.trim());
+  return field.format === "serial"
+    ? Boolean(value.trim())
+    : Boolean(serialFromSdrValue(value));
+};
+
 const serialCountsFor = (devices: SdrDevice[]) =>
   devices.reduce<Record<string, number>>((counts, device) => {
     const serial = device.serial?.toLowerCase();
@@ -134,7 +141,7 @@ export default function AppInstallWizard({
   const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
   const missingRequired = fields
-    .filter((f) => f.required && !(values[f.key] ?? "").trim())
+    .filter((f) => f.required && !hasRequiredValue(f, values[f.key] ?? ""))
     .map((f) => f.label);
 
   const feedMissing =
@@ -160,7 +167,18 @@ export default function AppInstallWizard({
   const activeStep =
     steps[Math.min(stepIndex, steps.length - 1)]?.id ?? "basics";
   const isLastStep = stepIndex >= steps.length - 1;
-  const canContinue = activeStep === "feed" ? !feedMissing : true;
+  const requiredMissing =
+    activeStep === "sdr"
+      ? sdrFields.some(
+          (f) => f.required && !hasRequiredValue(f, values[f.key] ?? ""),
+        )
+      : activeStep === "settings"
+        ? configFields.some(
+            (f) => f.required && !hasRequiredValue(f, values[f.key] ?? ""),
+          )
+        : false;
+  const canContinue =
+    activeStep === "feed" ? !feedMissing : !requiredMissing;
 
   const buildFeed = (): FeedConfig | undefined => {
     if (!app || !feedEnabled || !selectedFeed || feedMissing) return undefined;
