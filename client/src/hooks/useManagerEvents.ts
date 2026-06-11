@@ -20,7 +20,7 @@ export function useManagerEvents(): ManagerEventState {
   const apiAvailable = useApiStatus();
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [connected, setConnected] = useState(false);
   const [liveStats, setLiveStats] = useState<SystemStats | null>(null);
   const [lastContainerEvent, setLastContainerEvent] = useState<{
