@@ -13,6 +13,9 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useFeeds, useUpsertFeed, useDeleteFeed } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
+import { LiveDataErrorNotice, EmptyState } from "@/components/DataStates";
+import { ListItemSkeleton } from "@/components/LoadingSkeleton";
 
 const getFeedTypeDetails = (type: string) => {
   switch (type) {
@@ -39,7 +42,7 @@ const aggregators = [
 
 export default function Feeds() {
   const apiAvailable = useApiStatus();
-  const { data: liveFeeds } = useFeeds();
+  const { data: liveFeeds, isLoading: feedsLoading, isError: feedsError, refetch: refetchFeeds } = useFeeds();
   const upsertFeed = useUpsertFeed();
   const deleteFeedMutation = useDeleteFeed();
 
@@ -53,14 +56,15 @@ export default function Feeds() {
   const activeAggregator = aggregators.find(a => a.id === selectedAggregator);
   const sourceApps = mockApps.filter(app => app.hasOutput);
 
-  // Map live feeds into the format the UI expects, fall back to mock
-  const feeds = apiAvailable && liveFeeds
-    ? liveFeeds.map(f => ({
+  // Map live feeds into the format the UI expects. On a real device, never
+  // substitute mock feeds: show loading/error/empty states instead.
+  const feeds = apiAvailable
+    ? (liveFeeds ?? []).map(f => ({
         id: f.id,
         name: f.name,
         type: f.feed_type as any,
         protocol: f.protocol as any,
-        host: f.host,
+        destination: f.host,
         port: f.port,
         status: f.enabled ? "connected" as const : "disconnected" as const,
         messageRate: 0,
@@ -117,7 +121,7 @@ export default function Feeds() {
       {/* Header Section with Stats */}
       <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Data Feeds</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">Data Feeds <DemoBadge show={!apiAvailable} /></h1>
           <p className="text-muted-foreground mt-1 max-w-2xl">
             Manage connections to external data aggregators and streams. 
             Connect your local receivers to global networks like FlightRadar24 and Airframes.io.
@@ -311,6 +315,34 @@ export default function Feeds() {
             <Settings className="w-4 h-4" /> Manage Defaults
           </Button>
         </div>
+
+        {apiAvailable && feedsError && (
+          <LiveDataErrorNotice
+            message="Couldn't load feeds from the device."
+            onRetry={() => refetchFeeds()}
+          />
+        )}
+
+        {apiAvailable && feedsLoading && (
+          <div className="space-y-3">
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+          </div>
+        )}
+
+        {!feedsLoading && feeds.length === 0 && (
+          <EmptyState
+            icon={ArrowUpRight}
+            title="No feeds configured"
+            description="Connect your receivers to aggregators like Airframes.io or FlightRadar24 by adding your first feed."
+            action={
+              <Button className="gap-2 mt-1" onClick={() => setIsAddOpen(true)}>
+                <Plus className="w-4 h-4" /> Add Feed
+              </Button>
+            }
+          />
+        )}
 
         {feeds.map(feed => {
           const typeDetails = getFeedTypeDetails(feed.type);

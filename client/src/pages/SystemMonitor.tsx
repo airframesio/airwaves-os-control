@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSystemInfo, useSystemStats, useContainers, useContainerStats, useNetworkInterfaces } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 const AnimatedNumber = ({ value, format = (v: number) => v.toFixed(0) }: { value: number, format?: (v: number) => string }) => {
@@ -222,6 +223,7 @@ export default function SystemMonitor() {
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <Monitor className="w-8 h-8 text-primary" />
           System Monitor
+          <DemoBadge show={!(apiAvailable && realStats)} />
         </h1>
         <p className="text-muted-foreground mt-1">
           Real-time performance metrics for <span className="font-medium text-foreground">{activeNode.name}</span> <span className="text-muted-foreground/50 mx-1">•</span> <span className="font-mono text-sm">{stats.hostname}</span>

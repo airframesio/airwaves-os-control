@@ -7,27 +7,33 @@ import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useSdrDevices } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
+import { LiveDataErrorNotice } from "@/components/DataStates";
+import { StatCardSkeleton } from "@/components/LoadingSkeleton";
 
 export default function Devices() {
   const [_, setLocation] = useLocation();
   const apiAvailable = useApiStatus();
-  const { data: liveDevices, isLoading: devicesLoading, refetch: refetchDevices } = useSdrDevices();
+  const { data: liveDevices, isLoading: devicesLoading, isError: devicesError, refetch: refetchDevices } = useSdrDevices();
 
-  // Map live SDR devices to the format the UI expects
-  const devices = apiAvailable && liveDevices ? liveDevices.map(d => ({
-    id: d.id,
-    name: d.name,
-    type: d.device_type.replace('_', '-').replace(/\b\w/g, c => c.toUpperCase()),
-    serial: d.serial ?? 'N/A',
-    status: d.status === 'available' ? 'active' as const : 'idle' as const,
-    assignedApp: d.assigned_to ?? undefined,
-  })) : mockDevices;
+  // Map live SDR devices to the format the UI expects. On a real device,
+  // never substitute mock hardware: show loading/error/empty states instead.
+  const devices = apiAvailable
+    ? (liveDevices ?? []).map(d => ({
+        id: d.id,
+        name: d.name,
+        type: d.device_type.replace('_', '-').replace(/\b\w/g, c => c.toUpperCase()),
+        serial: d.serial ?? 'N/A',
+        status: d.status === 'available' ? 'active' as const : 'idle' as const,
+        assignedApp: d.assigned_to ?? undefined,
+      }))
+    : mockDevices;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Radio Devices</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">Radio Devices <DemoBadge show={!apiAvailable} /></h1>
           <p className="text-muted-foreground mt-1">Manage connected SDR hardware and assignments.</p>
         </div>
         <Button variant="outline" className="gap-2" onClick={() => refetchDevices()}>
@@ -35,6 +41,20 @@ export default function Devices() {
         </Button>
       </div>
 
+      {apiAvailable && devicesError && (
+        <LiveDataErrorNotice
+          message="Couldn't load SDR devices from the device."
+          onRetry={() => refetchDevices()}
+        />
+      )}
+
+      {apiAvailable && devicesLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {devices.map(device => (
           <Card key={device.id} className="relative overflow-hidden group border-border/50 bg-card/50 backdrop-blur-sm">
@@ -94,11 +114,14 @@ export default function Devices() {
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto">
               <Radio className="w-6 h-6 text-muted-foreground" />
             </div>
-            <h3 className="font-medium text-muted-foreground">No other devices detected</h3>
+            <h3 className="font-medium text-muted-foreground">
+              {devices.length === 0 ? "No devices detected" : "No other devices detected"}
+            </h3>
             <p className="text-xs text-muted-foreground/60 max-w-[200px]">Plug in a USB SDR to auto-detect</p>
           </div>
         </Card>
       </div>
+      )}
     </div>
   );
 }

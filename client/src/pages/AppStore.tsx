@@ -10,6 +10,9 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAppCatalog, useContainers, useInstallApp } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
+import { LiveDataErrorNotice } from "@/components/DataStates";
+import { StatCardSkeleton } from "@/components/LoadingSkeleton";
 import AppInstallWizard from "@/components/AppInstallWizard";
 import type { CatalogApp } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +45,7 @@ export default function AppStore() {
 
   // Real API data
   const apiAvailable = useApiStatus();
-  const { data: catalogApps } = useAppCatalog();
+  const { data: catalogApps, isLoading: catalogLoading, isError: catalogError, refetch: refetchCatalog } = useAppCatalog();
   const { data: containers } = useContainers();
   const installMutation = useInstallApp();
   const { toast } = useToast();
@@ -81,9 +84,11 @@ export default function AppStore() {
     (containers ?? []).map(c => c.name.replace(/^airwaves-/, ''))
   );
 
-  // Build the app list: use catalog API when available, fall back to nodeStore
-  const apps = apiAvailable && catalogApps
-    ? catalogApps.map(app => ({
+  // Build the app list: use the device catalog when connected, mock otherwise.
+  // On a real device, never substitute the mock catalog: show loading/error
+  // states instead so users can't try to install apps that aren't there.
+  const apps = apiAvailable
+    ? (catalogApps ?? []).map(app => ({
         id: app.id,
         name: app.name,
         description: app.description,
@@ -105,7 +110,7 @@ export default function AppStore() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/50">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">App Store</h1>
+          <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">App Store <DemoBadge show={!apiAvailable} /></h1>
           <p className="text-xl text-muted-foreground mt-2">Discover powerful SDR applications for {activeNode.name}.</p>
         </div>
         <div className="relative w-full md:w-80">
@@ -134,6 +139,21 @@ export default function AppStore() {
           </TabsList>
         </Tabs>
 
+        {apiAvailable && catalogError && (
+          <LiveDataErrorNotice
+            message="Couldn't load the app catalog from the device."
+            onRetry={() => refetchCatalog()}
+          />
+        )}
+
+        {apiAvailable && catalogLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredApps.map(app => (
             <div 
@@ -183,8 +203,9 @@ export default function AppStore() {
             </div>
           ))}
         </div>
+        )}
 
-        {filteredApps.length === 0 && (
+        {!catalogLoading && filteredApps.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <LayoutGrid className="w-12 h-12 mb-4 opacity-20" />
             <p className="text-lg font-medium">No apps found</p>

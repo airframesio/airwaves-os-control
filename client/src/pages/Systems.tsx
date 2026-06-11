@@ -1,5 +1,8 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import DemoBadge from "@/components/DemoBadge";
+import { LiveDataErrorNotice } from "@/components/DataStates";
+import { StatCardSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -20,7 +23,7 @@ import { Progress } from "@/components/ui/progress";
 
 export default function Systems() {
   const apiAvailable = useApiStatus();
-  const { data: fleetData } = useFleetStatus();
+  const { data: fleetData, isLoading: fleetLoading, isError: fleetError, refetch: refetchFleet } = useFleetStatus();
   const pairMutation = usePairNode();
   const unpairMutation = useUnpairNode();
   const { data: discoveredNodes, refetch: runDiscovery, isFetching: isDiscovering } = useDiscoverNodes();
@@ -144,7 +147,7 @@ export default function Systems() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Fleet</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">System Fleet <DemoBadge show={!liveSystems} /></h1>
           <p className="text-muted-foreground mt-1">Manage multiple Airwaves OS instances from a single interface.</p>
         </div>
         
@@ -219,6 +222,20 @@ export default function Systems() {
         </Dialog>
       </div>
 
+      {apiAvailable && fleetError && (
+        <LiveDataErrorNotice
+          message="Couldn't load fleet status from the device."
+          onRetry={() => refetchFleet()}
+        />
+      )}
+
+      {apiAvailable && fleetLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {systems.map(system => (
           <Card key={system.id} className={cn(
@@ -319,6 +336,7 @@ export default function Systems() {
           </Card>
         ))}
       </div>
+      )}
 
       <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { useSystemStats, useContainers, useSystemOverview } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 
 // Simulate consolidated data
@@ -89,7 +90,8 @@ export default function Dashboard() {
         <div className="relative z-10 p-8 md:p-10">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-              <span className="text-primary">Airwaves</span> OS
+              <span className="text-primary">Airwaves</span> OS{" "}
+              <span className="inline-block align-middle ml-2"><DemoBadge show={!apiAvailable} /></span>
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
               Fleet running optimally. {onlineNodes.length} nodes online, processing signals across {totalDevices} devices.

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useNodeStore } from "@/lib/nodeStore";
 import { useTracking } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
 
 // Helper to generate simulated path
 // Helper component to update map center
@@ -427,6 +428,7 @@ export default function Tracking() {
         <h1 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-primary" />
           Live Tracking
+          <DemoBadge show={!(apiAvailable && trackingData?.vehicles?.length)} />
         </h1>
         <p className="text-xs text-muted-foreground mb-3">
           Connected to {activeNode.name}

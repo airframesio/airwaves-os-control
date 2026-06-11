@@ -10,6 +10,7 @@ import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, Ch
 import { useNodeStore } from "@/lib/nodeStore";
 import { useContainers, useContainerLogs, useDecodedMessages } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
 import {
   Dialog,
   DialogContent,
@@ -250,6 +251,7 @@ export default function LiveMessages() {
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Activity className="w-8 h-8 text-primary" />
             Live Messages
+            <DemoBadge show={!apiAvailable} />
           </h1>
           <p className="text-muted-foreground mt-1">
             Real-time decoded data stream for <span className="font-medium text-foreground">{activeNode.name}</span>

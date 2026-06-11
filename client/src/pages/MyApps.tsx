@@ -50,6 +50,9 @@ import AppMetrics from "@/components/AppMetrics";
 import { motion, useSpring, useTransform } from "framer-motion";
 import { useContainers, useContainerStats, useContainerStart, useContainerStop, useUninstallApp, useContainerLogs } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import DemoBadge from "@/components/DemoBadge";
+import { LiveDataErrorNotice } from "@/components/DataStates";
+import { ListItemSkeleton } from "@/components/LoadingSkeleton";
 
 const fmtUptime = (createdSec: number): string => {
   if (!createdSec) return "-";
@@ -194,7 +197,7 @@ function ExternalFeedConfig() {
 
 export default function MyApps() {
   const apiAvailable = useApiStatus();
-  const { data: liveContainers } = useContainers();
+  const { data: liveContainers, isError: containersError, refetch: refetchContainers } = useContainers();
   const { data: liveStats } = useContainerStats();
   const startMutation = useContainerStart();
   const stopMutation = useContainerStop();
@@ -374,6 +377,27 @@ export default function MyApps() {
   const displayStatus = (app: { id: string; status: string }): "running" | "stopped" | "starting" | "stopping" =>
     (pending[app.id] ?? app.status) as "running" | "stopped" | "starting" | "stopping";
 
+  // On a real device, don't show mock apps while containers load (or fail) —
+  // show a skeleton or an error with retry instead.
+  if (apiAvailable && !liveContainers) {
+    return (
+      <div className="space-y-4 max-w-xl">
+        {containersError ? (
+          <LiveDataErrorNotice
+            message="Couldn't load installed apps from the device."
+            onRetry={() => refetchContainers()}
+          />
+        ) : (
+          <>
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (apps.length === 0) {
     return (
       <div className="h-[calc(100vh-140px)] flex flex-col items-center justify-center text-center p-8 border border-dashed rounded-3xl bg-card/50">
@@ -399,7 +423,7 @@ export default function MyApps() {
         isCompact && showDetail ? "-translate-x-full opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
       )}>
         <div className="flex items-center justify-between px-1">
-          <h1 className="text-2xl font-bold tracking-tight">My Apps</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">My Apps <DemoBadge show={!apiAvailable} /></h1>
           <Badge variant="outline" className="ml-auto">
             {apps.length} Installed
           </Badge>
