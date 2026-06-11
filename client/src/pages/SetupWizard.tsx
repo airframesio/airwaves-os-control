@@ -146,6 +146,10 @@ export default function SetupWizard({ onComplete }: { onComplete: () => void }) 
           altitude_m: 0,
           operator: operator,
         },
+        preferences: {
+          ...(config.preferences ?? {}),
+          setup_completed: true,
+        },
       };
       await configApi.update(updated);
     } catch {

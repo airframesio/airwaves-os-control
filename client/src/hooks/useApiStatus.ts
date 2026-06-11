@@ -7,7 +7,16 @@ import { useQuery } from '@tanstack/react-query';
 import { isApiAvailable } from '@/lib/api';
 
 export function useApiStatus() {
-  const { data: available = false } = useQuery({
+  const { available } = useApiStatusState();
+  return available;
+}
+
+/**
+ * Like useApiStatus, but also reports whether the first probe has resolved,
+ * so callers can distinguish "API down" from "still checking".
+ */
+export function useApiStatusState() {
+  const { data: available = false, isFetched: resolved } = useQuery({
     queryKey: ['api-status'],
     queryFn: isApiAvailable,
     staleTime: 30_000,
@@ -15,5 +24,5 @@ export function useApiStatus() {
     retry: false,
   });
 
-  return available;
+  return { available, resolved };
 }

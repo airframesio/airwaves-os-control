@@ -6,7 +6,8 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { NodeProvider } from "./lib/nodeStore";
 import { useState, useEffect } from "react";
-import { useApiStatus } from "./hooks/useApiStatus";
+import { useApiStatusState } from "./hooks/useApiStatus";
+import { Radio } from "lucide-react";
 import NotFound from "./pages/not-found";
 import Dashboard from "./pages/Dashboard";
 import AppStore from "./pages/AppStore";
@@ -55,41 +56,69 @@ function Router() {
   );
 }
 
+function SetupSplash() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Radio className="w-8 h-8 text-primary animate-pulse" />
+        </div>
+        <span className="text-sm text-muted-foreground">Connecting to your device…</span>
+      </div>
+    </div>
+  );
+}
+
 function AppWithSetup() {
-  const apiAvailable = useApiStatus();
-  const [setupComplete, setSetupComplete] = useState<boolean>(() => {
-    return localStorage.getItem('airwaves_setup_complete') === 'true';
+  const { available: apiAvailable, resolved: apiResolved } = useApiStatusState();
+  const [setupState, setSetupState] = useState<'unknown' | 'needed' | 'complete'>(() => {
+    return localStorage.getItem('airwaves_setup_complete') === 'true' ? 'complete' : 'unknown';
   });
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check if setup is needed: config has empty device.id
-    if (apiAvailable && !setupComplete) {
-      import('./lib/api').then(({ configApi }) => {
-        configApi.get().then(config => {
-          if (config.device.id && config.station.latitude !== 0) {
-            // Already configured
-            setSetupComplete(true);
-            localStorage.setItem('airwaves_setup_complete', 'true');
-          }
-          setChecking(false);
-        }).catch(() => setChecking(false));
-      });
-    } else {
-      setChecking(false);
+    if (!apiResolved || setupState !== 'unknown') return;
+
+    if (!apiAvailable) {
+      // Demo mode: no device to set up, go straight to the dashboard.
+      // Not persisted, so a device reached later still gets the wizard.
+      setSetupState('complete');
+      return;
     }
-  }, [apiAvailable, setupComplete]);
+
+    let cancelled = false;
+    import('./lib/api').then(({ configApi }) =>
+      configApi.get().then(config => {
+        if (cancelled) return;
+        const prefs = config.preferences as Record<string, unknown> | undefined;
+        const configured =
+          prefs?.setup_completed === true ||
+          Boolean(config.device.id && (config.station.latitude !== 0 || config.station.longitude !== 0));
+        if (configured) {
+          localStorage.setItem('airwaves_setup_complete', 'true');
+          setSetupState('complete');
+        } else {
+          setSetupState('needed');
+        }
+      })
+    ).catch(() => {
+      // Config unreadable: fail open to the dashboard rather than
+      // trapping a configured device behind the wizard.
+      if (!cancelled) setSetupState('complete');
+    });
+    return () => { cancelled = true; };
+  }, [apiResolved, apiAvailable, setupState]);
 
   const handleSetupComplete = () => {
-    setSetupComplete(true);
     localStorage.setItem('airwaves_setup_complete', 'true');
+    setSetupState('complete');
   };
 
-  // Show wizard on first boot when API is available and config is empty
-  if (!checking && apiAvailable && !setupComplete) {
+  if (setupState === 'needed') {
     return <SetupWizard onComplete={handleSetupComplete} />;
   }
-
+  if (setupState === 'unknown') {
+    return <SetupSplash />;
+  }
   return <Router />;
 }
 
