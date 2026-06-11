@@ -23,6 +23,49 @@ export interface App {
   lastUpdate?: string;
   size?: string;
   screenshots?: string[];
+  outputs?: Array<{
+    kind: "messages" | "tracking" | "audio" | "web" | "metrics" | "raw";
+    label: string;
+    description?: string;
+    protocol?: string;
+    port?: number;
+  }>;
+  suggestedFeeds?: Array<{
+    id: string;
+    name: string;
+    feed_type: string;
+    protocol: string;
+    host: string;
+    port: number;
+    enabled?: boolean;
+    description?: string;
+  }>;
+  installNotes?: string[];
+  links?: Array<{ label: string; url: string }>;
+  valuePage?: {
+    label: string;
+    path: string;
+    description?: string;
+  };
+  bundledFeatures?: Array<{
+    id: string;
+    kind: "control_page" | "nav_item" | "feed_template";
+    label: string;
+    path?: string;
+    description?: string;
+    entrypoint?: string;
+  }>;
+  configFields?: Array<{
+    key: string;
+    label: string;
+    help?: string;
+    kind: string;
+    format?: string;
+    default: string;
+    options: string[];
+    required: boolean;
+  }>;
+  env?: Record<string, string>;
 }
 
 export interface Device {
@@ -258,6 +301,44 @@ export const mockApps: App[] = [
     category: "aviation",
     installed: true,
     hasOutput: false, // rtl_airband streams audio, not message data
+    outputs: [
+      {
+        kind: "audio",
+        label: "Airband audio streams",
+        description: "Live ATC audio streams.",
+        protocol: "http",
+        port: 8000
+      },
+      {
+        kind: "web",
+        label: "Bundled Airband page",
+        description: "Airwaves OS control page for rtl_airband status, streams, config, and logs."
+      }
+    ],
+    valuePage: {
+      label: "Airband",
+      path: "/airband",
+      description: "Bundled Airwaves OS page unlocked by rtl_airband for stream status, configuration, and logs."
+    },
+    bundledFeatures: [
+      {
+        id: "airband-control-page",
+        kind: "control_page",
+        label: "Airband",
+        path: "/airband",
+        entrypoint: "builtin:rtl-airband",
+        description: "Adds the Airband navigation item and live rtl_airband management page when installed."
+      }
+    ],
+    installNotes: [
+      "Installs the rtl_airband container and unlocks the bundled Airband page in Airwaves OS."
+    ],
+    links: [
+      {
+        label: "rtl_airband project",
+        url: "https://github.com/charlie-foxtrot/rtl_airband"
+      }
+    ],
     cpuUsage: 18,
     memoryUsage: 45,
     messageRate: 0,

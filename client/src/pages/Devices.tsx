@@ -1,127 +1,345 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
+import {
+  AlertCircle,
+  Grid2X2,
+  List,
+  Loader2,
+  Radio,
+  RefreshCw,
+  Settings2,
+  Usb,
+} from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Radio, RefreshCw, Settings2, Usb, Loader2 } from "lucide-react";
-import { mockDevices } from "@/lib/mockData";
-import { cn } from "@/lib/utils";
-import { useLocation } from "wouter";
-import { useSdrDevices } from "@/hooks/useAirwavesApi";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiStatus } from "@/hooks/useApiStatus";
-import DemoBadge from "@/components/DemoBadge";
-import { LiveDataErrorNotice } from "@/components/DataStates";
-import { StatCardSkeleton } from "@/components/LoadingSkeleton";
+import { useSdrDevices } from "@/hooks/useAirwavesApi";
+import { demoModeEnabled } from "@/lib/demoMode";
+import { mockDevices } from "@/lib/mockData";
+import type { SdrDevice } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+type DeviceRow = {
+  id: string;
+  name: string;
+  type: string;
+  serial: string;
+  physicalSerial: string;
+  status: string;
+  assignedApp?: string;
+  vendorProduct?: string;
+  isDemo?: boolean;
+};
+
+function titleCaseDeviceType(value: string): string {
+  return value
+    .replace(/_/g, "-")
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("-");
+}
+
+function mapLiveDevice(device: SdrDevice): DeviceRow {
+  return {
+    id: device.id,
+    name: device.configured_name ?? device.name,
+    type: titleCaseDeviceType(device.device_type),
+    serial: device.configured_serial ?? device.serial ?? "N/A",
+    physicalSerial: device.serial ?? "N/A",
+    status: device.status,
+    assignedApp: device.assigned_to ?? undefined,
+    vendorProduct: `${device.vendor_id.toString(16).padStart(4, "0")}:${device.product_id
+      .toString(16)
+      .padStart(4, "0")}`,
+  };
+}
+
+function mapDemoDevice(device: (typeof mockDevices)[number]): DeviceRow {
+  return {
+    id: device.id,
+    name: device.name,
+    type: device.type,
+    serial: device.serial,
+    physicalSerial: device.serial,
+    status: device.status,
+    assignedApp: device.assignedApp,
+    isDemo: true,
+  };
+}
+
+function statusClasses(status: string): string {
+  switch (status) {
+    case "available":
+    case "active":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600";
+    case "assigned":
+      return "border-blue-500/30 bg-blue-500/10 text-blue-600";
+    case "ambiguous":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-600";
+    case "conflict":
+    case "error":
+      return "border-destructive/30 bg-destructive/10 text-destructive";
+    default:
+      return "border-muted bg-muted/50 text-muted-foreground";
+  }
+}
+
+function railClass(status: string): string {
+  switch (status) {
+    case "available":
+    case "active":
+      return "bg-emerald-500";
+    case "assigned":
+      return "bg-blue-500";
+    case "ambiguous":
+      return "bg-amber-500";
+    case "conflict":
+    case "error":
+      return "bg-destructive";
+    default:
+      return "bg-muted";
+  }
+}
+
+function formatStatus(status: string): string {
+  return status.replace(/_/g, " ");
+}
 
 export default function Devices() {
-  const [_, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const apiAvailable = useApiStatus();
-  const { data: liveDevices, isLoading: devicesLoading, isError: devicesError, refetch: refetchDevices } = useSdrDevices();
+  const [view, setView] = useState<"cards" | "list">("cards");
+  const {
+    data: liveDevices,
+    isLoading: devicesLoading,
+    isFetching: devicesFetching,
+    refetch: refetchDevices,
+  } = useSdrDevices();
 
-  // Map live SDR devices to the format the UI expects. On a real device,
-  // never substitute mock hardware: show loading/error/empty states instead.
-  const devices = apiAvailable
-    ? (liveDevices ?? []).map(d => ({
-        id: d.id,
-        name: d.name,
-        type: d.device_type.replace('_', '-').replace(/\b\w/g, c => c.toUpperCase()),
-        serial: d.serial ?? 'N/A',
-        status: d.status === 'available' ? 'active' as const : 'idle' as const,
-        assignedApp: d.assigned_to ?? undefined,
-      }))
-    : mockDevices;
+  const devices = useMemo<DeviceRow[]>(() => {
+    if (liveDevices?.length) return liveDevices.map(mapLiveDevice);
+    if (demoModeEnabled) return mockDevices.map(mapDemoDevice);
+    return [];
+  }, [liveDevices]);
+
+  const assignedCount = devices.filter((device) => !!device.assignedApp).length;
+  const conflictCount = devices.filter((device) =>
+    ["ambiguous", "conflict"].includes(device.status),
+  ).length;
+
+  const configureDevice = (device: DeviceRow) => {
+    if (device.isDemo) return;
+    setLocation(`/devices/${encodeURIComponent(device.id)}/config`);
+  };
+
+  const emptyTitle = apiAvailable ? "No SDR devices detected" : "Manager connection unavailable";
+  const emptyDescription = apiAvailable
+    ? "Plug in a supported SDR and scan again."
+    : "The UI is keeping real data only. It will repopulate when the manager reconnects.";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">Radio Devices <DemoBadge show={!apiAvailable} /></h1>
-          <p className="text-muted-foreground mt-1">Manage connected SDR hardware and assignments.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Radio Devices</h1>
+          <p className="text-muted-foreground mt-1">Manage connected SDR hardware, aliases, and assignments.</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => refetchDevices()}>
-          {devicesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Scan Devices
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-lg border bg-card p-1">
+            <Button
+              variant={view === "cards" ? "secondary" : "ghost"}
+              size="sm"
+              className="gap-2"
+              onClick={() => setView("cards")}
+            >
+              <Grid2X2 className="h-4 w-4" />
+              Cards
+            </Button>
+            <Button
+              variant={view === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="gap-2"
+              onClick={() => setView("list")}
+            >
+              <List className="h-4 w-4" />
+              List
+            </Button>
+          </div>
+          <Button variant="outline" className="gap-2" onClick={() => refetchDevices()}>
+            {devicesFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Scan Devices
+          </Button>
+        </div>
       </div>
 
-      {apiAvailable && devicesError && (
-        <LiveDataErrorNotice
-          message="Couldn't load SDR devices from the device."
-          onRetry={() => refetchDevices()}
-        />
-      )}
-
-      {apiAvailable && devicesLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StatCardSkeleton />
-          <StatCardSkeleton />
-          <StatCardSkeleton />
-        </div>
-      ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {devices.map(device => (
-          <Card key={device.id} className="relative overflow-hidden group border-border/50 bg-card/50 backdrop-blur-sm">
-            <div className={cn(
-              "absolute top-0 left-0 w-1 h-full",
-              device.status === "active" ? "bg-emerald-500" : "bg-muted"
-            )} />
-            <CardHeader className="pl-6 pb-2">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Usb className="w-4 h-4 text-muted-foreground" />
-                    {device.name}
-                  </CardTitle>
-                  <CardDescription className="font-mono text-xs">Serial: {device.serial}</CardDescription>
-                </div>
-                <Badge variant={device.status === "active" ? "default" : "secondary"}>
-                  {device.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pl-6 pt-4">
-               <div className="space-y-4">
-                 <div className="flex items-center justify-between text-sm">
-                   <span className="text-muted-foreground">Type</span>
-                   <span className="font-medium">{device.type}</span>
-                 </div>
-                 <div className="flex items-center justify-between text-sm">
-                   <span className="text-muted-foreground">Assigned App</span>
-                   {device.assignedApp ? (
-                     <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary">
-                       {device.assignedApp}
-                     </Badge>
-                   ) : (
-                     <span className="text-muted-foreground italic">Unassigned</span>
-                   )}
-                 </div>
-                 
-                 <div className="pt-4 flex gap-2">
-                   <Button 
-                     variant="outline" 
-                     size="sm" 
-                     className="w-full"
-                     onClick={() => setLocation(`/devices/${device.id}/config`)}
-                   >
-                     <Settings2 className="w-3 h-3 mr-2" /> Configure
-                   </Button>
-                 </div>
-               </div>
-            </CardContent>
-          </Card>
-        ))}
-        
-        {/* Placeholder for "Plug in new device" */}
-        <Card className="border-dashed border-2 border-muted flex items-center justify-center min-h-[200px] bg-transparent hover:bg-muted/10 transition-colors">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto">
-              <Radio className="w-6 h-6 text-muted-foreground" />
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Detected SDRs</div>
+            <div className="mt-1 text-2xl font-semibold">{devices.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Assigned</div>
+            <div className="mt-1 text-2xl font-semibold">{assignedCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Needs Attention</div>
+            <div className={cn("mt-1 text-2xl font-semibold", conflictCount ? "text-amber-600" : "")}>
+              {conflictCount}
             </div>
-            <h3 className="font-medium text-muted-foreground">
-              {devices.length === 0 ? "No devices detected" : "No other devices detected"}
-            </h3>
-            <p className="text-xs text-muted-foreground/60 max-w-[200px]">Plug in a USB SDR to auto-detect</p>
-          </div>
+          </CardContent>
         </Card>
       </div>
+
+      {!apiAvailable && !demoModeEnabled && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-700 dark:text-amber-300">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <div className="font-medium">Manager is currently unreachable.</div>
+              <div className="text-muted-foreground">
+                Demo fixtures are disabled for this install, so this page will only show real device data.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {devicesLoading && devices.length === 0 ? (
+        <Card>
+          <CardContent className="flex min-h-[220px] items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Scanning SDR hardware...
+          </CardContent>
+        </Card>
+      ) : devices.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <Radio className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-medium">{emptyTitle}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{emptyDescription}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : view === "cards" ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {devices.map((device) => (
+            <Card key={device.id} className="relative overflow-hidden border-border/70 bg-card">
+              <div className={cn("absolute left-0 top-0 h-full w-1", railClass(device.status))} />
+              <CardHeader className="pb-3 pl-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Usb className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{device.name}</span>
+                    </CardTitle>
+                    <CardDescription className="font-mono text-xs">
+                      Serial: {device.serial}
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className={cn("capitalize", statusClasses(device.status))}>
+                    {formatStatus(device.status)}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pl-6">
+                <div className="grid gap-3 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="font-medium">{device.type}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">USB ID</span>
+                    <span className="font-mono text-xs">{device.vendorProduct ?? "demo"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Assigned App</span>
+                    {device.assignedApp ? (
+                      <Badge variant="outline" className="max-w-[180px] truncate bg-primary/5 text-primary">
+                        {device.assignedApp}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground italic">Unassigned</span>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => configureDevice(device)}
+                  disabled={device.isDemo}
+                >
+                  <Settings2 className="h-4 w-4" />
+                  Configure
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Device</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Serial</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Assigned App</TableHead>
+                <TableHead className="w-[130px] text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {devices.map((device) => (
+                <TableRow key={device.id}>
+                  <TableCell>
+                    <div className="font-medium">{device.name}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{device.id}</div>
+                  </TableCell>
+                  <TableCell>{device.type}</TableCell>
+                  <TableCell>
+                    <div className="font-mono text-xs">{device.serial}</div>
+                    {device.serial !== device.physicalSerial && (
+                      <div className="text-xs text-muted-foreground">Physical: {device.physicalSerial}</div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("capitalize", statusClasses(device.status))}>
+                      {formatStatus(device.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{device.assignedApp ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => configureDevice(device)}
+                      disabled={device.isDemo}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      Configure
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );
 }
+

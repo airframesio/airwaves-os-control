@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { mockMessages, Message } from "@/lib/mockData";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, Search, Filter, Signal, Pause, Play, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings2, Clock, Radio, User, FileText, Cpu } from "lucide-react";
 import { useNodeStore } from "@/lib/nodeStore";
-import { useContainers, useContainerLogs, useDecodedMessages } from "@/hooks/useAirwavesApi";
+import { demoModeEnabled } from "@/lib/demoMode";
+import { useDecodedMessages } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import DemoBadge from "@/components/DemoBadge";
 import {
@@ -65,15 +66,8 @@ interface VisibleColumns {
 export default function LiveMessages() {
   const { activeNode, data } = useNodeStore();
   const apiAvailable = useApiStatus();
-  const { data: liveContainers } = useContainers();
   const { data: decodedMessages } = useDecodedMessages();
   const runningAppIds = data.apps.filter(a => a.status === 'running').map(a => a.id);
-
-  // Decoder container names for log fetching
-  const decoderContainers = (liveContainers ?? [])
-    .filter(c => c.state === 'running' && c.name.startsWith('airwaves-') &&
-      !['airwaves-gateway', 'airwaves-manager'].includes(c.name))
-    .map(c => c.name);
 
   // Initialize messages filtered by the current node's running apps
   const [messages, setMessages] = useState<Message[]>([]);
@@ -111,24 +105,6 @@ export default function LiveMessages() {
     localStorage.setItem('liveMessagesColumns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
-  // Parse a log line from a container into a Message object
-  const parseLogLine = useCallback((containerName: string, line: string, index: number): Message | null => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.length < 5) return null;
-    const appId = containerName.replace(/^airwaves-/, '');
-    return {
-      id: `log-${appId}-${Date.now()}-${index}`,
-      timestamp: new Date().toISOString().replace('T', ' ').substr(0, 19),
-      appId,
-      appName: appId,
-      frequency: "",
-      mode: appId.toUpperCase(),
-      signalLevel: 0,
-      source: containerName,
-      content: trimmed,
-    };
-  }, []);
-
   // Use decoded message buffer as primary source (includes forwarded messages)
   useEffect(() => {
     if (!apiAvailable || !decodedMessages?.length || isPaused) return;
@@ -151,40 +127,11 @@ export default function LiveMessages() {
     });
   }, [decodedMessages, apiAvailable, isPaused]);
 
-  // Fetch real container logs when API is available (fallback to direct log polling)
-  useEffect(() => {
-    if (!apiAvailable || isPaused || decoderContainers.length === 0) return;
-
-    let cancelled = false;
-    const fetchLogs = async () => {
-      const { containersApi } = await import("@/lib/api");
-      for (const name of decoderContainers) {
-        if (cancelled) break;
-        try {
-          const result = await containersApi.logs(name, 20);
-          const lines = result.logs.split('\n').filter(Boolean);
-          const newMsgs = lines
-            .map((line, i) => parseLogLine(name, line, i))
-            .filter((m): m is Message => m !== null);
-          if (newMsgs.length > 0) {
-            setMessages(prev => [...newMsgs, ...prev].slice(0, 200));
-          }
-        } catch {
-          // Container may not have logs yet
-        }
-      }
-    };
-
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 5000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [apiAvailable, isPaused, decoderContainers.join(','), parseLogLine]);
-
   // Reset messages when active node changes
   useEffect(() => {
-    if (!apiAvailable) {
+    if (!apiAvailable && demoModeEnabled) {
       setMessages(mockMessages.filter(m => runningAppIds.includes(m.appId)));
-    } else {
+    } else if (apiAvailable) {
       setMessages([]);
     }
     setCurrentPage(1);
@@ -192,7 +139,7 @@ export default function LiveMessages() {
 
   // Simulated messages for offline/dev mode
   useEffect(() => {
-    if (apiAvailable || isPaused) return;
+    if (apiAvailable || !demoModeEnabled || isPaused) return;
 
     const validTemplates = SAMPLE_MESSAGES.filter(t => runningAppIds.includes(t.appId));
     if (validTemplates.length === 0) return;
@@ -251,7 +198,7 @@ export default function LiveMessages() {
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Activity className="w-8 h-8 text-primary" />
             Live Messages
-            <DemoBadge show={!apiAvailable} />
+            <DemoBadge show={demoModeEnabled && !apiAvailable} />
           </h1>
           <p className="text-muted-foreground mt-1">
             Real-time decoded data stream for <span className="font-medium text-foreground">{activeNode.name}</span>

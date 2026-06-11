@@ -1,16 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Radio, AppWindow, Rss, Settings, Menu, X, Terminal, Globe, Server, ChevronsUpDown, Check, AudioWaveform, Map, ChevronLeft, ChevronRight, MessageSquareText, Monitor, DownloadCloud } from "lucide-react";
+import {
+  LayoutDashboard,
+  Radio,
+  AppWindow,
+  Rss,
+  Settings,
+  Menu,
+  X,
+  Terminal,
+  Globe,
+  Server,
+  ChevronsUpDown,
+  Check,
+  AudioWaveform,
+  Map,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquareText,
+  Monitor,
+  DownloadCloud,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import logoIcon from "@/assets/airwaves-logo.png";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { CommandMenu } from "@/components/CommandMenu";
 import { useNodeStore } from "@/lib/nodeStore";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { useApiStatus } from "@/hooks/useApiStatus";
-import { useSystemStats } from "@/hooks/useAirwavesApi";
+import {
+  useAppCatalog,
+  useContainers,
+  useSystemStats,
+} from "@/hooks/useAirwavesApi";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 import SidebarUpdateIndicator from "@/components/SidebarUpdateIndicator";
 
@@ -25,20 +60,55 @@ export default function AppLayout({ children }: SidebarProps) {
   const [mounted, setMounted] = useState(false);
   const { activeNode, nodes, setActiveNode, data } = useNodeStore();
 
-  // Real system health when connected to a device; mock otherwise. Prefer the
-  // live WebSocket stats (pushed ~5s) over the REST poll. "Online" reflects
-  // actual API reachability, not a hardcoded node flag.
+  // Real system health when connected to a device. Demo fallback is available
+  // only for explicitly configured example deployments.
   const apiAvailable = useApiStatus();
   const { data: restStats } = useSystemStats();
+  const { data: containers } = useContainers();
+  const { data: catalogApps } = useAppCatalog();
   const { liveStats: wsStats } = useManagerEvents();
   const realStats = wsStats ?? restStats;
   const statusOnline = apiAvailable;
-  const systemStats = apiAvailable && realStats
-    ? { cpu: Math.round(realStats.cpu_usage), ram: Math.round(realStats.memory_percent) }
-    : { cpu: 45, ram: 62 };
+  const systemStats =
+    apiAvailable && realStats
+      ? {
+          cpu: Math.round(realStats.cpu_usage),
+          ram: Math.round(realStats.memory_percent),
+        }
+      : demoModeEnabled
+        ? { cpu: 45, ram: 62 }
+        : { cpu: 0, ram: 0 };
 
-  // Check if rtl_airband is installed on the active node
-  const hasRtlAirband = data.apps.some(app => app.id === 'rtl_airband' && app.installed);
+  const installedAppIds = new Set(
+    containers
+      ? (containers ?? [])
+          .map((c) => c.name.replace(/^airwaves-/, "").replace(/^\//, ""))
+          .flatMap((id) => [id, id.replace("_", "-")])
+      : demoModeEnabled
+      ? data.apps
+          .filter((app) => app.installed)
+          .flatMap((app) => [app.id, app.id.replace("_", "-")])
+      : [],
+  );
+
+  const providedPageItems = catalogApps
+    ? (catalogApps ?? []).flatMap((app) => {
+        if (!installedAppIds.has(app.id)) return [];
+        return (app.bundled_features ?? [])
+          .filter((feature) => feature.kind === "control_page" && feature.path)
+          .map((feature) => ({
+            label: feature.label,
+            icon: feature.path === "/airband" ? Radio : AppWindow,
+            href: feature.path!,
+          }));
+      })
+    : demoModeEnabled && data.apps.some(
+          (app) =>
+            (app.id === "rtl_airband" || app.id === "rtl-airband") &&
+            app.installed,
+        )
+      ? [{ label: "Airband", icon: Radio, href: "/airband" }]
+      : [];
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -49,7 +119,7 @@ export default function AppLayout({ children }: SidebarProps) {
     { label: "Dashboard", icon: LayoutDashboard, href: "/" },
     { label: "Map", icon: Map, href: "/map" },
     { label: "Live Messages", icon: MessageSquareText, href: "/messages" },
-    ...(hasRtlAirband ? [{ label: "Airband", icon: Radio, href: "/airband" }] : []),
+    ...providedPageItems,
   ];
 
   const appNavItems = [
@@ -69,36 +139,54 @@ export default function AppLayout({ children }: SidebarProps) {
   // Helper function to render nav link
   const NavLink = ({ item }: { item: any }) => {
     const isActive = location === item.href;
-    
+
     if (collapsed) {
       return (
         <Tooltip key={item.href} delayDuration={0}>
           <TooltipTrigger asChild>
-            <Link href={item.href} className={cn(
-              "flex items-center justify-center w-10 h-10 mx-auto rounded-md transition-all duration-200",
-              isActive 
-                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border" 
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            )} onClick={() => setMobileMenuOpen(false)}>
-              <item.icon className={cn("w-5 h-5", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
+            <Link
+              href={item.href}
+              className={cn(
+                "flex items-center justify-center w-10 h-10 mx-auto rounded-md transition-all duration-200",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+              )}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <item.icon
+                className={cn(
+                  "w-5 h-5",
+                  isActive
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground/50",
+                )}
+              />
             </Link>
           </TooltipTrigger>
-          <TooltipContent side="right">
-            {item.label}
-          </TooltipContent>
+          <TooltipContent side="right">{item.label}</TooltipContent>
         </Tooltip>
       );
     }
 
     return (
-      <Link href={item.href} className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
-        isActive 
-          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border" 
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-      )} onClick={() => setMobileMenuOpen(false)}>
-          <item.icon className={cn("w-5 h-5", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
-          {item.label}
+      <Link
+        href={item.href}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-sidebar-border"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        )}
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        <item.icon
+          className={cn(
+            "w-5 h-5",
+            isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50",
+          )}
+        />
+        {item.label}
       </Link>
     );
   };
@@ -108,110 +196,170 @@ export default function AppLayout({ children }: SidebarProps) {
       <CommandMenu />
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 ease-in-out",
-          mobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0",
-          collapsed ? "lg:w-16 items-center" : "lg:w-64"
+          mobileMenuOpen
+            ? "translate-x-0 w-64"
+            : "-translate-x-full lg:translate-x-0",
+          collapsed ? "lg:w-16 items-center" : "lg:w-64",
         )}
       >
-        <div className={cn(
-          "h-16 flex items-center border-b border-sidebar-border/50 relative w-full",
-          collapsed ? "justify-center px-0" : "px-6"
-        )}>
-           <div className={cn(
-             "flex items-center gap-2 font-bold text-xl tracking-tight text-sidebar-primary w-full",
-             collapsed && "justify-center"
-            )}>
-             <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-contain" />
-             </div>
-             {!collapsed && (
-               <div className="flex-1 min-w-0 animate-in fade-in duration-300">
-                 <span className="truncate block">Airwaves OS</span>
-               </div>
-             )}
-           </div>
-           
-           {/* Collapse Toggle - Only visible on desktop */}
-           <Button
-             variant="outline"
-             size="icon"
-             className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border border-sidebar-border shadow-md bg-sidebar hidden lg:flex z-50 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground p-0"
-             onClick={() => setCollapsed(!collapsed)}
-           >
-             {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-           </Button>
+        <div
+          className={cn(
+            "h-16 flex items-center border-b border-sidebar-border/50 relative w-full",
+            collapsed ? "justify-center px-0" : "px-6",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-2 font-bold text-xl tracking-tight text-sidebar-primary w-full",
+              collapsed && "justify-center",
+            )}
+          >
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
+              <img
+                src={logoIcon}
+                alt="Airwaves OS Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0 animate-in fade-in duration-300">
+                <span className="truncate block">Airwaves OS</span>
+              </div>
+            )}
+          </div>
+
+          {/* Collapse Toggle - Only visible on desktop */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border border-sidebar-border shadow-md bg-sidebar hidden lg:flex z-50 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground p-0"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-3 w-3" />
+            ) : (
+              <ChevronLeft className="h-3 w-3" />
+            )}
+          </Button>
         </div>
-        
+
         {/* System Selector */}
-        <div className={cn("pt-4 w-full", collapsed ? "px-2 flex justify-center" : "px-3")}>
-           <DropdownMenu>
-             <DropdownMenuTrigger asChild>
-               <Button 
-                 variant="outline" 
-                 className={cn(
-                   "bg-sidebar-accent/50 border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground group",
-                   collapsed ? "px-0 justify-center h-10 w-10 p-0 rounded-lg" : "w-full justify-between"
-                  )}
-                >
-                 {!collapsed ? (
-                   <>
-                     <span className="flex items-center gap-2 truncate">
-                       <div className={cn(
-                         "w-2 h-2 rounded-full animate-pulse",
-                         statusOnline ? "bg-emerald-500" : "bg-red-500"
-                       )}></div>
-                       {activeNode.name}
-                     </span>
-                     <ChevronsUpDown className="w-4 h-4 opacity-50 group-hover:opacity-100" />
-                   </>
-                 ) : (
-                   <div className={cn(
-                    "w-2 h-2 rounded-full animate-pulse",
-                    statusOnline ? "bg-emerald-500" : "bg-red-500"
-                  )}></div>
-                 )}
-               </Button>
-             </DropdownMenuTrigger>
-             <DropdownMenuContent className="w-[230px]" align="start" side={collapsed ? "right" : "bottom"}>
-               <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">Switch System</div>
-               {nodes.map(node => (
-                <DropdownMenuItem 
-                  key={node.id} 
+        <div
+          className={cn(
+            "pt-4 w-full",
+            collapsed ? "px-2 flex justify-center" : "px-3",
+          )}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "bg-sidebar-accent/50 border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-foreground group",
+                  collapsed
+                    ? "px-0 justify-center h-10 w-10 p-0 rounded-lg"
+                    : "w-full justify-between",
+                )}
+              >
+                {!collapsed ? (
+                  <>
+                    <span className="flex items-center gap-2 truncate">
+                      <div
+                        className={cn(
+                          "w-2 h-2 rounded-full animate-pulse",
+                          statusOnline ? "bg-emerald-500" : "bg-red-500",
+                        )}
+                      ></div>
+                      {activeNode.name}
+                    </span>
+                    <ChevronsUpDown className="w-4 h-4 opacity-50 group-hover:opacity-100" />
+                  </>
+                ) : (
+                  <div
+                    className={cn(
+                      "w-2 h-2 rounded-full animate-pulse",
+                      statusOnline ? "bg-emerald-500" : "bg-red-500",
+                    )}
+                  ></div>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-[230px]"
+              align="start"
+              side={collapsed ? "right" : "bottom"}
+            >
+              <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">
+                Switch System
+              </div>
+              {nodes.map((node) => (
+                <DropdownMenuItem
+                  key={node.id}
                   className="gap-2"
                   onClick={() => setActiveNode(node.id)}
                 >
-                   <div className={cn(
-                     "w-2 h-2 rounded-full",
-                     node.status === 'online' ? "bg-emerald-500" : "bg-red-500"
-                   )}></div>
-                   <span>{node.name}</span>
-                   {activeNode.id === node.id && <Check className="w-4 h-4 ml-auto" />}
-                 </DropdownMenuItem>
-               ))}
-             </DropdownMenuContent>
-           </DropdownMenu>
+                  <div
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      node.status === "online"
+                        ? "bg-emerald-500"
+                        : "bg-red-500",
+                    )}
+                  ></div>
+                  <span>{node.name}</span>
+                  {activeNode.id === node.id && (
+                    <Check className="w-4 h-4 ml-auto" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex-1 overflow-y-auto py-6">
-          <nav className={cn("space-y-1 w-full", collapsed ? "px-2 flex flex-col items-center" : "px-3")}>
-            {mainNavItems.map((item) => <NavLink key={item.href} item={item} />)}
-            
-            {!collapsed && <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-2">Apps</div>}
-            {collapsed && <div className="h-px w-8 bg-sidebar-border/50 my-3" />}
-            {appNavItems.map((item) => <NavLink key={item.href} item={item} />)}
+          <nav
+            className={cn(
+              "space-y-1 w-full",
+              collapsed ? "px-2 flex flex-col items-center" : "px-3",
+            )}
+          >
+            {mainNavItems.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
 
-            {!collapsed && <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-2">System</div>}
-            {collapsed && <div className="h-px w-8 bg-sidebar-border/50 my-3" />}
-            {systemNavItems.map((item) => <NavLink key={item.href} item={item} />)}
+            {!collapsed && (
+              <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-2">
+                Apps
+              </div>
+            )}
+            {collapsed && (
+              <div className="h-px w-8 bg-sidebar-border/50 my-3" />
+            )}
+            {appNavItems.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+
+            {!collapsed && (
+              <div className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-2">
+                System
+              </div>
+            )}
+            {collapsed && (
+              <div className="h-px w-8 bg-sidebar-border/50 my-3" />
+            )}
+            {systemNavItems.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
           </nav>
         </div>
 
@@ -224,53 +372,60 @@ export default function AppLayout({ children }: SidebarProps) {
           </div>
         )}
 
-        <div className={cn("border-t border-sidebar-border/50 w-full", collapsed ? "p-2 flex flex-col items-center gap-2" : "p-4 space-y-3")}>
+        <div
+          className={cn(
+            "border-t border-sidebar-border/50 w-full",
+            collapsed
+              ? "p-2 flex flex-col items-center gap-2"
+              : "px-4 py-4 space-y-4",
+          )}
+        >
           {collapsed && <SidebarUpdateIndicator collapsed />}
-          {/* Theme switcher: same px-3 margins as the System Status card below */}
           {!collapsed && (
-            <div className="flex items-center justify-between px-3">
+            <div className="flex items-center justify-between">
               <span className="text-xs text-sidebar-foreground/60">Theme</span>
               <ThemeSwitcher size="sm" />
             </div>
           )}
 
-          {/* Divider between Theme and System Status — break out of the p-4
-              padding (-mx-4) so it spans the full sidebar width like the top
-              border, not inset by the padding. */}
-          {!collapsed && <div className="h-px -mx-4 bg-sidebar-border/50" />}
-
           {collapsed ? (
-             <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
-                <div className={cn(
+            <div className="flex flex-col items-center gap-3 py-2 bg-sidebar-accent/30 rounded-lg w-10">
+              <div
+                className={cn(
                   "w-1.5 h-1.5 rounded-full animate-pulse",
-                  statusOnline ? "bg-emerald-500" : "bg-red-500"
-                )}></div>
-                <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
-                  <div 
-                    className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out" 
-                    style={{ width: `${systemStats.cpu}%` }}
-                  ></div>
-                </div>
-                <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
-                   <div 
-                     className="h-full bg-purple-500 transition-all duration-1000 ease-in-out" 
-                     style={{ width: `${systemStats.ram}%` }}
-                   ></div>
-                </div>
-             </div>
+                  statusOnline ? "bg-emerald-500" : "bg-red-500",
+                )}
+              ></div>
+              <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
+                <div
+                  className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out"
+                  style={{ width: `${systemStats.cpu}%` }}
+                ></div>
+              </div>
+              <div className="h-1 bg-sidebar-border rounded-full overflow-hidden w-6">
+                <div
+                  className="h-full bg-purple-500 transition-all duration-1000 ease-in-out"
+                  style={{ width: `${systemStats.ram}%` }}
+                ></div>
+              </div>
+            </div>
           ) : (
             <div className="bg-sidebar-accent/30 rounded-lg p-3 text-xs text-sidebar-foreground/60">
               <div className="flex justify-between items-center mb-2">
                 <span>System Status</span>
-                <span className={cn(
-                  "font-medium flex items-center gap-1.5",
-                  statusOnline ? "text-emerald-500" : "text-red-500"
-                )}>
-                  <span className={cn(
-                    "w-1.5 h-1.5 rounded-full animate-pulse",
-                    statusOnline ? "bg-emerald-500" : "bg-red-500"
-                  )}></span>
-                  {statusOnline ? 'Online' : 'Offline'}
+                <span
+                  className={cn(
+                    "font-medium flex items-center gap-1.5",
+                    statusOnline ? "text-emerald-500" : "text-red-500",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full animate-pulse",
+                      statusOnline ? "bg-emerald-500" : "bg-red-500",
+                    )}
+                  ></span>
+                  {statusOnline ? "Online" : "Offline"}
                 </span>
               </div>
               <div className="space-y-1.5">
@@ -279,8 +434,8 @@ export default function AppLayout({ children }: SidebarProps) {
                   <span>{Math.round(systemStats.cpu)}%</span>
                 </div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out" 
+                  <div
+                    className="h-full bg-sidebar-primary transition-all duration-1000 ease-in-out"
                     style={{ width: `${systemStats.cpu}%` }}
                   ></div>
                 </div>
@@ -289,10 +444,10 @@ export default function AppLayout({ children }: SidebarProps) {
                   <span>{Math.round(systemStats.ram)}%</span>
                 </div>
                 <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
-                   <div 
-                     className="h-full bg-purple-500 transition-all duration-1000 ease-in-out" 
-                     style={{ width: `${systemStats.ram}%` }}
-                   ></div>
+                  <div
+                    className="h-full bg-purple-500 transition-all duration-1000 ease-in-out"
+                    style={{ width: `${systemStats.ram}%` }}
+                  ></div>
                 </div>
               </div>
             </div>
@@ -305,27 +460,47 @@ export default function AppLayout({ children }: SidebarProps) {
         {/* Mobile Header */}
         <header className="h-16 lg:hidden flex items-center justify-between px-4 border-b border-border bg-background/50 backdrop-blur-md sticky top-0 z-30">
           <div className="flex items-center gap-2 font-bold text-lg">
-             <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
-                <img src={logoIcon} alt="Airwaves OS Logo" className="w-full h-full object-contain" />
-             </div>
-             Airwaves OS
+            <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
+              <img
+                src={logoIcon}
+                alt="Airwaves OS Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            Airwaves OS
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileMenuOpen(true)}
+          >
             <Menu className="w-6 h-6" />
           </Button>
         </header>
 
         {/* Scrollable Area */}
-        <div className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden relative",
-          location === "/map" ? "p-0" : (location === "/apps" ? "p-4 lg:p-6" : "p-4 lg:p-8")
-        )}>
-           <div className={cn(
-             "space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
-             location === "/map" ? "h-full" : (location === "/apps" ? "h-full w-full max-w-none" : "max-w-7xl mx-auto")
-           )}>
-             {children}
-           </div>
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto overflow-x-hidden relative",
+            location === "/map"
+              ? "p-0"
+              : location === "/apps"
+                ? "p-4 lg:p-6"
+                : "p-4 lg:p-8",
+          )}
+        >
+          <div
+            className={cn(
+              "space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
+              location === "/map"
+                ? "h-full"
+                : location === "/apps" || location === "/updates"
+                  ? "h-full w-full max-w-none"
+                  : "max-w-7xl mx-auto",
+            )}
+          >
+            {children}
+          </div>
         </div>
       </main>
     </div>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { mockApps, mockDevices, mockFeeds, mockSystems, App, Device, Feed, System } from './mockData';
 import { Plane, Ship, Activity } from 'lucide-react';
+import { demoModeEnabled } from './demoMode';
 
 // Define Node types
 export interface Node extends System {
@@ -74,6 +75,25 @@ const initialNodes: Node[] = [
   }
 ];
 
+const localNode: Node = {
+  id: 'local',
+  name: 'Airwaves Core (This Device)',
+  hostname: typeof window !== 'undefined' ? window.location.hostname : 'airwaves-core',
+  ip: typeof window !== 'undefined' ? window.location.hostname : '',
+  status: 'offline',
+  role: 'primary',
+  mode: 'standalone',
+  lastSeen: '-',
+  location: { lat: 0, lng: 0, name: 'Local' }
+};
+
+const emptyNodeData: NodeData = {
+  apps: [],
+  devices: [],
+  feeds: [],
+  vehicles: []
+};
+
 // Initial data generation for each node
 const generateInitialData = (): Record<string, NodeData> => {
   const data: Record<string, NodeData> = {};
@@ -107,10 +127,13 @@ const generateInitialData = (): Record<string, NodeData> => {
 
 export function NodeProvider({ children }: { children: ReactNode }) {
   const [activeNodeId, setActiveNodeId] = useState<string>(() => {
+    if (!demoModeEnabled) return 'local';
     return localStorage.getItem('activeNodeId') || 'sys-1';
   });
 
   const [nodeData, setNodeData] = useState<Record<string, NodeData>>(() => {
+    if (!demoModeEnabled) return { local: emptyNodeData };
+
     const saved = localStorage.getItem('nodeData');
     if (saved) {
       const parsed: Record<string, NodeData> = JSON.parse(saved);
@@ -131,7 +154,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
     return generateInitialData();
   });
 
-  const [nodes] = useState<Node[]>(initialNodes);
+  const [nodes] = useState<Node[]>(demoModeEnabled ? initialNodes : [localNode]);
 
   // Persist state changes
   useEffect(() => {
@@ -140,6 +163,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
 
   // Ensure rtl_airband is installed for the demo (self-healing for existing sessions)
   useEffect(() => {
+    if (!demoModeEnabled) return;
     setNodeData(prev => {
       const coreNode = prev['sys-1'];
       if (!coreNode) return prev;
@@ -163,14 +187,15 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   }, [nodeData]);
 
   const activeNode = nodes.find(n => n.id === activeNodeId) || nodes[0];
-  const currentData = nodeData[activeNodeId] || generateInitialData()['sys-1'];
+  const currentData = nodeData[activeNodeId] || emptyNodeData;
 
   const installApp = (appId: string) => {
+    if (!demoModeEnabled) return;
     setNodeData(prev => ({
       ...prev,
       [activeNodeId]: {
-        ...prev[activeNodeId],
-        apps: prev[activeNodeId].apps.map(app => 
+        ...(prev[activeNodeId] ?? emptyNodeData),
+        apps: (prev[activeNodeId]?.apps ?? []).map(app =>
           app.id === appId ? { ...app, installed: true, status: 'installing' } : app
         )
       }
@@ -181,8 +206,8 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       setNodeData(prev => ({
         ...prev,
         [activeNodeId]: {
-          ...prev[activeNodeId],
-          apps: prev[activeNodeId].apps.map(app => 
+          ...(prev[activeNodeId] ?? emptyNodeData),
+          apps: (prev[activeNodeId]?.apps ?? []).map(app =>
             app.id === appId ? { ...app, status: 'running' } : app
           )
         }
@@ -191,11 +216,12 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   };
 
   const uninstallApp = (appId: string) => {
+    if (!demoModeEnabled) return;
     setNodeData(prev => ({
       ...prev,
       [activeNodeId]: {
-        ...prev[activeNodeId],
-        apps: prev[activeNodeId].apps.map(app => 
+        ...(prev[activeNodeId] ?? emptyNodeData),
+        apps: (prev[activeNodeId]?.apps ?? []).map(app =>
           app.id === appId ? { ...app, installed: false, status: 'stopped' } : app
         )
       }

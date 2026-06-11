@@ -1,6 +1,6 @@
 /**
  * Hook to detect whether the Airwaves Manager API is available.
- * Used to switch between real API data and mock data for development.
+ * Used to disable live-only controls and show connection status.
  */
 
 import { useQuery } from '@tanstack/react-query';

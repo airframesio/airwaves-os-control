@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import FleetTopology from "@/components/FleetTopology";
 import { mockSystems, System } from "@/lib/mockData";
+import { demoModeEnabled } from "@/lib/demoMode";
 import { Activity, Circle, MoreVertical, Plus, Server, Trash2, Wifi, WifiOff, Settings, Check, ArrowRight, Cog, Loader2, Search, Radio } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ export default function Systems() {
       ]
     : null;
 
-  const [systems, setSystems] = useState<System[]>(mockSystems);
+  const [systems, setSystems] = useState<System[]>(demoModeEnabled ? mockSystems : []);
   const [isPairing, setIsPairing] = useState(false);
   const [newSystemIp, setNewSystemIp] = useState("");
   const { toast } = useToast();
@@ -88,8 +89,7 @@ export default function Systems() {
           toast({ title: "Pairing Failed", description: String(err), variant: "destructive" });
         },
       });
-    } else {
-      // Mock fallback
+    } else if (demoModeEnabled) {
       setIsPairing(true);
       setTimeout(() => {
         setSystems([...systems, {
@@ -100,6 +100,8 @@ export default function Systems() {
         setNewSystemIp("");
         toast({ title: "System Paired", description: `Paired with ${newSystemIp}` });
       }, 2000);
+    } else {
+      toast({ title: "Manager disconnected", description: "Reconnect to Airwaves OS before pairing systems.", variant: "destructive" });
     }
   };
 
@@ -109,10 +111,12 @@ export default function Systems() {
         onSuccess: () => toast({ title: "System Removed", description: "Node removed from fleet." }),
         onError: (err) => toast({ title: "Remove Failed", description: String(err), variant: "destructive" }),
       });
+    } else if (demoModeEnabled) {
+      setSystems(systems.filter(s => s.id !== id));
+      toast({ title: "System Removed", description: "Node removed from fleet." });
+    } else {
+      toast({ title: "Manager disconnected", description: "Reconnect to Airwaves OS before removing systems.", variant: "destructive" });
     }
-    // Optimistic update
-    setSystems(systems.filter(s => s.id !== id));
-    toast({ title: "System Removed", description: "Node removed from fleet." });
   };
 
   const openConfigureDialog = (system: System) => {
@@ -124,6 +128,10 @@ export default function Systems() {
 
   const handleSaveConfiguration = () => {
     if (!selectedSystem) return;
+    if (!apiAvailable && !demoModeEnabled) {
+      toast({ title: "Manager disconnected", description: "Reconnect to Airwaves OS before saving fleet configuration.", variant: "destructive" });
+      return;
+    }
 
     const updatedSystems = systems.map(s => 
       s.id === selectedSystem.id 
