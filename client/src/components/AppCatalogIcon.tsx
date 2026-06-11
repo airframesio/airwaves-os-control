@@ -145,6 +145,14 @@ const appIconSpecs: Record<string, IconSpec> = {
     accent: "#67e8f9",
     label: "SEA",
   },
+  "plane-watch": {
+    icon: Plane,
+    from: "#1e3a8a",
+    via: "#0d9488",
+    to: "#111827",
+    accent: "#5eead4",
+    label: "PW",
+  },
   graphs1090: {
     icon: BarChart3,
     from: "#312e81",

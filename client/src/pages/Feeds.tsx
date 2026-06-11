@@ -134,6 +134,15 @@ const aggregators = [
     categories: ["aviation"],
   },
   {
+    id: "planewatch",
+    name: "Plane.Watch",
+    icon: Plane,
+    type: "dedicated",
+    fixedDest: true,
+    description: "Community flight tracking network with MLAT.",
+    categories: ["aviation"],
+  },
+  {
     id: "mt",
     name: "MarineTraffic",
     icon: Ship,
