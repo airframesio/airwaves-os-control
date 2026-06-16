@@ -12,6 +12,7 @@ import {
 import { Link } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { useConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
+import InstallToDisk from "@/components/InstallToDisk";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -333,6 +334,9 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Install to disk (live USB -> internal drive) */}
+        <InstallToDisk />
 
         {/* Power */}
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">

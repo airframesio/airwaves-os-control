@@ -182,6 +182,36 @@ export const updateApi = {
     apiFetch<{ status: string }>("/system/update/refresh", { method: "POST" }),
 };
 
+// ---------- Install to disk (live USB -> internal disk) ----------
+
+export interface InstallDisk {
+  device: string; // e.g. /dev/nvme0n1
+  size: string; // e.g. 256G
+  model: string;
+}
+
+export interface InstallProgress {
+  state: string; // idle | running | success | failed
+  phase: string;
+  percent: number;
+  target?: string | null;
+  log: string[];
+  reboot_required: boolean;
+  error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+}
+
+export const installApi = {
+  getDisks: () => apiFetch<InstallDisk[]>("/system/disks"),
+  start: (device: string) =>
+    apiFetch<{ status: string; device: string }>("/system/install", {
+      method: "POST",
+      body: JSON.stringify({ device }),
+    }),
+  getProgress: () => apiFetch<InstallProgress>("/system/install/progress"),
+};
+
 export const UPDATE_CHANNELS = ["stable", "beta", "dev"] as const;
 
 // ---------- Containers ----------
