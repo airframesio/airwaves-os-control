@@ -106,7 +106,23 @@ export const systemApi = {
       method: "POST",
       body: JSON.stringify({ service }),
     }),
+  getSsh: () => apiFetch<SshStatus>("/system/ssh"),
+  setSsh: (enabled: boolean) =>
+    apiFetch<SshStatus>("/system/ssh", {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    }),
 };
+
+/** The host's OpenSSH server (ssh.service), as systemd reports it. */
+export interface SshStatus {
+  /** False when the device has no SSH server installed. */
+  available: boolean;
+  /** Starts at boot. */
+  enabled: boolean;
+  /** Running now. */
+  active: boolean;
+}
 
 // ---------- System Updates ----------
 
@@ -515,8 +531,35 @@ export interface CatalogApp {
   }>;
 }
 
+export interface AppUpdateResult {
+  app_id: string;
+  outcome: "updated" | "up_to_date" | "skipped" | "failed";
+  from_image?: string;
+  to_image?: string;
+  error?: string;
+}
+
+export interface AutoUpdateStatus {
+  enabled: boolean;
+  check_interval_hours: number;
+  running: boolean;
+  last_run: {
+    started_at: string;
+    finished_at: string;
+    results: AppUpdateResult[];
+  } | null;
+}
+
 export const appsApi = {
   catalog: () => apiFetch<CatalogApp[]>("/apps/catalog"),
+  getAutoUpdate: () => apiFetch<AutoUpdateStatus>("/apps/auto-update"),
+  setAutoUpdate: (settings: { enabled?: boolean; check_interval_hours?: number }) =>
+    apiFetch<AutoUpdateStatus>("/apps/auto-update", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
+  runAutoUpdate: () =>
+    apiFetch<AutoUpdateStatus>("/apps/auto-update/run", { method: "POST" }),
   /** Install an app, optionally with env overrides and a pinned image tag. */
   install: (appId: string, env?: Record<string, string>, imageTag?: string) =>
     apiFetch<ContainerInfo>("/apps/install", {

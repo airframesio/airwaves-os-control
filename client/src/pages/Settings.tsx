@@ -1,6 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +10,11 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect, useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
 import InstallToDisk from "@/components/InstallToDisk";
+import SshSetting from "@/components/SshSetting";
+import AutoUpdateSetting from "@/components/AutoUpdateSetting";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +27,7 @@ export default function Settings() {
   const { data: sysInfo } = useSystemInfo();
   const { connected: wsConnected } = useManagerEvents();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const hostnameRef = useRef<HTMLInputElement>(null);
 
   const hostname = config?.device?.hostname ?? "airwaves-station-1";
@@ -141,8 +144,12 @@ export default function Settings() {
       const a = document.createElement("a");
       a.href = url;
       a.download = `airwaves-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      // Revoking right after click() can cancel the download in some
+      // browsers, so give it time to start.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
       toast({ title: "Backup Downloaded" });
     } catch {
       toast({ title: "Backup Failed", variant: "destructive" });
@@ -161,6 +168,9 @@ export default function Settings() {
         const text = await file.text();
         const backup = JSON.parse(text);
         await configApi.restore(backup);
+        // The restore can change any setting, feed or app, so refetch
+        // everything instead of showing pre-restore values until they go stale.
+        await queryClient.invalidateQueries();
         toast({ title: "Restore Complete", description: "Configuration restored. Reboot recommended." });
       } catch {
         toast({ title: "Restore Failed", description: "Invalid backup file.", variant: "destructive" });
@@ -277,13 +287,7 @@ export default function Settings() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className="text-base">SSH Access</Label>
-                <p className="text-sm text-muted-foreground">Allow remote command line access.</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
+            <SshSetting apiAvailable={apiAvailable} />
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -325,13 +329,8 @@ export default function Settings() {
                 </Button>
               </Link>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Auto-update Apps</Label>
-                <p className="text-sm text-muted-foreground">Automatically install updates for containers.</p>
-              </div>
-              <Switch />
-            </div>
+            <Separator />
+            <AutoUpdateSetting apiAvailable={apiAvailable} />
           </CardContent>
         </Card>
 

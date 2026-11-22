@@ -61,6 +61,15 @@ import { useApiStatus } from "@/hooks/useApiStatus";
 import DemoBadge from "@/components/DemoBadge";
 import { LiveDataErrorNotice, EmptyState } from "@/components/DataStates";
 import { ListItemSkeleton } from "@/components/LoadingSkeleton";
+import { useToast } from "@/hooks/use-toast";
+
+/** A TCP/UDP port: digits only, 1 to 65535. */
+function parsePort(value: string): number | null {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return n >= 1 && n <= 65535 ? n : null;
+}
 
 const getFeedTypeDetails = (type: string) => {
   switch (type) {
@@ -194,6 +203,8 @@ export default function Feeds() {
   const [host, setHost] = useState("");
   const [port, setPort] = useState("");
   const [protocol, setProtocol] = useState<"tcp" | "udp">("tcp");
+  const [sharingKey, setSharingKey] = useState("");
+  const { toast } = useToast();
 
   const installedIds = new Set(
     (containers ?? []).map((c) =>
@@ -289,12 +300,30 @@ export default function Feeds() {
     }
   };
 
+  const portInvalid =
+    !activeAggregator?.fixedDest && port.trim() !== "" && parsePort(port) === null;
+
   const handleCreateFeed = () => {
-    if (!selectedSource || !activeAggregator) return;
+    if (!selectedSource || !activeAggregator) {
+      toast({ title: "Pick a source app and a destination", variant: "destructive" });
+      return;
+    }
     const fixed = activeAggregator.fixedDest;
     const nextHost = fixed ? activeAggregator.id : host.trim();
-    const nextPort = fixed ? 0 : Number(port);
-    if (!fixed && (!nextHost || !nextPort)) return;
+    const nextPort = fixed ? 0 : parsePort(port);
+    if (!fixed && !nextHost) {
+      toast({ title: "Enter a destination host", variant: "destructive" });
+      return;
+    }
+    if (nextPort === null) {
+      toast({
+        title: "Invalid port",
+        description: `"${port.trim()}" is not a port number. Use a whole number from 1 to 65535.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const apiKey = activeAggregator.id === "fr24" ? sharingKey.trim() : "";
 
     upsertFeed.mutate(
       {
@@ -311,6 +340,7 @@ export default function Feeds() {
         port: nextPort,
         enabled: true,
         app_id: selectedSource,
+        ...(apiKey ? { api_key: apiKey } : {}),
       },
       {
         onSuccess: () => {
@@ -318,6 +348,14 @@ export default function Feeds() {
           setSelectedSource("");
           setHost("");
           setPort("");
+          setSharingKey("");
+        },
+        onError: (err) => {
+          toast({
+            title: "Could not create feed",
+            description: err instanceof Error ? err.message : String(err),
+            variant: "destructive",
+          });
         },
       },
     );
@@ -461,7 +499,15 @@ export default function Feeds() {
                           value={port}
                           onChange={(e) => setPort(e.target.value)}
                           placeholder="e.g. 30005"
+                          inputMode="numeric"
+                          aria-invalid={portInvalid}
+                          className={portInvalid ? "border-destructive focus-visible:ring-destructive" : undefined}
                         />
+                        {portInvalid && (
+                          <p className="text-xs text-destructive">
+                            Use a whole number from 1 to 65535.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -470,7 +516,12 @@ export default function Feeds() {
                   {activeAggregator?.id === "fr24" && (
                     <div className="space-y-2">
                       <Label>Sharing Key</Label>
-                      <Input placeholder="Enter your FR24 sharing key..." />
+                      <Input
+                        value={sharingKey}
+                        onChange={(e) => setSharingKey(e.target.value)}
+                        placeholder="Enter your FR24 sharing key..."
+                        autoComplete="off"
+                      />
                       <p className="text-xs text-muted-foreground">
                         Leave empty to register a new key.
                       </p>
@@ -509,7 +560,7 @@ export default function Feeds() {
                     upsertFeed.isPending ||
                     !selectedSource ||
                     (!activeAggregator?.fixedDest &&
-                      (!host.trim() || !port.trim()))
+                      (!host.trim() || !port.trim() || portInvalid))
                   }
                 >
                   {upsertFeed.isPending ? "Creating..." : "Create Feed"}

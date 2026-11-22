@@ -34,6 +34,8 @@ import {
   type DecodedMessage,
   type ForwardingConfig,
   type ForwardingStats,
+  type SshStatus,
+  type AutoUpdateStatus,
 } from "@/lib/api";
 import { useManagerSocketState } from "./useManagerEvents";
 
@@ -168,6 +170,56 @@ export function useNetworkInterfaces() {
     queryFn: networkApi.listInterfaces,
     staleTime: 30_000,
     retry: 1,
+  });
+}
+
+// ---------- SSH and app auto-update ----------
+
+export function useSshStatus(enabled = true) {
+  return useQuery<SshStatus>({
+    queryKey: ["system", "ssh"],
+    queryFn: systemApi.getSsh,
+    enabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function useSetSsh() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (on: boolean) => systemApi.setSsh(on),
+    onSuccess: (status) => queryClient.setQueryData(["system", "ssh"], status),
+  });
+}
+
+export function useAutoUpdate(enabled = true) {
+  return useQuery<AutoUpdateStatus>({
+    queryKey: ["apps", "auto-update"],
+    queryFn: appsApi.getAutoUpdate,
+    enabled,
+    // Poll while a check is running so the result shows up when it ends.
+    refetchInterval: (query) => (query.state.data?.running ? 3_000 : false),
+    retry: 1,
+  });
+}
+
+export function useSetAutoUpdate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: appsApi.setAutoUpdate,
+    onSuccess: (status) => {
+      queryClient.setQueryData(["apps", "auto-update"], status);
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+  });
+}
+
+export function useRunAutoUpdate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: appsApi.runAutoUpdate,
+    onSuccess: (status) => queryClient.setQueryData(["apps", "auto-update"], status),
   });
 }
 
