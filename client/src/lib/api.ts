@@ -547,6 +547,46 @@ export const appsApi = {
     }),
 };
 
+// ---------- Airframes account (device sign-in) ----------
+
+export interface AirframesAccount {
+  signed_in: boolean;
+  username: string | null;
+  pending: boolean;
+}
+
+export interface AirframesSigninStart {
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string | null;
+  expires_in: number;
+  interval: number;
+}
+
+export type AirframesSigninStatus =
+  | "pending"
+  | "signed_in"
+  | "denied"
+  | "expired"
+  | "none";
+
+export const airframesApi = {
+  account: () => apiFetch<AirframesAccount>("/airframes/account"),
+  startSignin: () =>
+    apiFetch<AirframesSigninStart>("/airframes/signin/start", {
+      method: "POST",
+    }),
+  pollSignin: () =>
+    apiFetch<{ status: AirframesSigninStatus; username?: string | null }>(
+      "/airframes/signin/poll",
+      { method: "POST" },
+    ),
+  signOut: () =>
+    apiFetch<{ signed_out: boolean }>("/airframes/account", {
+      method: "DELETE",
+    }),
+};
+
 // ---------- Tracking ----------
 
 export interface Vehicle {
