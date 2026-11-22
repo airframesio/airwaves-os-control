@@ -13,6 +13,8 @@ import { useEffect, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfig, useSystemInfo } from "@/hooks/useAirwavesApi";
 import InstallToDisk from "@/components/InstallToDisk";
+import SshSetting from "@/components/SshSetting";
+import AutoUpdateSetting from "@/components/AutoUpdateSetting";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { useManagerEvents } from "@/hooks/useManagerEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -285,6 +287,8 @@ export default function Settings() {
 
             <Separator />
 
+            <SshSetting apiAvailable={apiAvailable} />
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label className="text-base">Manager Connection</Label>
@@ -325,6 +329,8 @@ export default function Settings() {
                 </Button>
               </Link>
             </div>
+            <Separator />
+            <AutoUpdateSetting apiAvailable={apiAvailable} />
           </CardContent>
         </Card>
 
