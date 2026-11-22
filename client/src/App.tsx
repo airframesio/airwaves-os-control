@@ -11,6 +11,7 @@ import { Radio } from "lucide-react";
 import NotFound from "./pages/not-found";
 import Dashboard from "./pages/Dashboard";
 import AppStore from "./pages/AppStore";
+import FeedAirframes from "./pages/FeedAirframes";
 import AppDetails from "./pages/AppDetails";
 import MyApps from "./pages/MyApps";
 import Devices from "./pages/Devices";
@@ -45,6 +46,7 @@ function Router() {
 
         <Route path="/devices" component={Devices} />
         <Route path="/devices/:id/config" component={DeviceConfig} />
+        <Route path="/airframes" component={FeedAirframes} />
         <Route path="/feeds" component={Feeds} />
         <Route path="/systems" component={Systems} />
         <Route path="/updates" component={SystemUpdate} />

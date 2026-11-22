@@ -589,6 +589,92 @@ export const appsApi = {
     }),
 };
 
+// ---------- Airframes account (device sign-in) ----------
+
+export interface AirframesAccount {
+  signed_in: boolean;
+  username: string | null;
+  pending: boolean;
+}
+
+export interface AirframesSigninStart {
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string | null;
+  expires_in: number;
+  interval: number;
+}
+
+export type AirframesSigninStatus =
+  | "pending"
+  | "signed_in"
+  | "denied"
+  | "expired"
+  | "none";
+
+export const airframesApi = {
+  account: () => apiFetch<AirframesAccount>("/airframes/account"),
+  startSignin: () =>
+    apiFetch<AirframesSigninStart>("/airframes/signin/start", {
+      method: "POST",
+    }),
+  pollSignin: () =>
+    apiFetch<{ status: AirframesSigninStatus; username?: string | null }>(
+      "/airframes/signin/poll",
+      { method: "POST" },
+    ),
+  signOut: () =>
+    apiFetch<{ signed_out: boolean }>("/airframes/account", {
+      method: "DELETE",
+    }),
+  /** The Airframes ATC frequency directory, through the manager. */
+  atcFrequencies: (params: Record<string, string>) =>
+    apiFetch<{ data: AtcFrequency[]; total: number }>(
+      `/airframes/atc/frequencies?${new URLSearchParams(params)}`,
+    ),
+  /** Tell Airframes about a channel the directory is missing. */
+  reportFrequency: (report: FrequencyReport) =>
+    apiFetch<FrequencyReportResult>("/airframes/atc/frequency-reports", {
+      method: "POST",
+      body: JSON.stringify(report),
+    }),
+};
+
+export interface FrequencyReport {
+  frequency_mhz: number;
+  label?: string;
+  service?: string;
+  facility?: string;
+  lat?: number;
+  lon?: number;
+}
+
+export interface FrequencyReportResult {
+  /** known: the directory already has it nearby; received: kept for review. */
+  status: "known" | "received";
+  frequencyMhz: number;
+  known: { id: string; name: string | null; facilityId: string; distanceKm: number }[];
+}
+
+export interface AtcFrequency {
+  id: string;
+  facilityId: string;
+  facility: { id: string; type: string; ident: string; name: string | null; country: string | null };
+  frequencyMhz: number;
+  channel: string | null;
+  band: string;
+  service: string;
+  services: string[];
+  name: string | null;
+  callsign: string | null;
+  receiveOnly: boolean;
+  streamable: boolean;
+  streamPolicyReason: string | null;
+  liveFeedCount: number;
+  distanceKm?: number;
+  distanceNm?: number;
+}
+
 // ---------- Tracking ----------
 
 export interface Vehicle {

@@ -5,6 +5,7 @@ import {
   Radio,
   AppWindow,
   Rss,
+  Send,
   Settings,
   Menu,
   X,
@@ -123,6 +124,7 @@ export default function AppLayout({ children }: SidebarProps) {
   ];
 
   const appNavItems = [
+    { label: "Feed Airframes", icon: Send, href: "/airframes" },
     { label: "My Apps", icon: AppWindow, href: "/apps" },
     { label: "App Catalog", icon: Globe, href: "/store" },
   ];
