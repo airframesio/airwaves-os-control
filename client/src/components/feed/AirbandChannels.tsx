@@ -12,8 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Loader2, MapPin, Plus, Search, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, MapPin, Search, Send, Sparkles, X } from "lucide-react";
 import { airframesApi, type AtcFrequency } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 /** One airband channel as xng gets it: MHz with three decimals, and a label. */
@@ -149,9 +150,17 @@ interface Props {
   location: { lat: number; lon: number } | null;
 }
 
+/** Services a hand-added channel can be, in the order offered. */
+const MANUAL_SERVICES = ["TWR", "APP", "DEP", "CTR", "GND", "CLD", "CTAF", "UNICOM", "ATIS", "AWOS"];
+
 export default function AirbandChannels({ value, onChange, location }: Props) {
+  const { toast } = useToast();
+  const [manualOpen, setManualOpen] = useState(false);
   const [freqInput, setFreqInput] = useState("");
-  const [labelInput, setLabelInput] = useState("");
+  const [serviceInput, setServiceInput] = useState("");
+  const [facilityInput, setFacilityInput] = useState("");
+  const [reporting, setReporting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [radius, setRadius] = useState("40");
   const [airport, setAirport] = useState("");
   const [airportQuery, setAirportQuery] = useState("");
@@ -201,13 +210,44 @@ export default function AirbandChannels({ value, onChange, location }: Props) {
     else add(f.frequencyMhz, labelFor(f));
   };
 
+  // Hand-added channels must be reported to Airframes so the directory can
+  // be updated. A channel the directory already has nearby is added from the
+  // directory instead.
   const manualMhz = Number(freqInput.trim());
   const manualProblem = freqInput.trim() ? rejectReason(manualMhz, value) : null;
-  const addManual = () => {
-    if (!freqInput.trim() || manualProblem) return;
-    add(manualMhz, labelInput);
-    setFreqInput("");
-    setLabelInput("");
+  const facility = facilityInput.trim().toUpperCase();
+  const manualReady = !!freqInput.trim() && !manualProblem && !!serviceInput && /^[A-Z0-9]{3,4}$/.test(facility);
+  const addManual = async () => {
+    if (!manualReady || reporting) return;
+    const label = `${facility} ${SERVICE_NAMES[serviceInput] ?? serviceInput}`;
+    setReporting(true);
+    setReportError(null);
+    try {
+      const result = await airframesApi.reportFrequency({
+        frequency_mhz: Number(manualMhz.toFixed(3)),
+        label,
+        service: serviceInput,
+        facility,
+        ...(location ? { lat: location.lat, lon: location.lon } : {}),
+      });
+      const known = result.status === "known" ? result.known[0] : undefined;
+      add(manualMhz, known?.name ? cleanLabel(known.name) : label);
+      toast(
+        known
+          ? { title: "Already in the directory", description: `Added ${manualMhz.toFixed(3)} as ${known.name ?? known.facilityId}.` }
+          : { title: "Thanks, we'll take a look", description: `${manualMhz.toFixed(3)} MHz was sent to Airframes to add to the directory.` },
+      );
+      setFreqInput("");
+      setServiceInput("");
+      setFacilityInput("");
+      setManualOpen(false);
+    } catch (e) {
+      setReportError(
+        `Couldn't send it to Airframes, so it wasn't added. ${e instanceof Error ? e.message : ""}`.trim(),
+      );
+    } finally {
+      setReporting(false);
+    }
   };
 
   const autoPick = () => {
@@ -230,23 +270,14 @@ export default function AirbandChannels({ value, onChange, location }: Props) {
         <Progress value={(used / MAX_SPAN_MHZ) * 100} className="h-1.5" />
         {value.length === 0 ? (
           <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-            No channels yet. Pick nearby ones below or add a frequency.
+            No channels yet. Pick them from the directory below.
           </p>
         ) : (
           <ul className="divide-y rounded-md border">
             {value.map((c) => (
               <li key={c.mhz} className="flex items-center gap-3 px-3 py-2">
                 <span className="w-20 shrink-0 font-mono text-sm">{c.mhz}</span>
-                <Input
-                  aria-label={`Label for ${c.mhz} MHz`}
-                  className="h-8"
-                  placeholder="Label (optional)"
-                  value={c.label}
-                  maxLength={60}
-                  onChange={(e) =>
-                    onChange(value.map((x) => (x.mhz === c.mhz ? { ...x, label: e.target.value.replace(/[,\n]/g, " ") } : x)))
-                  }
-                />
+                <span className="min-w-0 flex-1 truncate text-sm">{c.label || <span className="text-muted-foreground">Unnamed</span>}</span>
                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Remove ${c.mhz} MHz`} onClick={() => remove(c.mhz)}>
                   <X className="h-4 w-4" />
                 </Button>
@@ -254,32 +285,6 @@ export default function AirbandChannels({ value, onChange, location }: Props) {
             ))}
           </ul>
         )}
-        <div className="flex flex-wrap items-start gap-2">
-          <div className="w-32">
-            <Input
-              aria-label="Frequency in MHz"
-              className="font-mono"
-              inputMode="decimal"
-              placeholder="118.700"
-              value={freqInput}
-              onChange={(e) => setFreqInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addManual()}
-            />
-          </div>
-          <Input
-            aria-label="Label for the new frequency"
-            className="min-w-40 flex-1"
-            placeholder="Label, like Tower"
-            value={labelInput}
-            maxLength={60}
-            onChange={(e) => setLabelInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addManual()}
-          />
-          <Button variant="outline" onClick={addManual} disabled={!freqInput.trim() || !!manualProblem}>
-            <Plus className="mr-1 h-4 w-4" /> Add
-          </Button>
-          {manualProblem && <p className="w-full text-xs text-destructive">{manualProblem}</p>}
-        </div>
       </div>
 
       {/* Directory */}
@@ -354,7 +359,7 @@ export default function AirbandChannels({ value, onChange, location }: Props) {
         )}
         {nearby.isError && (
           <p className="text-sm text-destructive">
-            Couldn't reach the Airframes frequency directory. You can still add frequencies by hand above.
+            Couldn't reach the Airframes frequency directory. Check the internet connection and try again.
           </p>
         )}
         {nearby.data && groups.length === 0 && (
@@ -414,6 +419,63 @@ export default function AirbandChannels({ value, onChange, location }: Props) {
             );
           })}
         </div>
+      </div>
+
+      {/* Hand-added channel, reported to Airframes */}
+      <div className="space-y-3">
+        <button
+          type="button"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          aria-expanded={manualOpen}
+          onClick={() => setManualOpen((o) => !o)}
+        >
+          <ChevronDown className={cn("h-4 w-4 transition-transform", manualOpen && "rotate-180")} />
+          A channel is missing from the directory?
+        </button>
+        {manualOpen && (
+          <div className="space-y-3 rounded-lg border p-4">
+            <p className="text-sm text-muted-foreground">
+              Add it here and it's sent to Airframes, so we can check it and add it to the directory for everyone.
+            </p>
+            <div className="flex flex-wrap items-start gap-2">
+              <Input
+                aria-label="Frequency in MHz"
+                className="w-28 font-mono"
+                inputMode="decimal"
+                placeholder="118.700"
+                value={freqInput}
+                onChange={(e) => setFreqInput(e.target.value)}
+              />
+              <Select value={serviceInput} onValueChange={setServiceInput}>
+                <SelectTrigger className="w-[140px]" aria-label="Service">
+                  <SelectValue placeholder="Service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MANUAL_SERVICES.map((sv) => (
+                    <SelectItem key={sv} value={sv}>
+                      {SERVICE_NAMES[sv] ?? sv}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                aria-label="Airport or facility code"
+                className="w-28 uppercase placeholder:normal-case"
+                placeholder="KLVK"
+                maxLength={4}
+                value={facilityInput}
+                onChange={(e) => setFacilityInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addManual()}
+              />
+              <Button variant="outline" onClick={addManual} disabled={!manualReady || reporting}>
+                {reporting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+                Report and add
+              </Button>
+            </div>
+            {manualProblem && <p className="text-xs text-destructive">{manualProblem}</p>}
+            {reportError && <p className="text-xs text-destructive">{reportError}</p>}
+          </div>
+        )}
       </div>
     </div>
   );

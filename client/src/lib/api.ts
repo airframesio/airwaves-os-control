@@ -590,7 +590,29 @@ export const airframesApi = {
     apiFetch<{ data: AtcFrequency[]; total: number }>(
       `/airframes/atc/frequencies?${new URLSearchParams(params)}`,
     ),
+  /** Tell Airframes about a channel the directory is missing. */
+  reportFrequency: (report: FrequencyReport) =>
+    apiFetch<FrequencyReportResult>("/airframes/atc/frequency-reports", {
+      method: "POST",
+      body: JSON.stringify(report),
+    }),
 };
+
+export interface FrequencyReport {
+  frequency_mhz: number;
+  label?: string;
+  service?: string;
+  facility?: string;
+  lat?: number;
+  lon?: number;
+}
+
+export interface FrequencyReportResult {
+  /** known: the directory already has it nearby; received: kept for review. */
+  status: "known" | "received";
+  frequencyMhz: number;
+  known: { id: string; name: string | null; facilityId: string; distanceKm: number }[];
+}
 
 export interface AtcFrequency {
   id: string;
