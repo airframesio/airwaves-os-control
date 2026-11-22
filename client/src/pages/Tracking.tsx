@@ -10,12 +10,15 @@ import { Plane, Ship, Navigation, X, Clock, MapPin, Radio, Activity, ArrowUpRigh
 import "leaflet/dist/leaflet.css";
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useTheme } from "next-themes";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useNodeStore } from "@/lib/nodeStore";
 import { useTracking } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import DemoBadge from "@/components/DemoBadge";
+import { loadExternalFeeds, parseAircraftJson } from "@/lib/externalFeeds";
+
+const FEED_TIMEOUT_MS = 5_000;
 
 // Helper to generate simulated path
 // Helper component to update map center
@@ -145,8 +148,9 @@ export default function Tracking() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [externalVehicles, setExternalVehicles] = useState<any[]>([]);
   const [zoom, setZoom] = useState(10);
-  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
-  const selectedVehicleRef = useRef(selectedVehicle);
+  // Selection is stored by id and the vehicle is looked up on each render, so
+  // position updates never need to call a setter from inside another updater.
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
   const [showFlightPath, setShowFlightPath] = useState(false);
@@ -160,43 +164,54 @@ export default function Tracking() {
 
   // Reset state when active node changes
   useEffect(() => {
-    setSelectedVehicle(null);
+    setSelectedVehicleId(null);
     setExternalVehicles([]);
     setVehicleHistory({});
     mockSeededRef.current = false;
     // Internal vehicles will be updated by the sync effect below
   }, [activeNode.id]);
 
-  // Sync vehicles: prefer real tracking API, fall back to mock from nodeStore.
+  // With the manager reachable, its tracking data is authoritative, even when
+  // it is empty (a quiet sky must not turn into the demo fleet). Mock
+  // vehicles are only used when there is no manager, and are seeded once per
+  // node so the client simulation can move them without snapping back.
+  const isLive = apiAvailable;
   useEffect(() => {
-    if (apiAvailable && trackingData?.vehicles?.length) {
-      // Real positions are authoritative; adopt them on every refresh.
-      setVehicles(trackingData.vehicles.map(v => ({
+    if (isLive) {
+      mockSeededRef.current = false;
+      if (!trackingData) return;
+      setVehicles((trackingData.vehicles ?? []).map(v => ({
         id: v.id,
         callsign: v.callsign,
+        icao: v.id.toUpperCase(),
         type: v.vehicle_type,
         lat: v.lat,
         lng: v.lng,
-        altitude: v.altitude,
+        alt: v.altitude,
         speed: v.speed,
         heading: v.heading,
         source: v.source,
       })));
-      mockSeededRef.current = false;
     } else if (!mockSeededRef.current) {
-      // No live tracking data: seed mock vehicles once. The client simulation
-      // then drives them, so trails accumulate smoothly instead of snapping
-      // back to origin on each 3s tracking refetch.
       setVehicles(data.vehicles || []);
       mockSeededRef.current = true;
     }
-  }, [apiAvailable, trackingData, data.vehicles]);
+  }, [isLive, trackingData, data.vehicles]);
+
+  const selectedVehicle = useMemo(
+    () => (selectedVehicleId
+      ? vehicles.find(v => v.id === selectedVehicleId) ?? externalVehicles.find(v => v.id === selectedVehicleId) ?? null
+      : null),
+    [selectedVehicleId, vehicles, externalVehicles],
+  );
+
+  // Drop the selection when the vehicle disappears from every source.
+  useEffect(() => {
+    if (selectedVehicleId && !selectedVehicle) setSelectedVehicleId(null);
+  }, [selectedVehicleId, selectedVehicle]);
 
   // Keep refs synced with state so the trail recorder (an interval) always
   // reads the latest positions without stale closures.
-  useEffect(() => {
-    selectedVehicleRef.current = selectedVehicle;
-  }, [selectedVehicle]);
   const vehiclesRef = useRef<any[]>(vehicles);
   const externalVehiclesRef = useRef<any[]>(externalVehicles);
   useEffect(() => { vehiclesRef.current = vehicles; }, [vehicles]);
@@ -220,138 +235,83 @@ export default function Tracking() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
 
-    // Poll external feeds
-    const pollExternalFeeds = async () => {
-      try {
-        const savedFeeds = localStorage.getItem('external_feeds');
-        if (!savedFeeds) return;
+  // External aircraft.json feeds configured under My Apps. Each feed is
+  // fetched directly by the browser on its own interval, with a timeout; a
+  // feed that is still loading is not requested again, and everything in
+  // flight is aborted when the page unmounts.
+  useEffect(() => {
+    const feeds = loadExternalFeeds().filter(f => f.enabled);
+    if (feeds.length === 0) return;
 
-        const feeds: Array<{ id: string, url: string, interval: number, enabled: boolean, useProxy?: boolean }> = JSON.parse(savedFeeds);
-        const enabledFeeds = feeds.filter(f => f.enabled);
+    let alive = true;
+    const byFeed = new Map<string, any[]>();
+    const controllers = new Map<string, AbortController>();
+    const timers: ReturnType<typeof setInterval>[] = [];
 
-        const newExternalVehicles: any[] = [];
-
-        for (const feed of enabledFeeds) {
-          try {
-            if (!feed.url) continue;
-
-            const useProxy = feed.useProxy ?? true;
-            let fetchUrl = feed.url;
-            
-            if (useProxy) {
-              fetchUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(feed.url)}`;
-            }
-
-            const response = await fetch(fetchUrl);
-            if (!response.ok) {
-              console.error(`Failed to fetch feed ${feed.id}: ${response.statusText}`);
-              continue;
-            }
-
-            const data = await response.json();
-            
-            // Handle both standard aircraft.json (dump1090/readsb) and potentially array format if simplified
-            // Standard format has "aircraft": [] array
-            const aircraftList = Array.isArray(data) ? data : (data.aircraft || []);
-
-            // Map to internal format
-            aircraftList.forEach((ac: any, index: number) => {
-              // Basic validation - need lat/lon
-              if (ac.lat === undefined || ac.lon === undefined) return;
-
-              // Use hex/flight or generate ID
-              const hex = ac.hex || ac.icao || `UNK${index}`;
-              const callsign = (ac.flight || ac.callsign || hex).trim();
-              
-              newExternalVehicles.push({
-                id: `EXT-${feed.id}-${hex}`,
-                type: 'aircraft',
-                callsign: callsign,
-                icao: hex.toUpperCase(),
-                lat: typeof ac.lat === 'number' ? ac.lat : parseFloat(ac.lat),
-                lng: typeof ac.lon === 'number' ? ac.lon : parseFloat(ac.lon),
-                heading: typeof ac.track === 'number' ? ac.track : (typeof ac.heading === 'number' ? ac.heading : 0),
-                speed: typeof ac.speed === 'number' ? ac.speed : (typeof ac.gs === 'number' ? ac.gs : 0), // gs = ground speed
-                alt: typeof ac.alt_baro === 'number' ? ac.alt_baro : (typeof ac.altitude === 'number' ? ac.altitude : 0),
-                source: "External Feed Source",
-                rssi: typeof ac.rssi === 'number' ? ac.rssi : (typeof ac.sig === 'number' ? ac.sig : undefined)
-              });
-            });
-
-          } catch (e) {
-            console.error(`Failed to fetch feed ${feed.id}`, e);
-          }
-        }
-        setExternalVehicles(newExternalVehicles);
-        // Trail history (for external + internal) is recorded by the unified
-        // recorder interval below.
-
-        // Update selected vehicle if it's external
-        if (selectedVehicleRef.current && selectedVehicleRef.current.id.startsWith('EXT-')) {
-          const updatedExternal = newExternalVehicles.find(v => v.id === selectedVehicleRef.current?.id);
-          if (updatedExternal) {
-            setSelectedVehicle(updatedExternal);
-          }
-        }
-
-      } catch (e) {
-        console.error("Error polling feeds", e);
-      }
+    const publish = () => {
+      if (alive) setExternalVehicles(Array.from(byFeed.values()).flat());
     };
 
-    const feedInterval = setInterval(pollExternalFeeds, 2000);
-    pollExternalFeeds();
+    const poll = async (feed: (typeof feeds)[number]) => {
+      if (controllers.has(feed.id)) return;
+      const controller = new AbortController();
+      controllers.set(feed.id, controller);
+      const timeout = setTimeout(() => controller.abort(), FEED_TIMEOUT_MS);
+      try {
+        const response = await fetch(feed.url, { signal: controller.signal });
+        if (!response.ok) throw new Error(response.statusText);
+        byFeed.set(feed.id, parseAircraftJson(feed.id, await response.json()));
+      } catch (e) {
+        if (!alive) return;
+        console.warn(`External feed ${feed.url} failed`, e);
+        byFeed.delete(feed.id);
+      } finally {
+        clearTimeout(timeout);
+        controllers.delete(feed.id);
+      }
+      publish();
+    };
 
-    // Simulate movement for internal vehicles (updates local state based on NodeStore data)
+    for (const feed of feeds) {
+      poll(feed);
+      timers.push(setInterval(() => poll(feed), feed.interval * 1000));
+    }
+
+    return () => {
+      alive = false;
+      timers.forEach(clearInterval);
+      controllers.forEach(c => c.abort());
+    };
+  }, [activeNode.id]);
+
+  // Demo only: move mock vehicles between frames. Real positions come from
+  // the manager and are never moved by the client.
+  useEffect(() => {
+    if (isLive) return;
     const interval = setInterval(() => {
       setVehicles(prev => {
-        // Only run simulation if we have vehicles
         if (prev.length === 0) return prev;
-
-        const nextVehicles = prev.map(v => {
-          // Simple physics simulation
-          const speedFactor = 0.000003; 
-          const moveDist = v.speed * speedFactor;
-          
-          const rad = (90 - v.heading) * (Math.PI / 180); 
-          const newLat = v.lat + Math.sin(rad) * moveDist;
-          const newLng = v.lng + Math.cos(rad) * moveDist;
-
-          let nextLat = newLat;
-          let nextLng = newLng;
-          let nextHeading = v.heading;
-
-          // Constraints (simplified for generic locations, just keep bounds sanity)
-          // Just bounce if they go too far from start (not implementing complex geo-fencing per node for now)
-          
-          // Random slight heading wobble
-          const wobble = (Math.random() * 2 - 1); 
-          nextHeading = nextHeading + wobble;
-          
-          if (nextHeading < 0) nextHeading += 360;
-          if (nextHeading >= 360) nextHeading -= 360;
-
+        return prev.map(v => {
+          const moveDist = v.speed * 0.000003;
+          const rad = (90 - v.heading) * (Math.PI / 180);
+          let heading = v.heading + (Math.random() * 2 - 1);
+          if (heading < 0) heading += 360;
+          if (heading >= 360) heading -= 360;
           return {
             ...v,
-            lat: nextLat,
-            lng: nextLng,
-            heading: nextHeading
+            lat: v.lat + Math.sin(rad) * moveDist,
+            lng: v.lng + Math.cos(rad) * moveDist,
+            heading,
           };
         });
-
-        // Update selected vehicle reference if one is selected
-        if (selectedVehicleRef.current) {
-          const updatedSelected = nextVehicles.find(v => v.id === selectedVehicleRef.current?.id);
-          if (updatedSelected) {
-            setSelectedVehicle(updatedSelected);
-          }
-        }
-
-        return nextVehicles;
       });
     }, 100);
+    return () => clearInterval(interval);
+  }, [isLive]);
 
+  useEffect(() => {
     // Unified trail recorder: sample every vehicle's position into in-browser
     // history (regardless of "Show All Trails"), so trails are accurate and
     // immediately available when toggled on. Prunes a vehicle's trail once it
@@ -388,12 +348,8 @@ export default function Tracking() {
       });
     }, 1000);
 
-    return () => {
-      clearInterval(interval);
-      clearInterval(feedInterval);
-      clearInterval(recordInterval);
-    };
-  }, []); // Only run once on mount
+    return () => clearInterval(recordInterval);
+  }, []);
 
   // Determine actual theme
   const currentTheme = theme === 'system' ? systemTheme : theme;
@@ -428,7 +384,7 @@ export default function Tracking() {
         <h1 className="text-xl font-bold mb-1 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-primary" />
           Live Tracking
-          <DemoBadge show={!(apiAvailable && trackingData?.vehicles?.length)} />
+          <DemoBadge show={!isLive} />
         </h1>
         <p className="text-xs text-muted-foreground mb-3">
           Connected to {activeNode.name}
@@ -532,7 +488,7 @@ export default function Tracking() {
               icon={createVehicleIcon(v.type, v.heading, zoom, isSelected)}
               eventHandlers={{
                 click: () => {
-                  setSelectedVehicle(v);
+                  setSelectedVehicleId(v.id);
                 },
                 mouseover: () => {
                   setHoveredVehicleId(v.id);
@@ -613,7 +569,7 @@ export default function Tracking() {
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-foreground"
-                onClick={() => setSelectedVehicle(null)}
+                onClick={() => setSelectedVehicleId(null)}
               >
                 <X className="w-4 h-4" />
               </Button>

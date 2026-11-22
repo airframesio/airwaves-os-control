@@ -68,6 +68,8 @@ export default function LiveMessages() {
   const apiAvailable = useApiStatus();
   const { data: decodedMessages } = useDecodedMessages();
   const runningAppIds = data.apps.filter(a => a.status === 'running').map(a => a.id);
+  // Stable key so the demo effects below re-run when the set of running apps changes.
+  const runningAppKey = runningAppIds.join(',');
 
   // Initialize messages filtered by the current node's running apps
   const [messages, setMessages] = useState<Message[]>([]);
@@ -108,8 +110,11 @@ export default function LiveMessages() {
   // Use decoded message buffer as primary source (includes forwarded messages)
   useEffect(() => {
     if (!apiAvailable || !decodedMessages?.length || isPaused) return;
-    const newMsgs: Message[] = decodedMessages.map((dm, i) => ({
-      id: dm.id || `dm-${i}`,
+    const newMsgs: Message[] = decodedMessages.map((dm) => ({
+      // Without an id, key on the content: the buffer returns the same
+      // messages on every poll, so a position-based key would collide with
+      // older messages and drop new ones.
+      id: dm.id || `dm-${dm.timestamp}|${dm.decoder}|${dm.source_node}|${dm.frequency ?? ''}|${dm.raw}`,
       timestamp: dm.timestamp?.replace('T', ' ').substring(0, 19) ?? '',
       appId: dm.decoder,
       appName: dm.decoder,
@@ -135,7 +140,7 @@ export default function LiveMessages() {
       setMessages([]);
     }
     setCurrentPage(1);
-  }, [activeNode.id, apiAvailable]);
+  }, [activeNode.id, apiAvailable, runningAppKey]);
 
   // Simulated messages for offline/dev mode
   useEffect(() => {
@@ -164,7 +169,7 @@ export default function LiveMessages() {
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [apiAvailable, isPaused, activeNode.id]);
+  }, [apiAvailable, isPaused, activeNode.id, runningAppKey]);
 
   const filteredMessages = messages.filter(msg => {
     const matchesApp = filterApp === "all" || msg.appId === filterApp;

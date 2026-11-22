@@ -82,6 +82,14 @@ import { LiveDataErrorNotice } from "@/components/DataStates";
 import { ListItemSkeleton } from "@/components/LoadingSkeleton";
 import { AppCatalogIcon } from "@/components/AppCatalogIcon";
 import type { ConfigField, ContainerStats, SdrDevice } from "@/lib/api";
+import {
+  isFeedUrl,
+  loadSavedFeeds,
+  saveExternalFeeds,
+  MIN_FEED_INTERVAL_S,
+  MAX_FEED_INTERVAL_S,
+  type ExternalFeed,
+} from "@/lib/externalFeeds";
 
 const fmtUptime = (createdSec: number): string => {
   if (!createdSec) return "-";
@@ -161,33 +169,30 @@ const assignedDeviceFromEnv = (
   return key ? env[key] : "";
 };
 
-interface ExternalFeed {
-  id: string;
-  url: string;
-  interval: number;
-  enabled: boolean;
-  useProxy: boolean;
-}
-
 function ExternalFeedConfig() {
   const [feeds, setFeeds] = useState<ExternalFeed[]>(() => {
-    const saved = localStorage.getItem("external_feeds");
-    return saved
-      ? JSON.parse(saved)
-      : [
+    return loadSavedFeeds() ?? [
           {
             id: "1",
             url: "http://adsbexchange.local/tar1090/data/aircraft.json",
             interval: 5,
             enabled: true,
-            useProxy: false,
           },
         ];
   });
   const { toast } = useToast();
 
   const handleSave = () => {
-    localStorage.setItem("external_feeds", JSON.stringify(feeds));
+    const invalid = feeds.find((f) => f.url && !isFeedUrl(f.url.trim()));
+    if (invalid) {
+      toast({
+        title: "Invalid feed URL",
+        description: `"${invalid.url}" is not an http:// or https:// URL.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    saveExternalFeeds(feeds);
     toast({
       title: "Configuration Saved",
       description: "External feed settings have been updated.",
@@ -202,7 +207,6 @@ function ExternalFeedConfig() {
         url: "",
         interval: 5,
         enabled: true,
-        useProxy: true,
       },
     ]);
   };
@@ -256,8 +260,8 @@ function ExternalFeedConfig() {
                       </label>
                       <Input
                         type="number"
-                        min="1"
-                        max="60"
+                        min={MIN_FEED_INTERVAL_S}
+                        max={MAX_FEED_INTERVAL_S}
                         value={feed.interval}
                         onChange={(e) =>
                           updateFeed(
@@ -270,24 +274,10 @@ function ExternalFeedConfig() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="checkbox"
-                      id={`proxy-${feed.id}`}
-                      checked={feed.useProxy ?? true}
-                      onChange={(e) =>
-                        updateFeed(feed.id, "useProxy", e.target.checked)
-                      }
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <label
-                      htmlFor={`proxy-${feed.id}`}
-                      className="text-xs text-muted-foreground select-none cursor-pointer"
-                    >
-                      Use CORS Proxy (Required for public external feeds,
-                      disable for local network)
-                    </label>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Your browser fetches this URL directly, so the source must
+                    allow cross-origin requests (CORS).
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2 pt-6">
                   <Button
