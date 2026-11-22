@@ -124,7 +124,9 @@ export default function AppInstallWizard({
     defaultFeed?.protocol ?? "tcp",
   );
 
-  // Reset when the app changes.
+  // Reset only when a different app is opened. A catalog refetch (every
+  // install or config save triggers one) returns new array identities for
+  // the same app and must not wipe what the user has typed.
   useEffect(() => {
     setValues(initial);
     setImageTag(app?.version ?? "latest");
@@ -136,7 +138,8 @@ export default function AppInstallWizard({
     setFeedHost(nextFeed?.host ?? "");
     setFeedPort(nextFeed?.port ? String(nextFeed.port) : "");
     setFeedProtocol(nextFeed?.protocol ?? "tcp");
-  }, [initial, app?.id, app?.version, app?.suggested_feeds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app?.id]);
 
   const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 

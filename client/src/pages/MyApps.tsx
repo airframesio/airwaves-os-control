@@ -82,6 +82,7 @@ import { LiveDataErrorNotice } from "@/components/DataStates";
 import { ListItemSkeleton } from "@/components/LoadingSkeleton";
 import { AppCatalogIcon } from "@/components/AppCatalogIcon";
 import type { ConfigField, ContainerStats, SdrDevice } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 const fmtUptime = (createdSec: number): string => {
   if (!createdSec) return "-";
@@ -994,6 +995,7 @@ export default function MyApps() {
   const startMutation = useContainerStart();
   const stopMutation = useContainerStop();
   const uninstallMutation = useUninstallApp();
+  const queryClient = useQueryClient();
 
   // Map live containers to app-like objects when API is available, joined with
   // live per-container CPU/memory stats.
@@ -1168,35 +1170,43 @@ export default function MyApps() {
     setShowDetail(false);
   };
 
-  const handleUninstall = (appId: string) => {
-    if (apiAvailable) {
-      uninstallMutation.mutate(appId, {
-        onSuccess: () => {
-          toast({
-            title: "App Uninstalled",
-            description: "The application has been removed.",
-          });
-        },
-        onError: (err) => {
-          toast({
-            title: "Uninstall Failed",
-            description: String(err),
-            variant: "destructive",
-          });
-        },
-      });
-    }
-    // Optimistic update for UI
-    const newApps = apps.filter((a) => a.id !== appId);
-    setApps(newApps);
-
-    if (newApps.length === 0) {
+  const removeAppFromList = (appId: string) => {
+    setApps((prev) => prev.filter((a) => a.id !== appId));
+    const remaining = apps.filter((a) => a.id !== appId);
+    if (remaining.length === 0) {
       setSelectedAppId("");
       setShowDetail(false);
     } else if (selectedAppId === appId) {
-      setSelectedAppId(newApps[0].id);
+      setSelectedAppId(remaining[0].id);
       if (isCompact) setShowDetail(false);
     }
+  };
+
+  const handleUninstall = (appId: string) => {
+    if (!apiAvailable) {
+      // Demo mode: nothing to wait for.
+      removeAppFromList(appId);
+      return;
+    }
+    // Only remove the app once the manager confirms; on failure it is still
+    // installed (and probably running), so it stays in the list.
+    uninstallMutation.mutate(appId, {
+      onSuccess: () => {
+        removeAppFromList(appId);
+        toast({
+          title: "App Uninstalled",
+          description: "The application has been removed.",
+        });
+      },
+      onError: (err) => {
+        queryClient.invalidateQueries({ queryKey: ["containers"] });
+        toast({
+          title: "Uninstall Failed",
+          description: err instanceof Error ? err.message : String(err),
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   const toggleAppStatus = (appId: string) => {
