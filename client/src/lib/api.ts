@@ -585,7 +585,31 @@ export const airframesApi = {
     apiFetch<{ signed_out: boolean }>("/airframes/account", {
       method: "DELETE",
     }),
+  /** The Airframes ATC frequency directory, through the manager. */
+  atcFrequencies: (params: Record<string, string>) =>
+    apiFetch<{ data: AtcFrequency[]; total: number }>(
+      `/airframes/atc/frequencies?${new URLSearchParams(params)}`,
+    ),
 };
+
+export interface AtcFrequency {
+  id: string;
+  facilityId: string;
+  facility: { id: string; type: string; ident: string; name: string | null; country: string | null };
+  frequencyMhz: number;
+  channel: string | null;
+  band: string;
+  service: string;
+  services: string[];
+  name: string | null;
+  callsign: string | null;
+  receiveOnly: boolean;
+  streamable: boolean;
+  streamPolicyReason: string | null;
+  liveFeedCount: number;
+  distanceKm?: number;
+  distanceNm?: number;
+}
 
 // ---------- Tracking ----------
 

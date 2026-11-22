@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import AirbandChannels, { parseChannels, serializeChannels, type AirbandChannel } from "@/components/feed/AirbandChannels";
 import {
   Select,
   SelectContent,
@@ -237,7 +237,7 @@ export default function FeedAirframes() {
   const [stationId, setStationId] = useState("");
   const [feed, setFeed] = useState(true);
   const [choices, setChoices] = useState<Record<string, RadioChoice>>({});
-  const [channels, setChannels] = useState("");
+  const [channels, setChannels] = useState<AirbandChannel[]>([]);
   const [atcFeed, setAtcFeed] = useState(true);
   const [atcName, setAtcName] = useState("");
   const [transcribe, setTranscribe] = useState(false);
@@ -250,7 +250,7 @@ export default function FeedAirframes() {
     setStationId(recorded.XNG_STATION_ID ?? "");
     setFeed(isTrue(recorded.XNG_FEED_AIRFRAMES, true));
     setChoices(parseModes(recorded.XNG_MODES ?? ""));
-    setChannels((recorded.XNG_AIRBAND_CHANNELS ?? "").split(",").map((s) => s.trim()).filter(Boolean).join("\n"));
+    setChannels(parseChannels(recorded.XNG_AIRBAND_CHANNELS ?? ""));
     setAtcFeed(isTrue(recorded.XNG_ATC_FEED, true));
     setAtcName(recorded.XNG_ATC_STATION_NAME ?? "");
     setTranscribe(isTrue(recorded.XNG_TRANSCRIBE, false));
@@ -271,6 +271,11 @@ export default function FeedAirframes() {
     });
   }, [devices, choices]);
 
+  const stationLocation = useMemo(() => {
+    const st = config?.station;
+    return st && (st.latitude !== 0 || st.longitude !== 0) ? { lat: st.latitude, lon: st.longitude } : null;
+  }, [config?.station]);
+
   const airbandCount = rows.filter((r) => r.effective === "airband").length;
   const activeCount = rows.filter((r) => r.effective).length;
 
@@ -289,7 +294,7 @@ export default function FeedAirframes() {
       XNG_STATION_ID: stationId.trim().toUpperCase(),
       XNG_FEED_AIRFRAMES: String(feed),
       XNG_MODES: modes,
-      XNG_AIRBAND_CHANNELS: channels.split("\n").map((s) => s.trim()).filter(Boolean).join(", "),
+      XNG_AIRBAND_CHANNELS: serializeChannels(channels),
       XNG_ATC_FEED: String(atcFeed),
       XNG_ATC_STATION_NAME: atcName.trim(),
       XNG_TRANSCRIBE: String(transcribe),
@@ -304,7 +309,7 @@ export default function FeedAirframes() {
       : airbandCount > 1
         ? "Only one radio can run airband for now."
         : airbandCount === 1 && !env.XNG_AIRBAND_CHANNELS
-          ? "List the airband channels to listen to."
+          ? "Pick the airband channels to listen to."
           : null;
 
   const busy = install.isPending || update.isPending;
@@ -440,18 +445,11 @@ export default function FeedAirframes() {
               <Headphones className="h-4 w-4" /> ATC airband
             </CardTitle>
             <CardDescription>
-              One channel per line, in MHz with an optional label. They must fit in one 2.4 MHz window.
+              Pick the tower, approach and other channels near you. One radio hears channels within 2 MHz of each other.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              aria-label="Airband channels"
-              rows={4}
-              className="font-mono"
-              placeholder={"120.500=Tower\n121.800=Ground"}
-              value={channels}
-              onChange={(e) => setChannels(e.target.value)}
-            />
+          <CardContent className="space-y-6">
+            <AirbandChannels value={channels} onChange={setChannels} location={stationLocation} />
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="atc-name">Station name shown to listeners</Label>
