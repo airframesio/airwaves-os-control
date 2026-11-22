@@ -58,6 +58,7 @@ import {
 import { mockApps } from "@/lib/mockData";
 import { demoModeEnabled } from "@/lib/demoMode";
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -82,7 +83,6 @@ import { LiveDataErrorNotice } from "@/components/DataStates";
 import { ListItemSkeleton } from "@/components/LoadingSkeleton";
 import { AppCatalogIcon } from "@/components/AppCatalogIcon";
 import type { ConfigField, ContainerStats, SdrDevice } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
 
 const fmtUptime = (createdSec: number): string => {
   if (!createdSec) return "-";
