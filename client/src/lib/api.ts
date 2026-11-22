@@ -12,12 +12,11 @@ let lastApiOkAt = 0;
 let consecutiveApiMisses = 0;
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!response.ok) {
@@ -674,32 +673,7 @@ export type WsEvent =
       data: { severity: Severity; os_version: string | null };
     };
 
-export function connectWs(onEvent: (event: WsEvent) => void): WebSocket | null {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = `${protocol}//${window.location.host}/ws/events`;
-
-  try {
-    const ws = new WebSocket(url);
-
-    ws.onmessage = (msg) => {
-      try {
-        const event: WsEvent = JSON.parse(msg.data);
-        onEvent(event);
-      } catch {
-        // Ignore malformed messages
-      }
-    };
-
-    ws.onclose = () => {
-      // Reconnect after 5 seconds
-      setTimeout(() => connectWs(onEvent), 5000);
-    };
-
-    return ws;
-  } catch {
-    return null;
-  }
-}
+// The shared connection lives in lib/managerSocket.ts (useManagerEvents).
 
 // ---------- Health check ----------
 

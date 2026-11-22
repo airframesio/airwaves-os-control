@@ -22,8 +22,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    host: "0.0.0.0",
-    allowedHosts: true,
+    // Local only by default: through the proxy the dev server reaches the
+    // manager, including /api/v1/system/exec. Set DEV_HOST=0.0.0.0 to open it
+    // to the LAN on purpose.
+    host: process.env.DEV_HOST || "127.0.0.1",
     fs: {
       strict: true,
       deny: ["**/.*"],

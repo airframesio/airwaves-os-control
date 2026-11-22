@@ -35,6 +35,7 @@ import {
   type ForwardingConfig,
   type ForwardingStats,
 } from "@/lib/api";
+import { useManagerSocketState } from "./useManagerEvents";
 
 // ---------- System ----------
 
@@ -47,20 +48,28 @@ export function useSystemInfo() {
   });
 }
 
+// While the events WebSocket is connected it pushes SystemStats about once a
+// second, so the REST polls below drop to a slow safety net.
+const WS_FALLBACK_POLL_MS = 60_000;
+
 export function useSystemStats() {
+  const { connected } = useManagerSocketState();
   return useQuery<SystemStats>({
     queryKey: ["system", "stats"],
     queryFn: systemApi.getStats,
-    refetchInterval: 5_000,
+    refetchInterval: connected ? WS_FALLBACK_POLL_MS : 5_000,
     retry: 1,
   });
 }
 
 export function useSystemOverview() {
+  const { connected } = useManagerSocketState();
   return useQuery<SystemOverview>({
     queryKey: ["system", "overview"],
     queryFn: systemApi.getOverview,
-    refetchInterval: 10_000,
+    // Container and hardware counts still come from here; stats come from the
+    // socket, so a slower refresh is enough while it is connected.
+    refetchInterval: connected ? 30_000 : 10_000,
     retry: 1,
   });
 }
