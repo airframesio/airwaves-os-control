@@ -13,29 +13,43 @@ export interface LogLine {
 
 export function useContainerLogStream(containerId: string | null, maxLines = 500) {
   const apiAvailable = useApiStatus();
-  const wsRef = useRef<WebSocket | null>(null);
   const [lines, setLines] = useState<LogLine[]>([]);
   const [connected, setConnected] = useState(false);
+  // The cap is client-side only, so changing it must not reopen the stream.
+  const maxLinesRef = useRef(maxLines);
 
   const clear = useCallback(() => setLines([]), []);
 
   useEffect(() => {
+    maxLinesRef.current = maxLines;
+    setLines(prev => (prev.length > maxLines ? prev.slice(-maxLines) : prev));
+  }, [maxLines]);
+
+  useEffect(() => {
+    // A new container (or none) starts with an empty, disconnected stream.
+    setLines([]);
+    setConnected(false);
     if (!apiAvailable || !containerId) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = `${protocol}//${window.location.host}/ws/logs/${encodeURIComponent(containerId)}`;
 
     const ws = new WebSocket(url);
+    let active = true;
 
-    ws.onopen = () => setConnected(true);
+    ws.onopen = () => {
+      if (active) setConnected(true);
+    };
 
     ws.onmessage = (msg) => {
+      if (!active) return;
       try {
         const data = JSON.parse(msg.data);
         if (data.type === 'log' && data.line) {
           setLines(prev => {
             const next = [...prev, { line: data.line, timestamp: data.timestamp }];
-            return next.length > maxLines ? next.slice(-maxLines) : next;
+            const cap = maxLinesRef.current;
+            return next.length > cap ? next.slice(-cap) : next;
           });
         }
       } catch {
@@ -43,16 +57,16 @@ export function useContainerLogStream(containerId: string | null, maxLines = 500
       }
     };
 
-    ws.onclose = () => setConnected(false);
+    ws.onclose = () => {
+      if (active) setConnected(false);
+    };
     ws.onerror = () => ws.close();
 
-    wsRef.current = ws;
-
     return () => {
+      active = false;
       ws.close();
-      wsRef.current = null;
     };
-  }, [apiAvailable, containerId, maxLines]);
+  }, [apiAvailable, containerId]);
 
   return { lines, connected, clear };
 }

@@ -68,7 +68,7 @@ npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:5000`.
+The application will be available at `http://localhost:5000`. It listens on 127.0.0.1 only; run `DEV_HOST=0.0.0.0 npm run dev` to reach it from other machines on your network.
 
 ### Static Build
 
