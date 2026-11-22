@@ -123,12 +123,10 @@ Airwaves OS is built with a focus on:
 
 ## Deployment
 
-The static build can be deployed to:
-
-- **Replit** - Use the Deploy button
-- **Vercel / Netlify** - Connect your repo for automatic deployments
-- **GitHub Pages** - Push the `dist/` folder to `gh-pages` branch
-- **Self-hosted** - Serve with nginx, Apache, or any static file server
+On devices the control app ships inside the `airwaves-gateway` container
+(airframesio/airwaves-os), which builds it with `npm run build` and serves
+`dist/public/` from nginx. The output is a plain static site, so any static
+file server works for development or demos.
 
 ## Contributing
 
