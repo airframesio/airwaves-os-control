@@ -51,11 +51,11 @@ const XNG = "xng";
 const MODES: { value: string; label: string; feeds: "airframes" | "atc" | "local" }[] = [
   { value: "acars", label: "ACARS (VHF)", feeds: "airframes" },
   { value: "vdl2", label: "VDL Mode 2", feeds: "airframes" },
-  { value: "hfdl", label: "HFDL (HF)", feeds: "local" },
+  { value: "hfdl", label: "HFDL (HF)", feeds: "airframes" },
   { value: "adsb", label: "ADS-B 1090", feeds: "local" },
   { value: "uat", label: "UAT 978", feeds: "local" },
-  { value: "ais", label: "AIS (ships)", feeds: "local" },
-  { value: "iridium", label: "Iridium", feeds: "local" },
+  { value: "ais", label: "AIS (ships)", feeds: "airframes" },
+  { value: "iridium", label: "Iridium", feeds: "airframes" },
   { value: "std-c", label: "Inmarsat STD-C", feeds: "local" },
   { value: "sonde", label: "Radiosondes", feeds: "local" },
   { value: "airband", label: "Airband voice (ATC)", feeds: "atc" },
@@ -425,7 +425,7 @@ export default function FeedAirframes() {
                       ) : mode?.feeds === "atc" ? (
                         <Badge className="bg-sky-600/15 text-sky-700 dark:text-sky-300 border-0">ATC audio</Badge>
                       ) : mode ? (
-                        <Badge variant="secondary">Decodes on this device (Airframes feed coming)</Badge>
+                        <Badge variant="secondary">Decodes on this device only</Badge>
                       ) : (
                         <Badge variant="outline">Off</Badge>
                       )}
