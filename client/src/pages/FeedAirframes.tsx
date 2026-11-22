@@ -28,6 +28,7 @@ import {
   Loader2,
   LogOut,
   Radio,
+  RotateCw,
   Send,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -222,7 +223,7 @@ function AccountCard() {
 export default function FeedAirframes() {
   const { toast } = useToast();
   const { data: devices = [], isLoading: devicesLoading } = useSdrDevices();
-  const { data: config } = useConfig();
+  const { data: config, isError: configFailed, isFetching: configFetching, refetch: refetchConfig } = useConfig();
   const { data: containers = [] } = useContainers();
   const install = useInstallApp();
   const update = useUpdateAppConfig();
@@ -242,11 +243,13 @@ export default function FeedAirframes() {
   const [atcName, setAtcName] = useState("");
   const [transcribe, setTranscribe] = useState(false);
   const loaded = useRef(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   // Load the saved settings once.
   useEffect(() => {
     if (loaded.current || !config) return;
     loaded.current = true;
+    setSettingsLoaded(true);
     setStationId(recorded.XNG_STATION_ID ?? "");
     setFeed(isTrue(recorded.XNG_FEED_AIRFRAMES, true));
     setChoices(parseModes(recorded.XNG_MODES ?? ""));
@@ -271,13 +274,31 @@ export default function FeedAirframes() {
     });
   }, [devices, choices]);
 
+  // Saved settings for radios that aren't plugged in right now. They are kept on
+  // save so unplugging a radio doesn't lose its mode. Saved modes are never Auto.
+  const absent = useMemo(() => {
+    const present = new Set(devices.map(deviceKey));
+    return Object.entries(choices)
+      .filter(([key, c]) => !present.has(key) && c.mode !== AUTO)
+      .map(([key, choice]) => ({ key, choice }));
+  }, [devices, choices]);
+
   const stationLocation = useMemo(() => {
     const st = config?.station;
     return st && (st.latitude !== 0 || st.longitude !== 0) ? { lat: st.latitude, lon: st.longitude } : null;
   }, [config?.station]);
 
-  const airbandCount = rows.filter((r) => r.effective === "airband").length;
+  const airbandCount =
+    rows.filter((r) => r.effective === "airband").length + absent.filter((a) => a.choice.mode === "airband").length;
   const activeCount = rows.filter((r) => r.effective).length;
+  const anyTurnedOff = rows.some((r) => r.supported && r.choice.mode === OFF);
+
+  const forget = (key: string) =>
+    setChoices((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
   const setChoice = (key: string, patch: Partial<RadioChoice>) =>
     setChoices((prev) => ({ ...prev, [key]: { ...(prev[key] ?? { mode: AUTO, gain: "" }), ...patch } }));
@@ -289,6 +310,7 @@ export default function FeedAirframes() {
         const mode = r.choice.mode === AUTO ? r.suggested : r.choice.mode;
         return `${r.key}=${mode}${r.choice.gain.trim() ? `@${r.choice.gain.trim()}` : ""}`;
       })
+      .concat(absent.map((a) => `${a.key}=${a.choice.mode}${a.choice.gain.trim() ? `@${a.choice.gain.trim()}` : ""}`))
       .join(", ");
     return {
       XNG_STATION_ID: stationId.trim().toUpperCase(),
@@ -299,12 +321,18 @@ export default function FeedAirframes() {
       XNG_ATC_STATION_NAME: atcName.trim(),
       XNG_TRANSCRIBE: String(transcribe),
     };
-  }, [rows, stationId, feed, channels, atcFeed, atcName, transcribe]);
+  }, [rows, absent, stationId, feed, channels, atcFeed, atcName, transcribe]);
 
   const stationValid = /^[A-Z0-9_-]{1,40}$/.test(env.XNG_STATION_ID);
-  const problem = !stationValid
+  const problem = !settingsLoaded
+    ? configFailed
+      ? "Couldn't load the saved settings."
+      : "Loading the saved settings…"
+    : devicesLoading
+      ? "Looking for radios…"
+    : !stationValid
     ? "Enter a station ID (letters, digits, - and _)."
-    : activeCount === 0
+    : activeCount === 0 && !(installed && anyTurnedOff)
       ? "Give at least one radio a mode."
       : airbandCount > 1
         ? "Only one radio can run airband for now."
@@ -435,6 +463,24 @@ export default function FeedAirframes() {
               );
             })
           )}
+          {absent.length > 0 && (
+            <div className="space-y-2 border-t pt-3">
+              <p className="text-sm text-muted-foreground">
+                Saved settings for radios that aren't plugged in. They're kept so the radio picks them up again when it's back.
+              </p>
+              {absent.map((a) => (
+                <div key={a.key} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-mono">
+                    {a.key} · {a.choice.mode}
+                    {a.choice.gain.trim() ? ` @ ${a.choice.gain.trim()}` : ""}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => forget(a.key)}>
+                    Forget
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -475,6 +521,11 @@ export default function FeedAirframes() {
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         {problem && <span className="text-sm text-muted-foreground">{problem}</span>}
+        {!settingsLoaded && configFailed && (
+          <Button variant="outline" onClick={() => refetchConfig()} disabled={configFetching}>
+            <RotateCw className={`mr-2 h-4 w-4 ${configFetching ? "animate-spin" : ""}`} /> Retry
+          </Button>
+        )}
         <Button onClick={save} disabled={!!problem || busy} size="lg">
           {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
           {installed ? "Save and restart xng" : "Start feeding"}
