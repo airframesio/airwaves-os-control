@@ -437,7 +437,7 @@ export default function SystemMonitor() {
                         <div>
                           <div className="font-semibold">{app.name}</div>
                           <div className="text-xs text-muted-foreground truncate max-w-[220px]" title={(app as any).image}>
-                            {(app as any).image ?? `PID: ${Math.floor(Math.random() * 10000) + 1000}`}
+                            {'image' in app ? app.image : `v${app.version}`}
                           </div>
                         </div>
                       </div>

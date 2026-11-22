@@ -125,6 +125,42 @@ const generateInitialData = (): Record<string, NodeData> => {
   return data;
 };
 
+/**
+ * Read demo node state saved by a previous session. Anything malformed is
+ * discarded (the demo starts fresh) instead of stopping the app from mounting.
+ */
+function loadSavedNodeData(): Record<string, NodeData> | null {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem('nodeData');
+    if (!saved) return null;
+    const parsed: unknown = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+    const result: Record<string, NodeData> = {};
+    for (const [nodeId, raw] of Object.entries(parsed as Record<string, Partial<NodeData>>)) {
+      if (!raw || typeof raw !== 'object') continue;
+      result[nodeId] = {
+        apps: (Array.isArray(raw.apps) ? raw.apps : []).map(app => ({
+          ...app,
+          icon: mockApps.find(a => a.id === app.id)?.icon ?? Activity,
+        })),
+        devices: Array.isArray(raw.devices) ? raw.devices : [],
+        feeds: Array.isArray(raw.feeds) ? raw.feeds : [],
+        vehicles: Array.isArray(raw.vehicles) ? raw.vehicles : [],
+      };
+    }
+    return result;
+  } catch (e) {
+    console.warn('Discarding unreadable saved demo state', e);
+    try {
+      localStorage.removeItem('nodeData');
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+}
+
 export function NodeProvider({ children }: { children: ReactNode }) {
   const [activeNodeId, setActiveNodeId] = useState<string>(() => {
     if (!demoModeEnabled) return 'local';
@@ -134,24 +170,8 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const [nodeData, setNodeData] = useState<Record<string, NodeData>>(() => {
     if (!demoModeEnabled) return { local: emptyNodeData };
 
-    const saved = localStorage.getItem('nodeData');
-    if (saved) {
-      const parsed: Record<string, NodeData> = JSON.parse(saved);
-      // Re-hydrate app icons from mockApps since they are lost during JSON serialization
-      Object.keys(parsed).forEach(nodeId => {
-        if (parsed[nodeId].apps) {
-          parsed[nodeId].apps = parsed[nodeId].apps.map(savedApp => {
-            const originalApp = mockApps.find(a => a.id === savedApp.id);
-            if (originalApp) {
-              return { ...savedApp, icon: originalApp.icon };
-            }
-            return savedApp;
-          });
-        }
-      });
-      return parsed;
-    }
-    return generateInitialData();
+    const restored = loadSavedNodeData();
+    return restored ?? generateInitialData();
   });
 
   const [nodes] = useState<Node[]>(demoModeEnabled ? initialNodes : [localNode]);
@@ -183,7 +203,18 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('nodeData', JSON.stringify(nodeData));
+    // Icons are components and cannot be serialized; they are reattached on load.
+    const serializable = Object.fromEntries(
+      Object.entries(nodeData).map(([id, d]) => [
+        id,
+        { ...d, apps: d.apps.map(({ icon: _icon, ...app }) => app) },
+      ]),
+    );
+    try {
+      localStorage.setItem('nodeData', JSON.stringify(serializable));
+    } catch {
+      // Quota or storage disabled: demo state just won't survive a reload.
+    }
   }, [nodeData]);
 
   const activeNode = nodes.find(n => n.id === activeNodeId) || nodes[0];
