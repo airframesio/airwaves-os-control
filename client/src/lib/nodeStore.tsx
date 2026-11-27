@@ -66,7 +66,8 @@ const generateVehicles = (centerLat: number, centerLng: number, count: number, p
           ["992576001", undefined], ["002573000", undefined], ["970123456", undefined],
         ];
         const [mmsi, shipType] = demo[i % demo.length];
-        return { mmsi, shipType };
+        // Aids, base stations and beacons don't move.
+        return { mmsi, shipType, ...(mmsi ? { speed: 0 } : {}) };
       })()
     }))
   ];
