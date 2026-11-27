@@ -54,7 +54,18 @@ const generateVehicles = (centerLat: number, centerLng: number, count: number, p
       speed: 10 + Math.floor(Math.random() * 25),
       alt: undefined,
       source: "Marine Traffic Feed",
-      rssi: -5 - Math.floor(Math.random() * 15)
+      rssi: -5 - Math.floor(Math.random() * 15),
+      // A mix of AIS ship types, an aid to navigation and a base station, so
+      // the demo shows the marine icons.
+      ...(() => {
+        const demo: [string | undefined, number | undefined][] = [
+          [undefined, 70], [undefined, 80], [undefined, 60], [undefined, 30], [undefined, 52], [undefined, 36],
+          [undefined, 37], [undefined, 40], [undefined, 50], [undefined, 51], [undefined, 35], [undefined, 33],
+          ["992576001", undefined], ["002573000", undefined], ["970123456", undefined],
+        ];
+        const [mmsi, shipType] = demo[i % demo.length];
+        return { mmsi, shipType };
+      })()
     }))
   ];
 };

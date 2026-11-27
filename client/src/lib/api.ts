@@ -687,6 +687,10 @@ export interface Vehicle {
   speed: number;
   heading: number;
   source: string;
+  /** Ships: MMSI (its leading digits say what kind of station it is). */
+  mmsi?: string;
+  /** Ships: AIS ship and cargo type code, when known. */
+  ship_type?: number;
 }
 
 export interface TrackingResponse {

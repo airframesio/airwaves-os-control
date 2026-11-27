@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents, Polyline } from "react-leaflet";
 import { divIcon } from "leaflet";
+import { MARINE_ICONS, marineIconKey, marineIconRotates, type MarineIconKey } from "@/lib/marineIcons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,8 +69,10 @@ function MapEvents({ setZoom }: { setZoom: (z: number) => void }) {
 }
 
 // Create custom icon function
-const createVehicleIcon = (type: string, heading: number, zoom: number, isSelected: boolean) => {
+const createVehicleIcon = (type: string, heading: number, zoom: number, isSelected: boolean, marine?: MarineIconKey) => {
   const rotationOffset = type === 'aircraft' ? -45 : 0;
+  // Stations, aids to navigation and beacons stay upright.
+  if (marine && !marineIconRotates(marine)) heading = 0;
   
   // Scale icon size based on zoom
   const baseSize = 24;
@@ -107,7 +110,13 @@ const createVehicleIcon = (type: string, heading: number, zoom: number, isSelect
       }}>
         {zoom < 6 ? (
           // Simple dot for low zoom
-          <div className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : 'bg-emerald-500'} ${isSelected ? 'ring-2 ring-white scale-150' : ''}`} />
+          <div
+            className={`w-2 h-2 rounded-full ${type === 'aircraft' ? 'bg-sky-500' : marine ? '' : 'bg-emerald-500'} ${isSelected ? 'ring-2 ring-white scale-150' : ''}`}
+            style={marine ? { background: MARINE_ICONS[marine].color === 'none' ? '#e8a200' : MARINE_ICONS[marine].color } : undefined}
+          />
+        ) : marine ? (
+          // The Airframes marine icon set: one icon per kind of AIS target.
+          <div style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: MARINE_ICONS[marine].svg.replace('width="32" height="32"', `width="${size}" height="${size}"`) }} />
         ) : (
           type === 'aircraft' ? (
             <Plane 
@@ -193,6 +202,8 @@ export default function Tracking() {
         speed: v.speed,
         heading: v.heading,
         source: v.source,
+        mmsi: v.mmsi,
+        shipType: v.ship_type,
       })));
     } else if (!mockSeededRef.current) {
       setVehicles(data.vehicles || []);
@@ -487,7 +498,7 @@ export default function Tracking() {
             <Marker 
               key={v.id} 
               position={[v.lat, v.lng]} 
-              icon={createVehicleIcon(v.type, v.heading, zoom, isSelected)}
+              icon={createVehicleIcon(v.type, v.heading, zoom, isSelected, v.type === 'ship' ? marineIconKey({ mmsi: v.mmsi ?? v.id, type: v.shipType }) : undefined)}
               eventHandlers={{
                 click: () => {
                   setSelectedVehicleId(v.id);
