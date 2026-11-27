@@ -41,7 +41,9 @@ const generateVehicles = (centerLat: number, centerLng: number, count: number, p
       speed: 150 + Math.floor(Math.random() * 400),
       alt: 5000 + Math.floor(Math.random() * 30000),
       source: "Simulated Feed",
-      rssi: -10 - Math.floor(Math.random() * 20)
+      rssi: -10 - Math.floor(Math.random() * 20),
+      // A mix of aircraft types, so the demo shows the aircraft icons.
+      aircraftType: ["B738", "A321", "B77W", "A388", "E75L", "AT76", "C172", "C25B", "EC35", "BE20", "C17", "F16"][i % 12],
     })),
     ...Array.from({ length: Math.floor(count / 2) }, (_, i) => ({
       id: `${prefix}-M${i + 1}`,
@@ -54,7 +56,19 @@ const generateVehicles = (centerLat: number, centerLng: number, count: number, p
       speed: 10 + Math.floor(Math.random() * 25),
       alt: undefined,
       source: "Marine Traffic Feed",
-      rssi: -5 - Math.floor(Math.random() * 15)
+      rssi: -5 - Math.floor(Math.random() * 15),
+      // A mix of AIS ship types, an aid to navigation and a base station, so
+      // the demo shows the marine icons.
+      ...(() => {
+        const demo: [string | undefined, number | undefined][] = [
+          [undefined, 70], [undefined, 80], [undefined, 60], [undefined, 30], [undefined, 52], [undefined, 36],
+          [undefined, 37], [undefined, 40], [undefined, 50], [undefined, 51], [undefined, 35], [undefined, 33],
+          ["992576001", undefined], ["002573000", undefined], ["970123456", undefined],
+        ];
+        const [mmsi, shipType] = demo[i % demo.length];
+        // Aids, base stations and beacons don't move.
+        return { mmsi, shipType, ...(mmsi ? { speed: 0 } : {}) };
+      })()
     }))
   ];
 };
