@@ -17,6 +17,7 @@ import { useTracking } from "@/hooks/useAirwavesApi";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import DemoBadge from "@/components/DemoBadge";
 import { loadExternalFeeds, parseAircraftJson } from "@/lib/externalFeeds";
+import { formatAltitude, useAltitudeUnit } from "@/lib/altitude";
 
 const FEED_TIMEOUT_MS = 5_000;
 
@@ -151,6 +152,7 @@ export default function Tracking() {
   // Selection is stored by id and the vehicle is looked up on each render, so
   // position updates never need to call a setter from inside another updater.
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const altitudeUnit = useAltitudeUnit();
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
   const [showFlightPath, setShowFlightPath] = useState(false);
@@ -527,8 +529,7 @@ export default function Tracking() {
                       {v.alt && (
                         <span className="flex items-center gap-0.5 ml-2">
                           <Activity className="w-3 h-3" />
-                          <span className="text-foreground font-medium">{Math.round(v.alt/1000)}k</span>
-                          ft
+                          <span className="text-foreground font-medium">{formatAltitude(v.alt, altitudeUnit)}</span>
                         </span>
                       )}
                     </div>
@@ -607,8 +608,16 @@ export default function Tracking() {
                       <CardContent className="p-3 flex items-center justify-between">
                         <div className="text-xs text-muted-foreground uppercase tracking-wider">Altitude</div>
                         <div className="text-xl font-bold font-mono">
-                          {Math.round(selectedVehicle.alt).toLocaleString()}
-                          <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">ft</span>
+                          {(() => {
+                            // "36,000 ft" shows its unit small, like the other cards; "FL360" has none.
+                            const [value, unit] = formatAltitude(selectedVehicle.alt, altitudeUnit).split(" ");
+                            return (
+                              <>
+                                {value}
+                                {unit && <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">{unit}</span>}
+                              </>
+                            );
+                          })()}
                         </div>
                       </CardContent>
                     </Card>
