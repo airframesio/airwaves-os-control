@@ -56,6 +56,15 @@ export function setAltitudeUnit(unit: AltitudeUnit) {
   listeners.forEach((l) => l());
 }
 
+// Another tab changed the setting: pick it up without writing it back.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== STORAGE_KEY && e.key !== null) return;
+    current = load();
+    listeners.forEach((l) => l());
+  });
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
