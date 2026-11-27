@@ -691,6 +691,12 @@ export interface Vehicle {
   mmsi?: string;
   /** Ships: AIS ship and cargo type code, when known. */
   ship_type?: number;
+  /** Ships: length in meters, when known. */
+  length?: number;
+  /** Aircraft: ADS-B emitter category (A1 to C7), when known. */
+  category?: string;
+  /** Aircraft: ICAO type designator, when known. */
+  aircraft_type?: string;
 }
 
 export interface TrackingResponse {
