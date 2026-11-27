@@ -8,6 +8,10 @@ import {
   Monitor, Shield, Network, Loader2, Wifi, WifiOff, Signal,
   Download, Upload, HardDrive, RotateCcw, CheckCircle2, Power, DownloadCloud
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  ALTITUDE_UNITS, altitudeUnitLabel, setAltitudeUnit, useAltitudeUnit, type AltitudeUnit,
+} from "@/lib/altitude";
 import { Link } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +26,7 @@ import { wifiApi, configApi, systemApi, type WifiStatus, type WifiNetwork } from
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 export default function Settings() {
+  const altitudeUnit = useAltitudeUnit();
   const apiAvailable = useApiStatus();
   const { data: config } = useConfig();
   const { data: sysInfo } = useSystemInfo();
@@ -202,6 +207,23 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">Select your preferred color scheme.</p>
               </div>
               <ThemeSwitcher />
+            </div>
+            <Separator className="my-4" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="altitude-unit" className="text-base">Altitude Units</Label>
+                <p className="text-sm text-muted-foreground">How aircraft altitudes are shown on the tracking map. Automatic follows your browser's region.</p>
+              </div>
+              <Select value={altitudeUnit} onValueChange={(v) => setAltitudeUnit(v as AltitudeUnit)}>
+                <SelectTrigger id="altitude-unit" className="w-[200px]" data-testid="select-altitude-unit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALTITUDE_UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>{altitudeUnitLabel(u)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
