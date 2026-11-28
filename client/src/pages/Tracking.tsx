@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Plane, Ship, Navigation, X, Clock, MapPin, Radio, Activity, ArrowUpRight, Eye } from "lucide-react";
+import { Plane, Ship, Navigation, X, Clock, MapPin, Radio, Activity, ArrowUpRight, Eye, Crosshair } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useTheme } from "next-themes";
@@ -23,10 +23,34 @@ import { formatAltitude, useAltitudeUnit } from "@/lib/altitude";
 
 const FEED_TIMEOUT_MS = 5_000;
 
-// Helper to generate simulated path
-// Helper component to update map center
-function MapUpdater({ selectedVehicle, activeNodeLocation }: { selectedVehicle: { lat: number, lng: number } | null, activeNodeLocation: { lat: number, lng: number } }) {
-  const map = useMapEvents({});
+// Helper component to update map center. Selecting a vehicle centers it
+// once; Track keeps it centered as it moves (only the center changes, so the
+// zoom stays), and panning the map stops tracking.
+function MapUpdater({
+  selectedVehicle,
+  activeNodeLocation,
+  tracking,
+  onStopTracking,
+}: {
+  selectedVehicle: { id: string; lat: number; lng: number } | null;
+  activeNodeLocation: { lat: number; lng: number };
+  tracking: boolean;
+  onStopTracking: () => void;
+}) {
+  const trackingRef = useRef(tracking);
+  trackingRef.current = tracking;
+  const stop = useRef(onStopTracking);
+  stop.current = onStopTracking;
+  const map = useMapEvents({
+    // A drag pans; pinch zoom doesn't start one.
+    dragstart: () => {
+      if (trackingRef.current) stop.current();
+    },
+    // The arrow keys pan too.
+    keydown: (e) => {
+      if (trackingRef.current && e.originalEvent.key.startsWith("Arrow")) stop.current();
+    },
+  });
   const prevNodeLoc = useRef(activeNodeLocation);
 
   // Effect to move to node location when it changes
@@ -40,21 +64,29 @@ function MapUpdater({ selectedVehicle, activeNodeLocation }: { selectedVehicle: 
     }
   }, [activeNodeLocation, map]);
   
-  // Effect to follow selected vehicle
+  // While tracking, scroll and pinch zoom around the middle, so the vehicle stays put.
   useEffect(() => {
-    if (selectedVehicle) {
-      // Calculate offset based on sidebar width (320px + padding)
-      const sidebarOffset = 168; // 336px / 2
-      const targetPoint = map.project([selectedVehicle.lat, selectedVehicle.lng], map.getZoom());
-      const newCenterPoint = targetPoint.add([sidebarOffset, 0]);
-      const newCenter = map.unproject(newCenterPoint, map.getZoom());
+    map.options.scrollWheelZoom = tracking ? "center" : true;
+    map.options.touchZoom = tracking ? "center" : true;
+  }, [tracking, map]);
 
-      map.setView(newCenter, map.getZoom(), {
-        animate: true,
-        duration: 0.1 // Short duration for smoother following
-      });
+  // Center the selected vehicle (in the part of the map left of the details
+  // panel): once when it is selected, and on every move while tracking.
+  const centeredId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedVehicle) {
+      centeredId.current = null;
+      return;
     }
-  }, [selectedVehicle, map]);
+    const isNew = centeredId.current !== selectedVehicle.id;
+    if (!isNew && !tracking) return;
+    centeredId.current = selectedVehicle.id;
+    // Half the details panel (320px + padding).
+    const sidebarOffset = 168;
+    const targetPoint = map.project([selectedVehicle.lat, selectedVehicle.lng], map.getZoom());
+    const newCenter = map.unproject(targetPoint.add([sidebarOffset, 0]), map.getZoom());
+    map.panTo(newCenter, { animate: true, duration: isNew ? 0.5 : 0.25 });
+  }, [selectedVehicle, tracking, map]);
 
   return null;
 }
@@ -197,6 +229,9 @@ export default function Tracking() {
   // Selection is stored by id and the vehicle is looked up on each render, so
   // position updates never need to call a setter from inside another updater.
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  // Track: keep the selected vehicle centered as it moves; a pan, another selection or closing it stops it.
+  const [tracking, setTracking] = useState(false);
+  useEffect(() => setTracking(false), [selectedVehicleId]);
   const altitudeUnit = useAltitudeUnit();
   const [hoveredVehicleId, setHoveredVehicleId] = useState<string | null>(null);
   const [flightPath, setFlightPath] = useState<[number, number][]>([]);
@@ -488,7 +523,7 @@ export default function Tracking() {
           key={currentTheme} // Force re-render on theme change
         >
           <MapEvents setZoom={setZoom} />
-          <MapUpdater selectedVehicle={selectedVehicle} activeNodeLocation={activeNode.location} />
+          <MapUpdater selectedVehicle={selectedVehicle} activeNodeLocation={activeNode.location} tracking={tracking} onStopTracking={() => setTracking(false)} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url={tileLayer}
@@ -718,8 +753,17 @@ export default function Tracking() {
                   </div>
                 </div>
 
-                {/* Simulated Flight Path (Placeholder) */}
-                <div className="pt-2">
+                {/* Track and flight path */}
+                <div className="pt-2 space-y-2">
+                  <Button
+                    variant={tracking ? "default" : "outline"}
+                    className="w-full gap-2 text-xs h-9"
+                    aria-pressed={tracking}
+                    title={tracking ? "Stop tracking" : "Keep it centered as it moves (panning the map stops it)"}
+                    onClick={() => setTracking(!tracking)}
+                  >
+                    <Crosshair className="w-3 h-3" /> {tracking ? "Tracking" : "Track"}
+                  </Button>
                   <Button 
                     variant={showFlightPath ? "secondary" : "outline"} 
                     className="w-full gap-2 text-xs h-9"
