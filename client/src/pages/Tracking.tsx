@@ -50,7 +50,22 @@ function MapUpdater({
     keydown: (e) => {
       if (trackingRef.current && e.originalEvent.key.startsWith("Arrow")) stop.current();
     },
+    // A zoom around the middle keeps the map's center, not the vehicle's
+    // offset beside the details panel: put the vehicle back where it was.
+    zoomend: () => {
+      if (trackingRef.current && vehicleRef.current) centerOn(vehicleRef.current, false);
+    },
   });
+  const vehicleRef = useRef(selectedVehicle);
+  vehicleRef.current = selectedVehicle;
+  // Centers the vehicle in the part of the map left of the details panel.
+  const centerOn = (v: { lat: number; lng: number }, animate: boolean, duration = 0.25) => {
+    // Half the details panel (320px + padding).
+    const sidebarOffset = 168;
+    const targetPoint = map.project([v.lat, v.lng], map.getZoom());
+    const newCenter = map.unproject(targetPoint.add([sidebarOffset, 0]), map.getZoom());
+    map.panTo(newCenter, { animate, duration });
+  };
   const prevNodeLoc = useRef(activeNodeLocation);
 
   // Effect to move to node location when it changes
@@ -81,11 +96,7 @@ function MapUpdater({
     const isNew = centeredId.current !== selectedVehicle.id;
     if (!isNew && !tracking) return;
     centeredId.current = selectedVehicle.id;
-    // Half the details panel (320px + padding).
-    const sidebarOffset = 168;
-    const targetPoint = map.project([selectedVehicle.lat, selectedVehicle.lng], map.getZoom());
-    const newCenter = map.unproject(targetPoint.add([sidebarOffset, 0]), map.getZoom());
-    map.panTo(newCenter, { animate: true, duration: isNew ? 0.5 : 0.25 });
+    centerOn(selectedVehicle, true, isNew ? 0.5 : 0.25);
   }, [selectedVehicle, tracking, map]);
 
   return null;
